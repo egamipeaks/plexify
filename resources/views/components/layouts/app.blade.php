@@ -12,9 +12,7 @@
     <div class="flex flex-col gap-2 p-2 h-screen w-screen">
         {{-- Topbar region --}}
         <div class="flex-none">
-            <div class="bg-surface rounded-lg h-16 flex items-center px-6">
-                <span class="text-text-2 text-sm">[topbar placeholder]</span>
-            </div>
+            <livewire:topbar />
         </div>
 
         {{-- Middle region: sidebar + main --}}
