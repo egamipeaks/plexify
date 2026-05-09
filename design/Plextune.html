@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Plextune</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base: '#000000',
+          surface: '#121212',
+          'surface-1': '#181818',
+          'surface-2': '#242424',
+          'surface-3': '#2a2a2a',
+          'surface-4': '#3e3e3e',
+          accent: '#1ED760',
+          'accent-hover': '#3BE477',
+          'accent-press': '#169c46',
+          'text-2': '#b3b3b3',
+          'text-3': '#7a7a7a',
+        },
+        fontFamily: { sans: ['DM Sans', 'system-ui', 'sans-serif'] },
+      },
+    },
+  };
+</script>
+<style>
+  html, body { background: #000; color: #fff; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  /* slim scrollbar */
+  .scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+  .scroll::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  .scroll::-webkit-scrollbar-thumb:hover { background: #6a6a6a; border: 3px solid transparent; background-clip: content-box; }
+  .scroll::-webkit-scrollbar-track { background: transparent; }
+
+  /* eq bars */
+  .eq { display: inline-flex; gap: 2px; align-items: end; height: 14px; width: 14px; }
+  .eq span { width: 2.5px; background: #1ED760; border-radius: 1px; animation: eqAnim 0.9s ease-in-out infinite; }
+  .eq span:nth-child(1) { animation-delay: 0.0s; height: 60%; }
+  .eq span:nth-child(2) { animation-delay: 0.2s; height: 100%; }
+  .eq span:nth-child(3) { animation-delay: 0.4s; height: 40%; }
+  .eq span:nth-child(4) { animation-delay: 0.1s; height: 80%; }
+  @keyframes eqAnim { 0%,100% { transform: scaleY(0.4); transform-origin: bottom; } 50% { transform: scaleY(1); transform-origin: bottom; } }
+
+  /* track row hover reveals play */
+  .row .row-num { display: block; }
+  .row .row-play { display: none; }
+  .row:hover .row-num { display: none; }
+  .row:hover .row-play { display: block; }
+  .row .row-actions { opacity: 0; }
+  .row:hover .row-actions, .row.is-playing .row-actions { opacity: 1; }
+  .row .row-like { opacity: 0; }
+  .row:hover .row-like, .row.is-liked .row-like { opacity: 1; }
+
+  /* dropzone pulse */
+  @keyframes dropPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(30,215,96,0.5); } 50% { box-shadow: 0 0 0 6px rgba(30,215,96,0); } }
+  .dropzone { animation: dropPulse 1.6s ease-in-out infinite; }
+
+  /* Tail-ed circles for now-playing pulse */
+  .pulse-dot { position: relative; }
+  .pulse-dot::after { content:''; position:absolute; inset:-4px; border-radius:999px; border:2px solid #1ED760; opacity:0.6; animation: ringPulse 1.6s ease-out infinite; }
+  @keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.4); opacity: 0; } }
+
+  /* Subtle gradient bg for app shell */
+  .app-shell { background: linear-gradient(180deg, #000 0%, #0a0a0a 100%); }
+
+  /* Album art tile pattern */
+  .art-shape { position: absolute; border-radius: 999px; mix-blend-mode: overlay; }
+
+  /* Card hover */
+  .lift:hover { transform: translateY(-2px); }
+  .lift { transition: transform .18s ease; }
+
+  /* Highlighted dropzone state in playlists */
+  .playlist-row.drop-active {
+    background: rgba(30,215,96,0.12);
+    outline: 1.5px dashed #1ED760;
+    outline-offset: -2px;
+  }
+</style>
+</head>
+<body class="bg-black text-white">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="plextune-icons.jsx"></script>
+<script type="text/babel" src="plextune-data.jsx"></script>
+<script type="text/babel" src="plextune-parts.jsx"></script>
+<script type="text/babel" src="plextune-views.jsx" data-v="2"></script>
+<script type="text/babel" src="plextune-settings.jsx"></script>
+<script type="text/babel" src="plextune-app.jsx"></script>
+
+</body>
+</html>
