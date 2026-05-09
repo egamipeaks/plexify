@@ -29,7 +29,9 @@
 
         {{-- Player region --}}
         <div class="flex-none">
-            <livewire:player />
+            @persist('player')
+                <livewire:player />
+            @endpersist
         </div>
     </div>
 

@@ -66,15 +66,16 @@ new class extends Component {
                class="flex-1 accent-white">
     </div>
 
-    {{-- The persistent audio element --}}
-    @persist('audio')
-        <audio x-ref="audio"
-               @timeupdate="currentTime = $event.target.currentTime"
-               @loadedmetadata="duration = $event.target.duration"
-               @play="isPlaying = true"
-               @pause="isPlaying = false"
-               @ended="isPlaying = false"></audio>
-    @endpersist
+    {{-- The audio element. Persistence across wire:navigate is handled by
+         @persist('player') in the layout, NOT here — wrapping just <audio>
+         in its own @persist re-parents it out of the Alpine x-data scope,
+         breaking $refs.audio. --}}
+    <audio x-ref="audio"
+           @timeupdate="currentTime = $event.target.currentTime"
+           @loadedmetadata="duration = $event.target.duration"
+           @play="isPlaying = true"
+           @pause="isPlaying = false"
+           @ended="isPlaying = false"></audio>
 </div>
 
 @script
