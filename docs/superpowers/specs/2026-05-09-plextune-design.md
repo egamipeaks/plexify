@@ -54,7 +54,7 @@ The layout (`resources/views/components/layouts/app.blade.php`) is a plain Blade
 └─────────────────────────────────────┘
 ```
 
-`topbar`, `sidebar`, and `player` live in the layout. In Livewire 4 every component is an island by default, so they do not re-render when the main view changes. The `<audio>` element inside the player is wrapped in `@persist('audio')` so it survives DOM morphs from `wire:navigate`.
+`topbar`, `sidebar`, and `player` live in the layout. In Livewire 4 every component is an island by default, so they do not re-render when the main view changes. The entire `<livewire:player />` is wrapped in `@persist('player')` in the layout so its DOM, Livewire state, and Alpine state all survive `wire:navigate` morphs. Wrapping only the inner `<audio>` element is incorrect because it does not preserve Livewire component state and re-parents the audio out of the player's Alpine `x-data` scope (breaking `$refs`).
 
 Sidebar nav links use `wire:navigate`. The URL changes properly (back/forward, deep-linking) but transitions feel SPA-fast.
 
@@ -78,7 +78,7 @@ Route::livewire('/settings', 'pages::settings')->name('settings');
   Two stacked cards (top nav, playlists/folders) plus server chip. Owns folder DnD logic, persists folder/playlist mutations via Eloquent. Server chip shows live connection status.
 
 - `player` (`resources/views/components/livewire/⚡player.blade.php`)
-  Now-playing info, transport buttons, scrubber, volume, queue. Wraps `<audio>` in `@persist('audio')`. Most logic is Alpine (transport, scrubber position, volume changes); Livewire handles "load this track URL" via `#[On('play-track')]` and queue mutations.
+  Now-playing info, transport buttons, scrubber, volume, queue. The whole component is wrapped in `@persist('player')` at the layout level so its `<audio>` element, Livewire state, and Alpine `x-data` scope all survive `wire:navigate`. Most logic is Alpine (transport, scrubber position, volume changes); Livewire handles "load this track URL" via `#[On('play-track')]` and queue mutations.
 
 **Routed view components** (`resources/views/pages/`):
 
@@ -200,7 +200,7 @@ Add `tests/Browser/Screenshots` to `.gitignore`.
 
 Cover only load-bearing flows:
 
-1. **Audio persistence across navigation** — play track, switch views, confirm audio still playing. Validates the `@persist('audio')` + island architecture.
+1. **Audio persistence across navigation** — play track, switch views, confirm audio still playing. Validates the `@persist('player')` + island architecture.
 2. **Miller column drill-down** — artist click loads albums, album click loads tracks. Validates island re-render isolation.
 3. **Drag track onto playlist** — uses Playwright's native drag support. Validates optimistic UI + persistence path.
 4. **Search redirect and debounce** — type into topbar, URL becomes `/search?q=...`, results render.

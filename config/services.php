@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'plex' => [
+        'token' => env('PLEX_TOKEN'),
+        'base_url' => env('PLEX_BASE_URL'),
+    ],
+
 ];
