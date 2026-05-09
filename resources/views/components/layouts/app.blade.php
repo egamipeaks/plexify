@@ -29,9 +29,7 @@
 
         {{-- Player region --}}
         <div class="flex-none">
-            <div class="bg-surface rounded-lg h-[72px] flex items-center px-4">
-                <span class="text-text-2 text-sm">[player placeholder]</span>
-            </div>
+            <livewire:player />
         </div>
     </div>
 
