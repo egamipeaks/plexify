@@ -20,9 +20,7 @@
         {{-- Middle region: sidebar + main --}}
         <div class="flex gap-2 flex-1 min-h-0">
             <aside class="w-[280px] flex-none">
-                <div class="bg-surface rounded-lg h-full p-4">
-                    <span class="text-text-2 text-sm">[sidebar placeholder]</span>
-                </div>
+                <livewire:sidebar />
             </aside>
             <main class="flex-1 min-w-0">
                 <div class="bg-surface rounded-lg h-full overflow-auto">
