@@ -33,10 +33,10 @@ This milestone creates the following files:
 - `resources/views/pages/⚡playlist-detail.blade.php` (stub: "Playlist {id}")
 - `resources/views/pages/⚡settings.blade.php` (stub: "Settings")
 
-**Persistent Livewire components** (paths confirmed by `php artisan make:livewire`):
-- `resources/views/livewire/⚡topbar.blade.php`
-- `resources/views/livewire/⚡sidebar.blade.php`
-- `resources/views/livewire/⚡player.blade.php`
+**Persistent Livewire components** (Livewire 4 `make:livewire` defaults to `resources/views/components/`):
+- `resources/views/components/⚡topbar.blade.php`
+- `resources/views/components/⚡sidebar.blade.php`
+- `resources/views/components/⚡player.blade.php`
 
 **Routes:**
 - `routes/web.php` (four `Route::livewire()` declarations)
@@ -948,15 +948,16 @@ new class extends Component {
                class="flex-1 accent-white">
     </div>
 
-    {{-- The persistent audio element --}}
-    @persist('audio')
-        <audio x-ref="audio"
-               @timeupdate="currentTime = $event.target.currentTime"
-               @loadedmetadata="duration = $event.target.duration"
-               @play="isPlaying = true"
-               @pause="isPlaying = false"
-               @ended="isPlaying = false"></audio>
-    @endpersist
+    {{-- The audio element. Persistence across wire:navigate is handled by
+         @persist('player') in the layout, NOT here — wrapping just <audio>
+         in its own @persist re-parents it out of the Alpine x-data scope,
+         breaking $refs.audio. --}}
+    <audio x-ref="audio"
+           @timeupdate="currentTime = $event.target.currentTime"
+           @loadedmetadata="duration = $event.target.duration"
+           @play="isPlaying = true"
+           @pause="isPlaying = false"
+           @ended="isPlaying = false"></audio>
 </div>
 
 @script
@@ -1007,17 +1008,21 @@ new class extends Component {
 @endscript
 ```
 
-Note: `@persist('audio')` keeps the audio element across `wire:navigate` DOM swaps. Livewire's `$this->dispatch('audio-load', ...)` surfaces as a native `CustomEvent` on `window` with the payload available at `event.detail`. (Event names use kebab-case for Livewire/Alpine compatibility.)
+Note: persistence across `wire:navigate` is handled by `@persist('player')` wrapped around `<livewire:player />` in the layout (Step 5), NOT by wrapping the `<audio>` element here. Wrapping only the audio element in its own `@persist` re-parents it out of the Alpine `x-data` scope and breaks `$refs.audio`. Livewire's `$this->dispatch('audio-load', ...)` surfaces as a native `CustomEvent` on `window` with the payload available at `event.detail`. (Event names use kebab-case for Livewire/Alpine compatibility.)
 
-- [ ] **Step 5: Replace the player placeholder in the layout**
+- [ ] **Step 5: Replace the player placeholder in the layout (with @persist)**
 
 Edit `resources/views/components/layouts/app.blade.php`. Find the player `<div class="flex-none">` block at the bottom and replace with:
 
 ```blade
 <div class="flex-none">
-    <livewire:player />
+    @persist('player')
+        <livewire:player />
+    @endpersist
 </div>
 ```
+
+`@persist('player')` keeps the entire player component (DOM, Livewire state, and Alpine state) alive across `wire:navigate` page changes. Without this wrapper, the player Livewire component re-mounts on every navigation with empty defaults and loses the now-playing track.
 
 - [ ] **Step 6: Run tests**
 
