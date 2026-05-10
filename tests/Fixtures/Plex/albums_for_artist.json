@@ -1,0 +1,25 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "1001",
+        "title": "22, A Million",
+        "parentTitle": "Bon Iver",
+        "year": 2016,
+        "thumb": "/library/metadata/1001/thumb/1700000000",
+        "leafCount": 10,
+        "duration": 2160000
+      },
+      {
+        "ratingKey": "1002",
+        "title": "i,i",
+        "parentTitle": "Bon Iver",
+        "year": 2019,
+        "thumb": "/library/metadata/1002/thumb/1700000001",
+        "leafCount": 13,
+        "duration": 2520000
+      }
+    ]
+  }
+}

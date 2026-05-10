@@ -1,0 +1,33 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "9001",
+        "title": "22 (OVER S∞∞N)",
+        "grandparentTitle": "Bon Iver",
+        "parentTitle": "22, A Million",
+        "index": 1,
+        "duration": 169000,
+        "Media": [{
+          "audioCodec": "flac",
+          "container": "flac",
+          "Part": [{"id": 9001001, "key": "/library/parts/9001001/1700000000/file.flac", "container": "flac"}]
+        }]
+      },
+      {
+        "ratingKey": "9002",
+        "title": "10 d E A T h b R E a s T ⚄⚄",
+        "grandparentTitle": "Bon Iver",
+        "parentTitle": "22, A Million",
+        "index": 2,
+        "duration": 240000,
+        "Media": [{
+          "audioCodec": "flac",
+          "container": "flac",
+          "Part": [{"id": 9001002, "key": "/library/parts/9001002/1700000000/file.flac", "container": "flac"}]
+        }]
+      }
+    ]
+  }
+}

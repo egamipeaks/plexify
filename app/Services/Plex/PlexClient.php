@@ -2,7 +2,9 @@
 
 namespace App\Services\Plex;
 
+use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
@@ -64,6 +66,42 @@ class PlexClient
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Artist::fromPlex($row));
+        });
+    }
+
+    public function albumsForArtist(string $artistId): Collection
+    {
+        return $this->cache->remember("albums:{$artistId}", PlexCache::TTL_ALBUMS, function () use ($artistId) {
+            $response = $this->server()->get("/library/metadata/{$artistId}/children");
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException("Artist {$artistId} not found.");
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException("albumsForArtist returned {$response->status()}");
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Album::fromPlex($row));
+        });
+    }
+
+    public function tracksForAlbum(string $albumId): Collection
+    {
+        return $this->cache->remember("tracks:{$albumId}", PlexCache::TTL_TRACKS, function () use ($albumId) {
+            $response = $this->server()->get("/library/metadata/{$albumId}/children");
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException("Album {$albumId} not found.");
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException("tracksForAlbum returned {$response->status()}");
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Track::fromPlex($row));
         });
     }
 

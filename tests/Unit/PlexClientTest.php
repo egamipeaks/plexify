@@ -152,3 +152,34 @@ it('caches the artists list', function () {
 
     Http::assertSentCount(3); // resources + sections + artists, no second artists call
 });
+
+it('lists albums for an artist by ratingKey', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/100/children*' => Http::response(file_get_contents(fixturePath('albums_for_artist.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $albums = $client->albumsForArtist('100');
+
+    expect($albums)->toHaveCount(2);
+    expect($albums->first()->title)->toBe('22, A Million');
+    expect($albums->first()->year)->toBe(2016);
+    expect($albums->first()->trackCount)->toBe(10);
+});
+
+it('lists tracks for an album by ratingKey', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/1001/children*' => Http::response(file_get_contents(fixturePath('tracks_for_album.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $tracks = $client->tracksForAlbum('1001');
+
+    expect($tracks)->toHaveCount(2);
+    expect($tracks->first()->title)->toBe('22 (OVER S∞∞N)');
+    expect($tracks->first()->trackNumber)->toBe(1);
+    expect($tracks->first()->partId)->toBe(9001001);
+    expect($tracks->first()->container)->toBe('flac');
+});
