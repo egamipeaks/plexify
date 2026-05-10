@@ -126,6 +126,25 @@ class PlexClient
         });
     }
 
+    public function playlistTracks(string $playlistId): Collection
+    {
+        return $this->cache->remember("playlist:{$playlistId}:items", PlexCache::TTL_PLAYLISTS, function () use ($playlistId) {
+            $response = $this->server()->get("/playlists/{$playlistId}/items");
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException("Playlist {$playlistId} not found.");
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException("playlistTracks returned {$response->status()}");
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Track::fromPlex($row))
+                ->values();
+        });
+    }
+
     public function searchAll(string $query): SearchResults
     {
         $query = trim($query);

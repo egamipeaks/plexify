@@ -1,0 +1,31 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "8001",
+        "title": "Holocene",
+        "grandparentTitle": "Bon Iver",
+        "parentTitle": "Bon Iver, Bon Iver",
+        "index": 6,
+        "duration": 337000,
+        "thumb": "/library/metadata/8001/thumb/1700000010",
+        "Media": [
+          { "Part": [ { "id": 770001, "container": "flac" } ] }
+        ]
+      },
+      {
+        "ratingKey": "8002",
+        "title": "Skinny Love",
+        "grandparentTitle": "Bon Iver",
+        "parentTitle": "For Emma, Forever Ago",
+        "index": 3,
+        "duration": 238000,
+        "thumb": "/library/metadata/8002/thumb/1700000011",
+        "Media": [
+          { "Part": [ { "id": 770002, "container": "flac" } ] }
+        ]
+      }
+    ]
+  }
+}

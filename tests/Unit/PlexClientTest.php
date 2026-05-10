@@ -386,3 +386,42 @@ it('maps a 500 from /playlists to PlexUnreachableException', function () {
 
     expect(fn () => $client->playlists())->toThrow(PlexUnreachableException::class);
 });
+
+it('lists the tracks of a playlist by ratingKey', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242/items*' => Http::response(file_get_contents(fixturePath('playlist_items.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $tracks = $client->playlistTracks('4242');
+
+    expect($tracks)->toHaveCount(2)
+        ->and($tracks->first()->title)->toBe('Holocene')
+        ->and($tracks->first()->artist)->toBe('Bon Iver')
+        ->and($tracks->first()->album)->toBe('Bon Iver, Bon Iver')
+        ->and($tracks->first()->partId)->toBe(770001)
+        ->and($tracks->first()->container)->toBe('flac');
+});
+
+it('maps a 404 from /playlists/{id}/items to PlexNotFoundException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/999/items*' => Http::response('not found', 404),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->playlistTracks('999'))->toThrow(PlexNotFoundException::class);
+});
+
+it('maps a 500 from /playlists/{id}/items to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242/items*' => Http::response('boom', 500),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->playlistTracks('4242'))->toThrow(PlexUnreachableException::class);
+});
