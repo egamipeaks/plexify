@@ -884,13 +884,15 @@ public function musicSectionId(): int
 
 private function server(): PendingRequest
 {
+    // No ->throw() — Laravel's HTTP client does NOT auto-throw on 4xx/5xx by
+    // default, so we inspect $response->status() ourselves. (->throw(false) is
+    // a TypeError in this Laravel version; throw() only accepts ?callable.)
     return Http::baseUrl($this->baseUrl())
         ->acceptJson()
         ->withHeaders([
             'X-Plex-Token' => $this->token(),
             'X-Plex-Client-Identifier' => 'plexify',
-        ])
-        ->throw(false);
+        ]);
 }
 ```
 
