@@ -8,24 +8,21 @@ use App\Services\Plex\PlexClient;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    #[Url(as: 'artist', except: null)]
     public ?string $selectedArtistId = null;
+
+    #[Url(as: 'album', except: null)]
     public ?string $selectedAlbumId = null;
+
     public ?string $errorMessage = null;
 
-    public function mount(PlexClient $plex, ?string $artist = null, ?string $album = null): void
+    public function mount(PlexClient $plex): void
     {
         $this->loadArtists($plex);
-
-        if (! empty($artist)) {
-            $this->selectedArtistId = $artist;
-        }
-
-        if (! empty($album)) {
-            $this->selectedAlbumId = $album;
-        }
     }
 
     public function selectArtist(string $id): void

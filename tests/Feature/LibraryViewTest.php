@@ -124,7 +124,8 @@ it('preselects an artist passed as a query parameter', function () {
         $mock->shouldReceive('tracksForAlbum')->andReturn(collect());
     });
 
-    Livewire::test('pages::library', ['artist' => '100'])
+    Livewire::withQueryParams(['artist' => '100'])
+        ->test('pages::library')
         ->assertSet('selectedArtistId', '100')
         ->assertSee('22, A Million');
 });
@@ -143,20 +144,21 @@ it('preselects both artist and album passed as query parameters', function () {
         $mock->shouldReceive('thumbUrl')->andReturnNull();
     });
 
-    Livewire::test('pages::library', ['artist' => '100', 'album' => '1001'])
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
         ->assertSet('selectedArtistId', '100')
         ->assertSet('selectedAlbumId', '1001')
         ->assertSee('715 - CRΣΣKS');
 });
 
-it('ignores empty artist/album query parameters', function () {
+it('starts with no selection when no query parameters present', function () {
     $this->mock(PlexClient::class, function ($mock) {
         $mock->shouldReceive('artists')->andReturn(collect([
             new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
         ]));
     });
 
-    Livewire::test('pages::library', ['artist' => '', 'album' => ''])
+    Livewire::test('pages::library')
         ->assertSet('selectedArtistId', null)
         ->assertSet('selectedAlbumId', null);
 });
