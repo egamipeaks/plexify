@@ -4,6 +4,11 @@ use Livewire\Component;
 
 new class extends Component {
     public string $query = '';
+
+    public function updatedQuery(): void
+    {
+        $this->redirectRoute('search', ['q' => $this->query], navigate: true);
+    }
 };
 ?>
 
