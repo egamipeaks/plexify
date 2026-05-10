@@ -1,0 +1,74 @@
+{
+  "MediaContainer": {
+    "size": 6,
+    "Hub": [
+      {
+        "title": "Shows",
+        "type": "show",
+        "hubIdentifier": "show",
+        "size": 1,
+        "Metadata": [
+          { "ratingKey": "7895", "type": "show", "title": "The Office (US)" }
+        ]
+      },
+      {
+        "title": "Artists",
+        "type": "artist",
+        "hubIdentifier": "artist",
+        "size": 2,
+        "Metadata": [
+          { "ratingKey": "53843", "type": "artist", "title": "Bon Iver", "thumb": "/library/metadata/53843/thumb/1", "childCount": 5 },
+          { "ratingKey": "53999", "type": "artist", "title": "Bon Jovi", "childCount": 12 }
+        ]
+      },
+      {
+        "title": "Albums",
+        "type": "album",
+        "hubIdentifier": "album",
+        "size": 2,
+        "Metadata": [
+          { "ratingKey": "58120", "type": "album", "title": "For Emma, Forever Ago", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2007, "thumb": "/library/metadata/58120/thumb/1" },
+          { "ratingKey": "58200", "type": "album", "title": "i,i", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2019, "thumb": "/library/metadata/58200/thumb/1" }
+        ]
+      },
+      {
+        "title": "Movies",
+        "type": "movie",
+        "hubIdentifier": "movie",
+        "size": 1,
+        "Metadata": [
+          { "ratingKey": "1001", "type": "movie", "title": "Bon Cop, Bad Cop" }
+        ]
+      },
+      {
+        "title": "Tracks",
+        "type": "track",
+        "hubIdentifier": "track",
+        "size": 2,
+        "Metadata": [
+          { "ratingKey": "53268", "type": "track", "title": "Holocene", "grandparentTitle": "Bon Iver", "parentTitle": "Bon Iver, Bon Iver", "duration": 337000, "thumb": "/library/metadata/53268/thumb/1", "Media": [{ "Part": [{ "id": 660001, "container": "flac" }] }] },
+          { "ratingKey": "53269", "type": "track", "title": "Skinny Love", "grandparentTitle": "Bon Iver", "parentTitle": "For Emma, Forever Ago", "duration": 238000, "thumb": "/library/metadata/53269/thumb/1", "Media": [{ "Part": [{ "id": 660002, "container": "mp3" }] }] }
+        ]
+      },
+      {
+        "title": "Playlists",
+        "type": "playlist",
+        "hubIdentifier": "playlist",
+        "size": 2,
+        "Metadata": [
+          { "ratingKey": "4242", "type": "playlist", "title": "Bon Voyage", "leafCount": 18, "duration": 4200000, "composite": "/playlists/4242/composite/1", "playlistType": "audio" },
+          { "ratingKey": "4243", "type": "playlist", "title": "Bon Appetit (Video)", "leafCount": 7, "duration": 1600000, "playlistType": "video" }
+        ]
+      },
+      {
+        "title": "Genres",
+        "type": "genre",
+        "hubIdentifier": "genre",
+        "size": 1,
+        "Directory": [
+          { "key": "/library/sections/6/genre/12", "title": "Indie Folk" }
+        ]
+      }
+    ]
+  }
+}

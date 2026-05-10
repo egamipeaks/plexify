@@ -4,6 +4,8 @@ namespace App\Services\Plex;
 
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\Playlist;
+use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexNotFoundException;
@@ -103,6 +105,45 @@ class PlexClient
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Track::fromPlex($row));
         });
+    }
+
+    public function searchAll(string $query): SearchResults
+    {
+        $query = trim($query);
+
+        if ($query === '') {
+            return SearchResults::empty();
+        }
+
+        try {
+            $response = $this->server()->get('/hubs/search', [
+                'query' => $query,
+                'limit' => 30,
+            ]);
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Plex search failed: ' . $e->getMessage(), previous: $e);
+        }
+
+        if ($response->status() === 401 || $response->status() === 403) {
+            throw new PlexAuthException('Plex rejected the search request (status ' . $response->status() . ').');
+        }
+
+        if (! $response->successful()) {
+            throw new PlexUnreachableException('hubs/search returned ' . $response->status());
+        }
+
+        $hubs = collect(data_get($response->json(), 'MediaContainer.Hub', []));
+        $metadata = fn (string $type) => collect(data_get($hubs->firstWhere('type', $type), 'Metadata', []));
+
+        return new SearchResults(
+            tracks: $metadata('track')->map(fn (array $row) => Track::fromPlex($row))->values(),
+            artists: $metadata('artist')->map(fn (array $row) => Artist::fromPlex($row))->values(),
+            albums: $metadata('album')->map(fn (array $row) => Album::fromPlex($row))->values(),
+            playlists: $metadata('playlist')
+                ->filter(fn (array $row) => ($row['playlistType'] ?? 'audio') === 'audio')
+                ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->values(),
+        );
     }
 
     public function streamUrl(Track $track): string

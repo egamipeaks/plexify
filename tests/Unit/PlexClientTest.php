@@ -1,8 +1,10 @@
 <?php
 
+use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -254,4 +256,88 @@ it('reports unreachable when /identity fails', function () {
 
     expect($status['reachable'])->toBeFalse();
     expect($status['connection'])->toBe('down');
+});
+
+it('searches /hubs/search and parses only the music hubs', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake([
+        'https://server.plex.direct:32400/hubs/search*' => Http::response(
+            file_get_contents(fixturePath('hubs_search.json')),
+            200,
+            ['Content-Type' => 'application/json'],
+        ),
+    ]);
+
+    $results = app(PlexClient::class)->searchAll('bon');
+
+    expect($results)->toBeInstanceOf(SearchResults::class)
+        ->and($results->artists)->toHaveCount(2)
+        ->and($results->albums)->toHaveCount(2)
+        ->and($results->tracks)->toHaveCount(2)
+        ->and($results->playlists)->toHaveCount(1); // playlistType: "video" filtered out
+
+    expect($results->artists->first()->name)->toBe('Bon Iver')
+        ->and($results->artists->first()->albumCount)->toBe(5)
+        ->and($results->albums->first()->artistId)->toBe('53843')
+        ->and($results->tracks->first()->title)->toBe('Holocene')
+        ->and($results->tracks->first()->artist)->toBe('Bon Iver')
+        ->and($results->tracks->first()->partId)->toBe(660001)
+        ->and($results->tracks->first()->thumb)->toBe('/library/metadata/53268/thumb/1')
+        ->and($results->playlists->first()->title)->toBe('Bon Voyage')
+        ->and($results->playlists->first()->trackCount)->toBe(18);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/hubs/search')
+        && str_contains($request->url(), 'query=bon')
+        && str_contains($request->url(), 'limit=30'));
+});
+
+it('returns an empty SearchResults for a blank query without calling Plex', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake();
+
+    $results = app(PlexClient::class)->searchAll('   ');
+
+    expect($results->isEmpty())->toBeTrue();
+    Http::assertNothingSent();
+});
+
+it('tolerates a hubs/search response with no matching hubs', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake([
+        'https://server.plex.direct:32400/hubs/search*' => Http::response([
+            'MediaContainer' => ['size' => 0, 'Hub' => [
+                ['type' => 'artist', 'size' => 0],
+                ['type' => 'show', 'size' => 0],
+            ]],
+        ], 200),
+    ]);
+
+    expect(app(PlexClient::class)->searchAll('zzzz')->isEmpty())->toBeTrue();
+});
+
+it('maps a 401 from hubs/search to PlexAuthException', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake([
+        'https://server.plex.direct:32400/hubs/search*' => Http::response('nope', 401),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->searchAll('bon'))->toThrow(PlexAuthException::class);
+});
+
+it('maps a connection failure from hubs/search to PlexUnreachableException', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake([
+        'https://server.plex.direct:32400/hubs/search*' => fn () => throw new ConnectionException('connect timed out'),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->searchAll('bon'))->toThrow(PlexUnreachableException::class);
+});
+
+it('maps a 500 from hubs/search to PlexUnreachableException', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake([
+        'https://server.plex.direct:32400/hubs/search*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->searchAll('bon'))->toThrow(PlexUnreachableException::class);
 });
