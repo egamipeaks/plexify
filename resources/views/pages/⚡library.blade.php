@@ -15,9 +15,17 @@ new #[Layout('components.layouts.app')] class extends Component {
     public ?string $selectedAlbumId = null;
     public ?string $errorMessage = null;
 
-    public function mount(PlexClient $plex): void
+    public function mount(PlexClient $plex, ?string $artist = null, ?string $album = null): void
     {
         $this->loadArtists($plex);
+
+        if (! empty($artist)) {
+            $this->selectedArtistId = $artist;
+        }
+
+        if (! empty($album)) {
+            $this->selectedAlbumId = $album;
+        }
     }
 
     public function selectArtist(string $id): void

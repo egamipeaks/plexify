@@ -112,3 +112,51 @@ it('dispatches play-track event with stream URL when track clicked', function ()
             artwork: null,
         );
 });
+
+it('preselects an artist passed as a query parameter', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 1000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->andReturn(collect());
+    });
+
+    Livewire::test('pages::library', ['artist' => '100'])
+        ->assertSet('selectedArtistId', '100')
+        ->assertSee('22, A Million');
+});
+
+it('preselects both artist and album passed as query parameters', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 169000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '715 - CRΣΣKS', artist: 'Bon Iver', album: '22, A Million', trackNumber: 4, durationMs: 178000, partId: 1, container: 'flac'),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::library', ['artist' => '100', 'album' => '1001'])
+        ->assertSet('selectedArtistId', '100')
+        ->assertSet('selectedAlbumId', '1001')
+        ->assertSee('715 - CRΣΣKS');
+});
+
+it('ignores empty artist/album query parameters', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+    });
+
+    Livewire::test('pages::library', ['artist' => '', 'album' => ''])
+        ->assertSet('selectedArtistId', null)
+        ->assertSet('selectedAlbumId', null);
+});
