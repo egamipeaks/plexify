@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         }
     }
 
-    public function thumbFor(?string $thumb): ?string
+    protected function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
     }
@@ -259,7 +259,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             {{ collect(['Artist', $artist->albumCount ? $artist->albumCount . ' albums' : null])->filter()->implode(' · ') }}
                                         </div>
                                     </div>
-                                    <span class="text-[12px] text-text-3 opacity-0 group-hover:opacity-100">&#8617;</span>
+                                    <span class="text-[12px] text-text-3 opacity-0 group-hover:opacity-100"><x-lucide-corner-down-left class="w-3.5 h-3.5" /></span>
                                 </button>
                             @endforeach
                         </div>
