@@ -31,6 +31,30 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->selectedAlbumId = $id;
     }
 
+    public function playTrack(string $trackId): void
+    {
+        $track = $this->tracks->firstWhere('id', $trackId);
+
+        if (! $track) {
+            return;
+        }
+
+        $this->dispatch('play-track',
+            url: app(PlexClient::class)->streamUrl($track),
+            title: $track->title,
+            artist: $track->artist,
+        );
+    }
+
+    public function formatMs(int $ms): string
+    {
+        $seconds = (int) round($ms / 1000);
+        $m = intdiv($seconds, 60);
+        $s = $seconds % 60;
+
+        return sprintf('%d:%02d', $m, $s);
+    }
+
     public function retry(PlexClient $plex): void
     {
         $this->errorMessage = null;
@@ -175,10 +199,54 @@ new #[Layout('components.layouts.app')] class extends Component {
             </div>
         </div>
 
-        {{-- Album header (Task 13) --}}
-        <div class="flex-none p-2"></div>
+        {{-- Album header --}}
+        @if ($this->selectedAlbum)
+            <div class="flex-none p-2">
+                <div class="bg-gradient-to-b from-surface-3 to-surface rounded-lg p-6 flex items-end gap-6">
+                    <div class="w-[120px] h-[120px] rounded shadow-2xl bg-surface-2 grid place-items-center flex-none">
+                        <x-lucide-disc class="w-10 h-10 text-text-3" />
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-text-2">Album</div>
+                        <h1 class="font-black truncate" style="font-size: clamp(22px, 3.4vw, 40px);">{{ $this->selectedAlbum->title }}</h1>
+                        <div class="text-[13px] text-text-2 mt-2">
+                            {{ $this->selectedAlbum->artist }}
+                            @if ($this->selectedAlbum->year)
+                                · {{ $this->selectedAlbum->year }}
+                            @endif
+                            · {{ $this->selectedAlbum->trackCount }} songs · {{ $this->formatMs($this->selectedAlbum->durationMs) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
-        {{-- Tracklist (Task 13) --}}
-        <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
+        {{-- Tracklist --}}
+        @if ($selectedAlbumId)
+            <div class="flex-1 p-2 overflow-auto" data-region="tracklist">
+                <div class="bg-surface rounded-lg">
+                    <div class="grid gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-text-2 border-b border-surface-2 sticky top-0 bg-surface"
+                         style="grid-template-columns: 36px 1fr 60px;">
+                        <div class="text-right">#</div>
+                        <div>Title</div>
+                        <div class="text-right">Time</div>
+                    </div>
+                    @foreach ($this->tracks as $track)
+                        <button wire:click="playTrack('{{ $track->id }}')"
+                                class="w-full grid gap-2 px-4 py-2 hover:bg-surface-2 transition-colors text-left text-[13px] tabular-nums"
+                                style="grid-template-columns: 36px 1fr 60px;">
+                            <div class="text-text-2 text-right">{{ $track->trackNumber }}</div>
+                            <div class="min-w-0">
+                                <div class="font-semibold truncate text-white">{{ $track->title }}</div>
+                                <div class="text-[11px] text-text-2 truncate">{{ $track->artist }}</div>
+                            </div>
+                            <div class="text-text-2 text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+        @else
+            <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
+        @endif
     </div>
 @endif

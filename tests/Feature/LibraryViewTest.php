@@ -2,6 +2,7 @@
 
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
 use Livewire\Livewire;
@@ -61,4 +62,53 @@ it('lists albums for the selected artist', function () {
         ->assertSee('i,i')
         ->assertSee('2016')
         ->assertSee('2019');
+});
+
+it('renders album header and tracklist when album selected', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 2, durationMs: 360000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '22 (OVER S∞∞N)', artist: 'Bon Iver', album: '22, A Million', trackNumber: 1, durationMs: 169000, partId: 9001001, container: 'flac'),
+            new Track(id: '9002', title: '10 d E A T h b R E a s T', artist: 'Bon Iver', album: '22, A Million', trackNumber: 2, durationMs: 240000, partId: 9001002, container: 'flac'),
+        ]));
+    });
+
+    Livewire::test('pages::library')
+        ->call('selectArtist', '100')
+        ->call('selectAlbum', '1001')
+        ->assertSee('22, A Million')
+        ->assertSee('22 (OVER S∞∞N)')
+        ->assertSee('10 d E A T h b R E a s T')
+        ->assertSee('2:49') // 169s formatted
+        ->assertSee('4:00'); // 240s formatted
+});
+
+it('dispatches play-track event with stream URL when track clicked', function () {
+    $track = new Track(id: '9001', title: 'Test', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 999, container: 'flac');
+
+    $this->mock(PlexClient::class, function ($mock) use ($track) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->andReturn(collect([
+            new Album(id: '1001', title: 'B', artist: 'A', year: 2024, thumb: null, trackCount: 1, durationMs: 1000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$track]));
+        $mock->shouldReceive('streamUrl')->with(\Mockery::on(fn ($t) => $t->id === '9001'))->andReturn('https://plex/file.flac?X-Plex-Token=t');
+    });
+
+    Livewire::test('pages::library')
+        ->call('selectArtist', '100')
+        ->call('selectAlbum', '1001')
+        ->call('playTrack', '9001')
+        ->assertDispatched('play-track',
+            url: 'https://plex/file.flac?X-Plex-Token=t',
+            title: 'Test',
+            artist: 'A',
+        );
 });
