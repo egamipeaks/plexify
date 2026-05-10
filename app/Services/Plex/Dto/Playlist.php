@@ -2,17 +2,15 @@
 
 namespace App\Services\Plex\Dto;
 
-readonly class Album
+readonly class Playlist
 {
     public function __construct(
         public string $id,
         public string $title,
-        public string $artist,
-        public ?int $year,
-        public ?string $thumb,
         public int $trackCount,
         public int $durationMs,
-        public ?string $artistId = null,
+        public ?string $thumb,
+        public string $playlistType,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -20,12 +18,10 @@ readonly class Album
         return new self(
             id: (string) $row['ratingKey'],
             title: $row['title'],
-            artist: $row['parentTitle'] ?? '',
-            year: $row['year'] ?? null,
-            thumb: $row['thumb'] ?? null,
             trackCount: $row['leafCount'] ?? 0,
             durationMs: $row['duration'] ?? 0,
-            artistId: isset($row['parentRatingKey']) ? (string) $row['parentRatingKey'] : null,
+            thumb: $row['composite'] ?? $row['thumb'] ?? null,
+            playlistType: $row['playlistType'] ?? 'audio',
         );
     }
 }

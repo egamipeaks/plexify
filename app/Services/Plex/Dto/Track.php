@@ -13,6 +13,7 @@ readonly class Track
         public int $durationMs,
         public int $partId,
         public string $container,
+        public ?string $thumb = null,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -28,6 +29,7 @@ readonly class Track
             durationMs: $row['duration'] ?? 0,
             partId: (int) ($part['id'] ?? 0),
             container: $part['container'] ?? 'mp3',
+            thumb: $row['thumb'] ?? $row['parentThumb'] ?? null,
         );
     }
 }
