@@ -227,7 +227,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
                                     <div class="text-[11px] text-text-2 truncate">
-                                        @if ($album->year){{ $album->year }} · @endif{{ $album->trackCount }} tracks
+                                        {{ $album->year ?? '' }}
                                     </div>
                                 </div>
                             </button>
@@ -260,7 +260,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <span>{{ $this->selectedAlbum->year }}</span>
                                 @endif
                                 <span>·</span>
-                                <span class="whitespace-nowrap tabular-nums">{{ $this->selectedAlbum->trackCount }} songs, {{ $this->formatMs($this->selectedAlbum->durationMs) }}</span>
+                                <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ $this->formatMs($this->tracks->sum('durationMs')) }}</span>
                             </div>
                         </div>
                     </div>
