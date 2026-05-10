@@ -35,8 +35,8 @@ new class extends Component {
             <x-lucide-music class="w-6 h-6 text-text-3" />
         </div>
         <div class="min-w-0 flex-1">
-            <div class="truncate text-[14px] font-semibold hover:underline cursor-pointer">{{ $trackTitle ?: '' }}</div>
-            <div class="truncate text-[11px] text-text-2 hover:underline cursor-pointer">{{ $trackArtist ?: '' }}</div>
+            <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer">{{ $trackTitle ?: '' }}</div>
+            <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer">{{ $trackArtist ?: '' }}</div>
         </div>
         <button type="button" class="text-accent hover:scale-110 transition-transform">
             <x-lucide-heart class="w-4 h-4" />
