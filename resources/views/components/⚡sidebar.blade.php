@@ -77,21 +77,5 @@ new class extends Component {};
     </div>
 
     {{-- Server chip card --}}
-    <div class="bg-surface rounded-lg p-3 flex items-center gap-3">
-        <div class="w-9 h-9 rounded-md bg-gradient-to-br from-plex-orange-from to-plex-orange-to grid place-items-center text-black flex-none font-black text-[14px]">P</div>
-        <div class="min-w-0 flex-1">
-            <div class="text-[13px] font-bold truncate flex items-center gap-1.5">
-                HomeServer
-                <span class="w-1.5 h-1.5 rounded-full bg-accent inline-block"></span>
-            </div>
-            <div class="text-[11px] text-text-2 truncate flex items-center gap-1">
-                <x-lucide-wifi class="w-2.5 h-2.5" />
-                Direct &middot; 1 Gbps &middot; &mdash; albums
-            </div>
-        </div>
-        <button type="button"
-                class="w-7 h-7 rounded-full grid place-items-center text-text-2 hover:text-white hover:bg-surface-3">
-            <x-lucide-chevron-right class="w-[14px] h-[14px]" />
-        </button>
-    </div>
+    <livewire:server-chip />
 </aside>
