@@ -138,16 +138,38 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
             </div>
 
-            {{-- Albums column (Task 12) --}}
+            {{-- Albums column --}}
             <div class="flex flex-col min-h-0 bg-surface rounded-lg overflow-hidden">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between gap-2 flex-none">
                     <div class="text-[13px] font-bold uppercase tracking-wider text-text-2 whitespace-nowrap">Albums</div>
+                    @if ($selectedArtistId)
+                        <div class="text-[11px] text-text-3">{{ $this->albums->count() }}</div>
+                    @endif
                 </div>
-                <div class="overflow-y-auto flex-1 grid place-items-center text-text-3 text-[12px]" data-region="albums-column">
+                <div class="overflow-y-auto flex-1" data-region="albums-column">
                     @if (! $selectedArtistId)
-                        Select an artist
+                        <div class="grid place-items-center h-full text-text-3 text-[12px]">Select an artist</div>
+                    @elseif ($this->albums->isEmpty())
+                        <div class="grid place-items-center h-full text-text-3 text-[12px]">No albums</div>
                     @else
-                        Albums for selected artist (Task 12)
+                        @foreach ($this->albums as $album)
+                            <button wire:click="selectAlbum('{{ $album->id }}')"
+                                    @class([
+                                        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                                        'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
+                                        'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
+                                    ])>
+                                <div class="w-9 h-9 rounded bg-surface-2 flex-none grid place-items-center">
+                                    <x-lucide-disc class="w-4 h-4 text-text-3" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
+                                    <div class="text-[11px] text-text-2 truncate">
+                                        {{ $album->year ?: '' }}{{ $album->year ? ' · ' : '' }}{{ $album->trackCount }} tracks
+                                    </div>
+                                </div>
+                            </button>
+                        @endforeach
                     @endif
                 </div>
             </div>
