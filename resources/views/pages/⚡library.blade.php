@@ -125,8 +125,9 @@ new #[Layout('components.layouts.app')] class extends Component {
 };
 ?>
 
+<div class="h-full flex flex-col">
 @if ($errorMessage)
-    <div class="h-full grid place-items-center p-12 text-center">
+    <div class="flex-1 grid place-items-center p-12 text-center">
         <div class="max-w-md">
             <x-lucide-server-off class="w-12 h-12 mx-auto text-text-3 mb-4" />
             <h2 class="text-xl font-bold mb-2">Can't reach your Plex server</h2>
@@ -138,7 +139,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
     </div>
 @else
-    <div class="h-full flex flex-col">
         {{-- Miller columns: Artists + Albums --}}
         <div class="grid grid-cols-2 gap-2 px-2 pt-2 pb-2 flex-none" style="height: 220px;">
             {{-- Artists column --}}
@@ -337,5 +337,27 @@ new #[Layout('components.layouts.app')] class extends Component {
         @else
             <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
         @endif
-    </div>
 @endif
+</div>
+
+@script
+<script>
+    (() => {
+        const saved = {};
+
+        document.addEventListener('mousedown', () => {
+            document.querySelectorAll('[data-region]').forEach(region => {
+                saved[region.dataset.region] = region.scrollTop;
+            });
+        }, { capture: true });
+
+        Livewire.hook('morphed', ({ el }) => {
+            el.querySelectorAll('[data-region]').forEach(region => {
+                if (saved[region.dataset.region] !== undefined) {
+                    region.scrollTop = saved[region.dataset.region];
+                }
+            });
+        });
+    })();
+</script>
+@endscript
