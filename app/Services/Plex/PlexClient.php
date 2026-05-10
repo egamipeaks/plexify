@@ -3,6 +3,7 @@
 namespace App\Services\Plex;
 
 use App\Services\Plex\Exceptions\PlexAuthException;
+use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -27,6 +28,38 @@ class PlexClient
         return $this->cache->remember('base_url', PlexCache::TTL_RESOURCES, function () {
             return $this->discoverBaseUrl();
         });
+    }
+
+    public function musicSectionId(): int
+    {
+        return $this->cache->remember('music_section', PlexCache::TTL_SECTIONS, function () {
+            $response = $this->server()->get('/library/sections');
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('library/sections returned ' . $response->status());
+            }
+
+            $directory = data_get($response->json(), 'MediaContainer.Directory', []);
+            $music = collect($directory)->first(fn (array $d) => ($d['type'] ?? null) === 'artist');
+
+            if (! $music) {
+                throw new PlexNotFoundException('No music library section found on this Plex server.');
+            }
+
+            return (int) $music['key'];
+        });
+    }
+
+    private function server(): PendingRequest
+    {
+        // No ->throw() — Laravel's HTTP client does NOT auto-throw on 4xx/5xx by
+        // default, so we inspect $response->status() ourselves.
+        return Http::baseUrl($this->baseUrl())
+            ->acceptJson()
+            ->withHeaders([
+                'X-Plex-Token' => $this->token(),
+                'X-Plex-Client-Identifier' => 'plexify',
+            ]);
     }
 
     private function discoverBaseUrl(): string

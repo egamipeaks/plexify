@@ -91,3 +91,34 @@ it('honors PLEX_BASE_URL config override and skips discovery', function () {
     expect($client->baseUrl())->toBe('https://my-override.plex.direct:32400');
     Http::assertNothingSent();
 });
+
+it('discovers the music library section by type=artist', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(
+            file_get_contents(fixturePath('library_sections.json')),
+            200,
+        ),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->musicSectionId())->toBe(3);
+});
+
+it('throws PlexNotFoundException when no music section exists', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response([
+            'MediaContainer' => [
+                'Directory' => [
+                    ['key' => '1', 'type' => 'movie', 'title' => 'Movies'],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->musicSectionId())->toThrow(\App\Services\Plex\Exceptions\PlexNotFoundException::class);
+});
