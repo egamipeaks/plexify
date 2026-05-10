@@ -2,11 +2,13 @@
 
 namespace App\Services\Plex;
 
+use App\Services\Plex\Dto\Artist;
 use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
 class PlexClient
@@ -47,6 +49,21 @@ class PlexClient
             }
 
             return (int) $music['key'];
+        });
+    }
+
+    public function artists(): Collection
+    {
+        return $this->cache->remember('artists', PlexCache::TTL_ARTISTS, function () {
+            $sectionId = $this->musicSectionId();
+            $response = $this->server()->get("/library/sections/{$sectionId}/all", ['type' => 8]);
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('artists endpoint returned ' . $response->status());
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Artist::fromPlex($row));
         });
     }
 

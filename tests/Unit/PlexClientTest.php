@@ -122,3 +122,33 @@ it('throws PlexNotFoundException when no music section exists', function () {
 
     expect(fn () => $client->musicSectionId())->toThrow(\App\Services\Plex\Exceptions\PlexNotFoundException::class);
 });
+
+it('lists artists in the music section', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response(file_get_contents(fixturePath('artists.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $artists = $client->artists();
+
+    expect($artists)->toHaveCount(2);
+    expect($artists->first()->name)->toBe('Bon Iver');
+    expect($artists->first()->albumCount)->toBe(5);
+    expect($artists->last()->name)->toBe('Radiohead');
+});
+
+it('caches the artists list', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response(file_get_contents(fixturePath('artists.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $client->artists();
+    $client->artists();
+
+    Http::assertSentCount(3); // resources + sections + artists, no second artists call
+});

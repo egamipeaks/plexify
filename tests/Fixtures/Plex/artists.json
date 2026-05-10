@@ -1,0 +1,19 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "100",
+        "title": "Bon Iver",
+        "thumb": "/library/metadata/100/thumb/1700000000",
+        "childCount": 5
+      },
+      {
+        "ratingKey": "200",
+        "title": "Radiohead",
+        "thumb": "/library/metadata/200/thumb/1700000001",
+        "childCount": 9
+      }
+    ]
+  }
+}
