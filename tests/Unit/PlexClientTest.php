@@ -376,6 +376,17 @@ it('caches the playlists list', function () {
     Http::assertSentCount(2); // resources + playlists, no second playlists call
 });
 
+it('maps a 404 from /playlists to PlexNotFoundException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response('not found', 404),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->playlists())->toThrow(PlexNotFoundException::class);
+});
+
 it('maps a 500 from /playlists to PlexUnreachableException', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),

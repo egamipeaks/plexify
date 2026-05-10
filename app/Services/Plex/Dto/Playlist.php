@@ -23,7 +23,7 @@ readonly class Playlist
             durationMs: $row['duration'] ?? 0,
             thumb: $row['composite'] ?? $row['thumb'] ?? null,
             playlistType: $row['playlistType'] ?? 'audio',
-            summary: $row['summary'] ?? null,
+            summary: ($row['summary'] ?? '') !== '' ? $row['summary'] : null,
         );
     }
 }

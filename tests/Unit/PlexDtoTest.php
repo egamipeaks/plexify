@@ -247,3 +247,16 @@ it('leaves Playlist summary null when the Plex row has none', function () {
 
     expect($playlist->summary)->toBeNull();
 });
+
+it('normalizes an empty Playlist summary to null', function () {
+    $playlist = Playlist::fromPlex([
+        'ratingKey' => '8',
+        'title' => 'Empty Summary',
+        'summary' => '',
+        'leafCount' => 1,
+        'duration' => 1000,
+        'playlistType' => 'audio',
+    ]);
+
+    expect($playlist->summary)->toBeNull();
+});
