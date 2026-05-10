@@ -275,6 +275,57 @@ class PlexClient
         ];
     }
 
+    public function createPlaylist(string $title, string $seedTrackId): string
+    {
+        try {
+            $response = $this->server()->post('/playlists?'.http_build_query([
+                'type' => 'audio',
+                'title' => $title,
+                'smart' => 0,
+                'uri' => $this->libraryItemUri($seedTrackId),
+            ]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Creating playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, 'POST playlists');
+
+        $id = data_get($response->json(), 'MediaContainer.Metadata.0.ratingKey');
+
+        if (empty($id)) {
+            throw new PlexNotFoundException('Plex did not return a ratingKey for the new playlist.');
+        }
+
+        $this->cache->forget('playlists');
+
+        return (string) $id;
+    }
+
+    public function renamePlaylist(string $playlistId, string $title): void
+    {
+        try {
+            $response = $this->server()->put("/playlists/{$playlistId}?".http_build_query(['title' => $title]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Renaming playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "PUT playlists/{$playlistId}");
+        $this->cache->forget('playlists');
+    }
+
+    public function deletePlaylist(string $playlistId): void
+    {
+        try {
+            $response = $this->server()->delete("/playlists/{$playlistId}");
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Deleting playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "DELETE playlists/{$playlistId}");
+        $this->cache->forget('playlists');
+        $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
     private function putPlaylistItem(string $playlistId, string $uri): void
     {
         try {
