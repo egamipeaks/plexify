@@ -12,6 +12,7 @@ use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
@@ -145,6 +146,25 @@ class PlexClient
         });
     }
 
+    public function machineIdentifier(): string
+    {
+        return $this->cache->remember('machine_identifier', PlexCache::TTL_RESOURCES, function () {
+            $response = $this->server()->get('/identity');
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('identity endpoint returned '.$response->status());
+            }
+
+            $id = data_get($response->json(), 'MediaContainer.machineIdentifier');
+
+            if (empty($id)) {
+                throw new PlexNotFoundException('Plex /identity did not return a machineIdentifier.');
+            }
+
+            return (string) $id;
+        });
+    }
+
     public function searchAll(string $query): SearchResults
     {
         $query = trim($query);
@@ -243,6 +263,30 @@ class PlexClient
             'connection' => $isLocal ? 'direct' : 'relay',
             'machineIdentifier' => data_get($response->json(), 'MediaContainer.machineIdentifier'),
         ];
+    }
+
+    private function libraryItemUri(string $ratingKey): string
+    {
+        return sprintf(
+            'server://%s/com.plexapp.plugins.library/library/metadata/%s',
+            $this->machineIdentifier(),
+            $ratingKey,
+        );
+    }
+
+    private function ensureOk(Response $response, string $context): void
+    {
+        if ($response->status() === 404) {
+            throw new PlexNotFoundException("{$context}: not found.");
+        }
+
+        if (in_array($response->status(), [401, 403], true)) {
+            throw new PlexAuthException("{$context}: Plex rejected the request (status {$response->status()}).");
+        }
+
+        if (! $response->successful()) {
+            throw new PlexUnreachableException("{$context} returned {$response->status()}.");
+        }
     }
 
     private function server(): PendingRequest

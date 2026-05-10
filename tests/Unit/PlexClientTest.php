@@ -436,3 +436,28 @@ it('maps a 500 from /playlists/{id}/items to PlexUnreachableException', function
 
     expect(fn () => $client->playlistTracks('4242'))->toThrow(PlexUnreachableException::class);
 });
+
+it('reads and caches the server machine identifier', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response(
+            ['MediaContainer' => ['machineIdentifier' => 'MACHINE-123']], 200,
+        ),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->machineIdentifier())->toBe('MACHINE-123')
+        ->and($client->machineIdentifier())->toBe('MACHINE-123'); // cached, no second /identity call
+
+    Http::assertSentCount(2); // resources + identity, only once each
+});
+
+it('throws PlexUnreachableException when /identity fails for machineIdentifier', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->machineIdentifier())->toThrow(PlexUnreachableException::class);
+});
