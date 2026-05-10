@@ -1,19 +1,196 @@
 <?php
 
-use Livewire\Component;
+use App\Services\Plex\Dto\Playlist;
+use App\Services\Plex\Dto\Track;
+use App\Services\Plex\Exceptions\PlexException;
+use App\Services\Plex\PlexClient;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Component;
 
 new #[Layout('components.layouts.app')] class extends Component {
     public string $playlist = '';
+
+    public ?string $errorMessage = null;
+
+    protected PlexClient $plex;
+
+    public function boot(PlexClient $plex): void
+    {
+        $this->plex = $plex;
+    }
 
     public function mount(string $playlist): void
     {
         $this->playlist = $playlist;
     }
+
+    public function playTrack(string $trackId): void
+    {
+        $track = $this->tracks->firstWhere('id', $trackId);
+
+        if (! $track) {
+            return;
+        }
+
+        $this->dispatchTrack($track);
+    }
+
+    public function playAll(): void
+    {
+        $track = $this->tracks->first();
+
+        if (! $track) {
+            return;
+        }
+
+        $this->dispatchTrack($track);
+    }
+
+    public function shuffle(): void
+    {
+        if ($this->tracks->isEmpty()) {
+            return;
+        }
+
+        $this->dispatchTrack($this->tracks->random());
+    }
+
+    public function retry(): void
+    {
+        $this->errorMessage = null;
+        unset($this->playlistMeta, $this->tracks);
+    }
+
+    #[Computed]
+    public function playlistMeta(): ?Playlist
+    {
+        try {
+            return $this->plex->playlists()->firstWhere('id', $this->playlist);
+        } catch (PlexException $e) {
+            $this->errorMessage = "Can't reach your Plex server. " . $e->getMessage();
+
+            return null;
+        }
+    }
+
+    /** @return Collection<int, Track> */
+    #[Computed]
+    public function tracks(): Collection
+    {
+        if (! $this->playlistMeta) {
+            return collect();
+        }
+
+        try {
+            return $this->plex->playlistTracks($this->playlist);
+        } catch (PlexException $e) {
+            $this->errorMessage = "Can't reach your Plex server. " . $e->getMessage();
+
+            return collect();
+        }
+    }
+
+    protected function dispatchTrack(Track $track): void
+    {
+        $this->dispatch('play-track',
+            url: $this->plex->streamUrl($track),
+            title: $track->title,
+            artist: $track->artist,
+            artwork: $this->thumbFor($track->thumb),
+        );
+    }
+
+    protected function thumbFor(?string $thumb): ?string
+    {
+        return $this->plex->thumbUrl($thumb);
+    }
+
+    protected function formatMs(int $ms): string
+    {
+        $seconds = (int) round($ms / 1000);
+
+        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
+    }
 };
 ?>
 
-<div class="p-6">
-    <h1 class="text-3xl font-black">Playlist {{ $playlist }}</h1>
-    <p class="text-text-2 mt-2">Playlist detail view stub.</p>
+<div class="h-full flex flex-col">
+{{-- Force the computeds so a Plex failure populates $errorMessage before the branches below. --}}
+@php($this->playlistMeta)
+@php($this->tracks)
+@if ($this->errorMessage)
+    <div class="flex-1 grid place-items-center p-12 text-center">
+        <div class="max-w-md">
+            <x-lucide-server-off class="w-12 h-12 mx-auto text-text-3 mb-4" />
+            <h2 class="text-xl font-bold mb-2">Can't reach your Plex server</h2>
+            <p class="text-text-2 text-sm mb-6">{{ $this->errorMessage }}</p>
+            <button type="button" wire:click="retry"
+                    class="px-5 py-2 bg-white text-black rounded-full font-bold hover:scale-105 transition-transform">
+                Retry
+            </button>
+        </div>
+    </div>
+@elseif (! $this->playlistMeta)
+    <div class="flex-1 grid place-items-center p-12 text-center">
+        <div class="max-w-md">
+            <x-lucide-list-music class="w-12 h-12 mx-auto text-text-3 mb-4" />
+            <h2 class="text-xl font-bold mb-2">Playlist not found</h2>
+            <p class="text-text-2 text-sm mb-6">This playlist doesn't exist on your Plex server.</p>
+            <a href="{{ route('library') }}" wire:navigate
+               class="px-5 py-2 bg-white text-black rounded-full font-bold hover:scale-105 transition-transform inline-block">
+                Back to library
+            </a>
+        </div>
+    </div>
+@else
+    @php($meta = $this->playlistMeta)
+    {{-- Gradient header --}}
+    <div class="px-2 pt-2 pb-2 flex-none">
+        <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+            <div class="flex items-end gap-6 p-6">
+                @if ($meta->thumb)
+                    <img src="{{ $this->thumbFor($meta->thumb) }}" alt="{{ $meta->title }}"
+                         class="rounded shadow-2xl flex-none bg-surface-2 object-cover" style="width: 180px; height: 180px;">
+                @else
+                    <div class="rounded relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 180px; height: 180px;">
+                        <x-lucide-list-music class="w-12 h-12 text-text-3" />
+                    </div>
+                @endif
+                <div class="min-w-0 flex-1 flex flex-col gap-2">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-white">PLAYLIST</div>
+                    <h1 class="text-white font-extrabold tracking-tight leading-[1.05] truncate self-start" style="font-size: clamp(28px, 4.2vw, 56px);">{{ $meta->title }}</h1>
+                    @if ($meta->summary)
+                        <div class="text-[14px] text-text-2 max-w-prose">{{ $meta->summary }}</div>
+                    @endif
+                    <div class="flex items-center gap-1.5 text-[13px] text-text-2 flex-wrap">
+                        <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ $this->formatMs($this->tracks->sum('durationMs')) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 px-6 pb-4">
+                <button type="button" wire:click="playAll"
+                        class="w-14 h-14 rounded-full bg-accent hover:bg-accent-hover hover:scale-105 active:scale-100 transition-transform grid place-items-center text-black shadow-xl">
+                    <x-lucide-play class="w-[22px] h-[22px]" style="fill: currentColor;" />
+                </button>
+                <button type="button" wire:click="shuffle"
+                        class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-transform">
+                    <x-lucide-shuffle class="w-[22px] h-[22px]" />
+                </button>
+                <button type="button"
+                        class="px-4 py-1.5 rounded-full border border-white/30 text-white text-[13px] font-bold hover:border-white">
+                    Edit playlist
+                </button>
+                <button type="button" class="text-text-2 hover:text-white">
+                    <x-lucide-download class="w-5 h-5" />
+                </button>
+                <div class="flex-1"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tracklist — added in Task 5 --}}
+    <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
+@endif
 </div>
