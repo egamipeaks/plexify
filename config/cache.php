@@ -1,5 +1,9 @@
 <?php
 
+use App\Services\Plex\Dto\Album;
+use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\Track;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 return [
@@ -125,6 +129,11 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    'serializable_classes' => [
+        Collection::class,
+        Artist::class,
+        Album::class,
+        Track::class,
+    ],
 
 ];
