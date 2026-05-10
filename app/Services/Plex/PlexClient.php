@@ -105,6 +105,31 @@ class PlexClient
         });
     }
 
+    public function streamUrl(Track $track): string
+    {
+        return sprintf(
+            '%s/library/parts/%d/file.%s?X-Plex-Token=%s',
+            $this->baseUrl(),
+            $track->partId,
+            $track->container,
+            $this->token(),
+        );
+    }
+
+    public function thumbUrl(?string $thumb): ?string
+    {
+        if (empty($thumb)) {
+            return null;
+        }
+
+        return sprintf(
+            '%s%s?X-Plex-Token=%s',
+            $this->baseUrl(),
+            $thumb,
+            $this->token(),
+        );
+    }
+
     private function server(): PendingRequest
     {
         // No ->throw() — Laravel's HTTP client does NOT auto-throw on 4xx/5xx by

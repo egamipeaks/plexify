@@ -183,3 +183,43 @@ it('lists tracks for an album by ratingKey', function () {
     expect($tracks->first()->partId)->toBe(9001001);
     expect($tracks->first()->container)->toBe('flac');
 });
+
+it('builds a stream URL for a track', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $track = new \App\Services\Plex\Dto\Track(
+        id: '1',
+        title: 'Test',
+        artist: 'A',
+        album: 'B',
+        trackNumber: 1,
+        durationMs: 1000,
+        partId: 999,
+        container: 'flac',
+    );
+
+    expect($client->streamUrl($track))
+        ->toBe('https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/parts/999/file.flac?X-Plex-Token=test-token');
+});
+
+it('builds a thumb URL with token', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->thumbUrl('/library/metadata/100/thumb/1700000000'))
+        ->toBe('https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/100/thumb/1700000000?X-Plex-Token=test-token');
+});
+
+it('returns null thumbUrl for empty input', function () {
+    Http::fake([]);
+    config()->set('services.plex.base_url', 'https://anything');
+    $client = app(PlexClient::class);
+    expect($client->thumbUrl(null))->toBeNull();
+    expect($client->thumbUrl(''))->toBeNull();
+});
