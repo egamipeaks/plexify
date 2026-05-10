@@ -162,7 +162,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
                 <div class="overflow-y-auto scroll flex-1" data-region="artists-column">
                     @foreach ($this->artists as $artist)
-                        <button type="button" wire:click="selectArtist('{{ $artist->id }}')"
+                        <button type="button" wire:key="artist-{{ $artist->id }}" wire:click="selectArtist('{{ $artist->id }}')"
                                 @class([
                                     'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
                                     'bg-surface-3 text-white' => $selectedArtistId === $artist->id,
@@ -178,7 +178,6 @@ new #[Layout('components.layouts.app')] class extends Component {
                             @endif
                             <div class="flex-1 min-w-0">
                                 <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
-                                <div class="text-[11px] text-text-2 truncate">{{ $artist->albumCount }} albums</div>
                             </div>
                         </button>
                     @endforeach
@@ -211,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="grid place-items-center h-full text-text-3 text-[12px]">No albums</div>
                     @else
                         @foreach ($this->albums as $album)
-                            <button type="button" wire:click="selectAlbum('{{ $album->id }}')"
+                            <button type="button" wire:key="album-{{ $album->id }}" wire:click="selectAlbum('{{ $album->id }}')"
                                     @class([
                                         'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
                                         'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
@@ -304,7 +303,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                     <div class="overflow-y-auto scroll flex-1 py-1">
                         @foreach ($this->tracks as $track)
-                            <button type="button" wire:click="playTrack('{{ $track->id }}')"
+                            <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
                                     class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
                                 <span class="text-text-3 group-hover:text-white grid place-items-center">

@@ -17,9 +17,7 @@ it('lists artists from PlexClient on mount', function () {
 
     Livewire::test('pages::library')
         ->assertSee('Bon Iver')
-        ->assertSee('Radiohead')
-        ->assertSee('5 albums')
-        ->assertSee('9 albums');
+        ->assertSee('Radiohead');
 });
 
 it('renders error panel when Plex is unreachable on mount', function () {
