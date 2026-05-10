@@ -1,0 +1,93 @@
+<?php
+
+use App\Services\Plex\Exceptions\PlexAuthException;
+use App\Services\Plex\Exceptions\PlexUnreachableException;
+use App\Services\Plex\PlexClient;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    Cache::flush();
+    config()->set('services.plex.token', 'test-token');
+});
+
+function fixturePath(string $name): string
+{
+    return base_path("tests/Fixtures/Plex/{$name}");
+}
+
+it('discovers the owned server and prefers a local HTTPS connection', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(
+            file_get_contents(fixturePath('resources.json')),
+            200,
+            ['Content-Type' => 'application/json'],
+        ),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->baseUrl())->toBe('https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400');
+});
+
+it('falls back to a remote connection when no local one is reachable', function () {
+    $resources = json_decode(file_get_contents(fixturePath('resources.json')), true);
+    // Remove the local connection from the first server
+    $resources[0]['connections'] = array_values(array_filter(
+        $resources[0]['connections'],
+        fn ($c) => $c['local'] === false,
+    ));
+
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response($resources, 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->baseUrl())->toBe('https://107-216-58-9.c36d6e0431c147dda2be7d81893a1653.plex.direct:24476');
+});
+
+it('throws PlexAuthException when plex.tv returns 401', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response('Unauthorized', 401),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->baseUrl())->toThrow(PlexAuthException::class);
+});
+
+it('throws PlexUnreachableException when plex.tv connection fails', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('connect timed out'),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->baseUrl())->toThrow(PlexUnreachableException::class);
+});
+
+it('caches the discovered URL across calls', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(
+            file_get_contents(fixturePath('resources.json')),
+            200,
+        ),
+    ]);
+
+    $client = app(PlexClient::class);
+    $client->baseUrl();
+    $client->baseUrl();
+
+    Http::assertSentCount(1);
+});
+
+it('honors PLEX_BASE_URL config override and skips discovery', function () {
+    config()->set('services.plex.base_url', 'https://my-override.plex.direct:32400');
+    Http::fake();
+
+    $client = app(PlexClient::class);
+
+    expect($client->baseUrl())->toBe('https://my-override.plex.direct:32400');
+    Http::assertNothingSent();
+});

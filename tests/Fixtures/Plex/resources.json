@@ -1,0 +1,34 @@
+[
+  {
+    "name": "HOMESERVER",
+    "product": "Plex Media Server",
+    "provides": "server",
+    "owned": true,
+    "clientIdentifier": "fdc67453cc21f68f457007dcba5e108675f02a56",
+    "connections": [
+      {
+        "protocol": "https",
+        "address": "10.0.0.50",
+        "port": 32400,
+        "uri": "https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400",
+        "local": true,
+        "relay": false
+      },
+      {
+        "protocol": "https",
+        "address": "107.216.58.9",
+        "port": 24476,
+        "uri": "https://107-216-58-9.c36d6e0431c147dda2be7d81893a1653.plex.direct:24476",
+        "local": false,
+        "relay": false
+      }
+    ]
+  },
+  {
+    "name": "TV 2025",
+    "product": "Plex for Samsung",
+    "provides": "client,player",
+    "owned": true,
+    "connections": []
+  }
+]
