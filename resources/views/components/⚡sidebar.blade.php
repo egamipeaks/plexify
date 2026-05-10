@@ -1,8 +1,36 @@
 <?php
 
+use App\Services\Plex\Dto\Playlist;
+use App\Services\Plex\Exceptions\PlexException;
+use App\Services\Plex\PlexClient;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
-new class extends Component {};
+new class extends Component {
+    protected PlexClient $plex;
+
+    public function boot(PlexClient $plex): void
+    {
+        $this->plex = $plex;
+    }
+
+    /** @return Collection<int, Playlist> */
+    #[Computed]
+    public function playlists(): Collection
+    {
+        try {
+            return $this->plex->playlists();
+        } catch (PlexException) {
+            return collect();
+        }
+    }
+
+    public function thumbFor(?string $thumb): ?string
+    {
+        return $this->plex->thumbUrl($thumb);
+    }
+};
 ?>
 
 <aside class="flex flex-col gap-2 h-full min-h-0">
@@ -72,7 +100,29 @@ new class extends Component {};
         </div>
 
         <div class="flex-1 overflow-y-auto scroll px-2 pb-2 flex flex-col gap-0.5">
-            <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
+            @forelse ($this->playlists as $playlist)
+                <a href="{{ route('playlist', $playlist->id) }}" wire:navigate wire:key="sidebar-pl-{{ $playlist->id }}"
+                   @class([
+                       'w-full flex items-center gap-3 px-2 py-1.5 rounded-md transition-colors',
+                       'text-white bg-surface-2' => request()->routeIs('playlist') && (string) request()->route('playlist') === $playlist->id,
+                       'text-text-2 hover:text-white hover:bg-surface-2' => ! (request()->routeIs('playlist') && (string) request()->route('playlist') === $playlist->id),
+                   ])>
+                    @if ($playlist->thumb)
+                        <img src="{{ $this->thumbFor($playlist->thumb) }}" alt="{{ $playlist->title }}"
+                             class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 32px; height: 32px;" loading="lazy">
+                    @else
+                        <div class="rounded-sm flex-none bg-surface-2 grid place-items-center" style="width: 32px; height: 32px;">
+                            <x-lucide-list-music class="w-3.5 h-3.5 text-text-3" />
+                        </div>
+                    @endif
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[14px] truncate">{{ $playlist->title }}</div>
+                        <div class="text-[12px] text-text-3 truncate">Playlist · {{ $playlist->trackCount }} songs</div>
+                    </div>
+                </a>
+            @empty
+                <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
+            @endforelse
         </div>
     </div>
 
