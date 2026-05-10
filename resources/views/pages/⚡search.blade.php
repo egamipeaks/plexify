@@ -5,9 +5,11 @@ use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexClient;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    #[Url]
     public string $q = '';
 
     /** all | playlists | albums | artists | tracks */
@@ -20,11 +22,6 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function boot(PlexClient $plex): void
     {
         $this->plex = $plex;
-    }
-
-    public function mount(?string $q = null): void
-    {
-        $this->q = (string) $q;
     }
 
     public function updatedQ(): void

@@ -92,7 +92,7 @@ it('keeps the player alive when navigating between views', function () {
     // Navigate to /search via the sidebar link (wire:navigate).
     $page->click('Search')
         ->assertUrlIs(url('/search'))
-        ->assertSee('Search view stub');
+        ->assertSee('Search your library');
 
     // The @persist('player') wrapper keeps the player mounted across wire:navigate,
     // so the now-playing title element is still in the DOM with the same track.
