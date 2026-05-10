@@ -25,45 +25,76 @@ new class extends Component {
 };
 ?>
 
-<div class="bg-surface rounded-lg h-[72px] flex items-center gap-4 px-4"
+<div class="bg-base h-[88px] flex items-center px-4 gap-4 flex-none"
      x-data="audioPlayer()"
      x-init="init()">
 
     {{-- Now-playing --}}
-    <div class="flex items-center gap-3 w-1/3 min-w-0">
-        <div class="w-14 h-14 rounded bg-surface-2 flex-none"></div>
-        <div class="min-w-0">
-            <div class="text-sm font-bold truncate">{{ $trackTitle ?: '—' }}</div>
-            <div class="text-xs text-text-2 truncate">{{ $trackArtist ?: '' }}</div>
+    <div class="flex items-center gap-3 min-w-[280px] max-w-[30%]">
+        <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none">
+            <x-lucide-music class="w-6 h-6 text-text-3" />
         </div>
+        <div class="min-w-0 flex-1">
+            <div class="truncate text-[14px] font-semibold hover:underline cursor-pointer">{{ $trackTitle ?: '' }}</div>
+            <div class="truncate text-[11px] text-text-2 hover:underline cursor-pointer">{{ $trackArtist ?: '' }}</div>
+        </div>
+        <button type="button" class="text-accent hover:scale-110 transition-transform">
+            <x-lucide-heart class="w-4 h-4" />
+        </button>
     </div>
 
     {{-- Transport --}}
-    <div class="flex flex-col items-center gap-1 flex-1 min-w-0">
-        <div class="flex items-center gap-4">
+    <div class="flex-1 flex flex-col items-center gap-1.5 max-w-[722px] mx-auto">
+        <div class="flex items-center gap-5">
+            <button type="button" class="text-text-2 hover:text-white">
+                <x-lucide-shuffle class="w-4 h-4" />
+            </button>
+            <button type="button" class="text-text-2 hover:text-white">
+                <x-lucide-skip-back class="w-[18px] h-[18px] fill-current" />
+            </button>
             <button type="button" @click="togglePlay"
-                    class="w-8 h-8 rounded-full bg-white grid place-items-center text-black hover:scale-105 transition-transform">
-                <span x-show="!isPlaying">▶</span>
-                <span x-show="isPlaying" x-cloak>❚❚</span>
+                    class="w-9 h-9 rounded-full bg-white text-black grid place-items-center hover:scale-105 active:scale-100 transition-transform">
+                <template x-if="!isPlaying">
+                    <x-lucide-play class="w-4 h-4 fill-current" />
+                </template>
+                <template x-if="isPlaying">
+                    <x-lucide-pause class="w-4 h-4 fill-current" />
+                </template>
+            </button>
+            <button type="button" class="text-text-2 hover:text-white">
+                <x-lucide-skip-forward class="w-[18px] h-[18px] fill-current" />
+            </button>
+            <button type="button" class="text-text-2 hover:text-white">
+                <x-lucide-repeat class="w-4 h-4" />
             </button>
         </div>
-        <div class="w-full flex items-center gap-2 text-xs text-text-2 tabular-nums">
-            <span x-text="formatTime(currentTime)">0:00</span>
+        <div class="flex items-center gap-2 w-full text-[11px] text-text-2">
+            <span class="tabular-nums w-8 text-right" x-text="formatTime(currentTime)">0:00</span>
             <input type="range" min="0" :max="duration || 0" step="0.1"
                    :value="currentTime"
                    @input="seek($event.target.value)"
                    class="flex-1 accent-white">
-            <span x-text="formatTime(duration)">0:00</span>
+            <span class="tabular-nums w-8" x-text="formatTime(duration)">0:00</span>
         </div>
     </div>
 
-    {{-- Volume --}}
-    <div class="flex items-center gap-2 w-32">
-        <span class="text-text-2 text-sm">🔊</span>
-        <input type="range" min="0" max="1" step="0.01"
-               :value="volume"
-               @input="setVolume($event.target.value)"
-               class="flex-1 accent-white">
+    {{-- Right side: queue, cast, volume --}}
+    <div class="flex items-center gap-3 min-w-[280px] max-w-[30%] justify-end">
+        <button type="button" class="text-text-2 hover:text-white">
+            <x-lucide-list-music class="w-4 h-4" />
+        </button>
+        <button type="button" class="text-text-2 hover:text-white">
+            <x-lucide-cast class="w-4 h-4" />
+        </button>
+        <div class="flex items-center gap-2 group">
+            <button type="button" class="text-text-2 hover:text-white">
+                <x-lucide-volume-2 class="w-4 h-4" />
+            </button>
+            <input type="range" min="0" max="1" step="0.01"
+                   :value="volume"
+                   @input="setVolume($event.target.value)"
+                   class="w-24 accent-white">
+        </div>
     </div>
 
     {{-- The audio element. Persistence across wire:navigate is handled by

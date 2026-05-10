@@ -19,6 +19,36 @@ The full UI design is documented in `design/README.md` (artist/album/track mille
 - **Pest 4** for testing, including browser tests via the Playwright plugin
 - **Native HTML5 `<audio>`** for playback
 - **MySQL** (via Herd)
+- **Blade Icons** (`blade-ui-kit/blade-icons` + `mallardduck/blade-lucide-icons`) for inline SVG output matching the prototype's lucide-react icons.
+
+### Visual Fidelity
+
+All component implementations port HTML structure and Tailwind class lists verbatim from `design/rendered/<view>.html` (the rendered DOM of the prototype), not from the React JSX in `design/*.jsx`. Icons use `blade-ui-kit/blade-icons` with `mallardduck/blade-lucide-icons` to produce the same inline SVG output as the prototype's lucide-react components. Glyph substitutions (e.g., `▶`, `‹`, `⚙`) are forbidden; render the matching `<x-lucide-*>` SVG instead.
+
+### Design Tokens
+
+Defined in `resources/css/app.css` via Tailwind 4 `@theme`. Names match the prototype's `tailwind.config` (top of `design/rendered/homepage.html`).
+
+| Token | Value | Notes |
+|---|---|---|
+| `--color-base` | `#000000` | Page background. Use `bg-base`, never `bg-bg`. |
+| `--color-surface` | `#121212` | Default card surface. |
+| `--color-surface-1` | `#181818` | Search input background. |
+| `--color-surface-2` | `#242424` | Active nav item, cover-art placeholder. |
+| `--color-surface-3` | `#2a2a2a` | Hover surfaces, context menus. |
+| `--color-surface-4` | `#3e3e3e` | Scrollbar thumbs, slider tracks. |
+| `--color-text-1` | `#FFFFFF` | Primary text. |
+| `--color-text-2` | `#b3b3b3` | Secondary text, inactive nav labels. |
+| `--color-text-3` | `#7a7a7a` | Tertiary text, key-cap borders. |
+| `--color-accent` | `#1ED760` | Primary accent (Spotify green). |
+| `--color-accent-hover` | `#3BE477` | Accent hover. |
+| `--color-accent-press` | `#169c46` | Accent pressed state. |
+| `--color-plex-orange-from` | `#e5a00d` | Plex chip gradient start. |
+| `--color-plex-orange-to` | `#cc7700` | Plex chip gradient end. |
+| `--font-sans` | `"DM Sans", system-ui, sans-serif` | Body type. |
+| `--font-display` | `"Outfit", system-ui, sans-serif` | Display headings. |
+
+DM Sans and Outfit load from Google Fonts in the layout `<head>`.
 
 ## Decisions Locked In
 
