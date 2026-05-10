@@ -55,6 +55,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         return sprintf('%d:%02d', $m, $s);
     }
 
+    protected function thumbFor(?string $thumb): ?string
+    {
+        return app(PlexClient::class)->thumbUrl($thumb);
+    }
+
     public function retry(PlexClient $plex): void
     {
         $this->errorMessage = null;
@@ -163,9 +168,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     'bg-surface-3 text-white' => $selectedArtistId === $artist->id,
                                     'text-text-2 hover:text-white hover:bg-surface-2' => $selectedArtistId !== $artist->id,
                                 ])>
-                            <div class="rounded-full relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                <x-lucide-user class="w-4 h-4 text-text-3" />
-                            </div>
+                            @if ($artist->thumb)
+                                <img src="{{ $this->thumbFor($artist->thumb) }}" alt="{{ $artist->name }}"
+                                     class="rounded-full flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                            @else
+                                <div class="rounded-full relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                    <x-lucide-user class="w-4 h-4 text-text-3" />
+                                </div>
+                            @endif
                             <div class="flex-1 min-w-0">
                                 <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
                                 <div class="text-[11px] text-text-2 truncate">{{ $artist->albumCount }} albums</div>
@@ -207,9 +217,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
                                         'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
                                     ])>
-                                <div class="rounded relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                    <x-lucide-disc class="w-4 h-4 text-text-3" />
-                                </div>
+                                @if ($album->thumb)
+                                    <img src="{{ $this->thumbFor($album->thumb) }}" alt="{{ $album->title }}"
+                                         class="rounded flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                @else
+                                    <div class="rounded relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                        <x-lucide-disc class="w-4 h-4 text-text-3" />
+                                    </div>
+                                @endif
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
                                     <div class="text-[11px] text-text-2 truncate">
@@ -228,9 +243,14 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div class="px-2 pb-2 flex-none">
                 <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
                     <div class="px-6 py-5 flex items-center gap-5">
-                        <div class="rounded-md relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 120px; height: 120px;">
-                            <x-lucide-disc class="w-10 h-10 text-text-3" />
-                        </div>
+                        @if ($this->selectedAlbum->thumb)
+                            <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                                 class="rounded-md flex-none shadow-2xl bg-surface-2 object-cover" style="width: 120px; height: 120px;">
+                        @else
+                            <div class="rounded-md relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 120px; height: 120px;">
+                                <x-lucide-disc class="w-10 h-10 text-text-3" />
+                            </div>
+                        @endif
                         <div class="flex-1 min-w-0">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-white/80">Album</div>
                             <h1 class="text-[clamp(22px,3.4vw,40px)] font-black tracking-tight leading-[1.05] truncate">{{ $this->selectedAlbum->title }}</h1>
@@ -292,9 +312,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 </span>
                                 <span class="tabular-nums text-text-2 text-right">{{ $track->trackNumber }}</span>
                                 <div class="min-w-0 flex items-center gap-3">
-                                    <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                        <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
-                                    </div>
+                                    @if ($this->selectedAlbum->thumb)
+                                        <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                                             class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                    @else
+                                        <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                            <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                                        </div>
+                                    @endif
                                     <div class="min-w-0">
                                         <div class="truncate font-medium text-white">{{ $track->title }}</div>
                                         <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
