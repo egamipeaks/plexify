@@ -11,6 +11,7 @@ readonly class Playlist
         public int $durationMs,
         public ?string $thumb,
         public string $playlistType,
+        public ?string $summary = null,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -22,6 +23,7 @@ readonly class Playlist
             durationMs: $row['duration'] ?? 0,
             thumb: $row['composite'] ?? $row['thumb'] ?? null,
             playlistType: $row['playlistType'] ?? 'audio',
+            summary: $row['summary'] ?? null,
         );
     }
 }

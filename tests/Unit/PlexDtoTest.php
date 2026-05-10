@@ -219,3 +219,31 @@ it('SearchResults total sums all four collections', function () {
 
     expect($results->total())->toBe(7)->and($results->isEmpty())->toBeFalse();
 });
+
+it('maps a Plex playlist row with a summary to a Playlist DTO', function () {
+    $playlist = Playlist::fromPlex([
+        'ratingKey' => '4242',
+        'title' => 'Late Night',
+        'summary' => 'Wind-down listening.',
+        'leafCount' => 37,
+        'duration' => 8_460_000,
+        'composite' => '/playlists/4242/composite/1700000000',
+        'playlistType' => 'audio',
+    ]);
+
+    expect($playlist->summary)->toBe('Wind-down listening.')
+        ->and($playlist->title)->toBe('Late Night')
+        ->and($playlist->trackCount)->toBe(37);
+});
+
+it('leaves Playlist summary null when the Plex row has none', function () {
+    $playlist = Playlist::fromPlex([
+        'ratingKey' => '7',
+        'title' => 'No Description',
+        'leafCount' => 1,
+        'duration' => 1000,
+        'playlistType' => 'audio',
+    ]);
+
+    expect($playlist->summary)->toBeNull();
+});
