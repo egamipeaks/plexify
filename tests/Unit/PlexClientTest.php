@@ -461,3 +461,59 @@ it('throws PlexUnreachableException when /identity fails for machineIdentifier',
 
     expect(fn () => app(PlexClient::class)->machineIdentifier())->toThrow(PlexUnreachableException::class);
 });
+
+function fakePlexWriteEndpoints(): void
+{
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response(
+            ['MediaContainer' => ['machineIdentifier' => 'M1']], 200,
+        ),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response(
+            ['MediaContainer' => ['Metadata' => [['ratingKey' => '7777']]]], 200,
+        ),
+    ]);
+}
+
+it('adds a track to a playlist via PUT /playlists/{id}/items with a server uri', function () {
+    fakePlexWriteEndpoints();
+    Cache::put('plex:playlists', 'stale', 300);
+
+    app(PlexClient::class)->addTrackToPlaylist('4242', '99');
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/playlists/4242/items?')
+        && str_contains($request->url(), 'uri='.urlencode('server://M1/com.plexapp.plugins.library/library/metadata/99')));
+
+    expect(Cache::has('plex:playlists'))->toBeFalse();
+});
+
+it('adds an album to a playlist via PUT /playlists/{id}/items with the album rating key', function () {
+    fakePlexWriteEndpoints();
+
+    app(PlexClient::class)->addAlbumToPlaylist('4242', '1001');
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/playlists/4242/items?')
+        && str_contains($request->url(), 'uri='.urlencode('server://M1/com.plexapp.plugins.library/library/metadata/1001')));
+});
+
+it('maps a 404 from add-to-playlist to PlexNotFoundException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response(['MediaContainer' => ['machineIdentifier' => 'M1']], 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242/items*' => Http::response('nope', 404),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->addTrackToPlaylist('4242', '99'))->toThrow(PlexNotFoundException::class);
+});
+
+it('maps a 500 from add-to-playlist to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response(['MediaContainer' => ['machineIdentifier' => 'M1']], 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242/items*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->addTrackToPlaylist('4242', '99'))->toThrow(PlexUnreachableException::class);
+});

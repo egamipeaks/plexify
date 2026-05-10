@@ -165,6 +165,16 @@ class PlexClient
         });
     }
 
+    public function addTrackToPlaylist(string $playlistId, string $trackId): void
+    {
+        $this->putPlaylistItem($playlistId, $this->libraryItemUri($trackId));
+    }
+
+    public function addAlbumToPlaylist(string $playlistId, string $albumId): void
+    {
+        $this->putPlaylistItem($playlistId, $this->libraryItemUri($albumId));
+    }
+
     public function searchAll(string $query): SearchResults
     {
         $query = trim($query);
@@ -263,6 +273,20 @@ class PlexClient
             'connection' => $isLocal ? 'direct' : 'relay',
             'machineIdentifier' => data_get($response->json(), 'MediaContainer.machineIdentifier'),
         ];
+    }
+
+    private function putPlaylistItem(string $playlistId, string $uri): void
+    {
+        try {
+            $response = $this->server()->put("/playlists/{$playlistId}/items?".http_build_query(['uri' => $uri]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Adding to playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "playlists/{$playlistId}/items");
+
+        $this->cache->forget('playlists');
+        $this->cache->forget("playlist:{$playlistId}:items");
     }
 
     private function libraryItemUri(string $ratingKey): string
