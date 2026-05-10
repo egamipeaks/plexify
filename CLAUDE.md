@@ -26,7 +26,7 @@ The product name in the design files is "Plextune". The repo and app title are "
 | 6 | Settings page | Not started |
 | 7 | Polish (keyboard shortcuts, transitions, error toasts, compact/comfortable density, formatMs hour handling, etc.) | Not started |
 
-Git log is the authoritative record of what shipped. `php artisan test` should be green (99 tests as of end of M4, including four Playwright browser tests).
+Git log is the authoritative record of what shipped. `php artisan test` should be green (101 tests as of end of M4, including four Playwright browser tests).
 
 ## How work is done here
 
