@@ -7,7 +7,7 @@ new class extends Component {
 };
 ?>
 
-<div class="flex items-center gap-4 px-6 h-16 flex-none bg-surface rounded-lg">
+<div class="flex items-center gap-4 px-6 h-16 flex-none">
     <div class="flex gap-2">
         <button type="button" onclick="history.back()"
                 class="w-8 h-8 rounded-full bg-black/60 hover:bg-black grid place-items-center text-white">

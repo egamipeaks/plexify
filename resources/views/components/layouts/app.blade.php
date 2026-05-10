@@ -12,19 +12,15 @@
     @livewireStyles
 </head>
 <body class="h-full bg-base text-text-1">
-    <div class="flex flex-col gap-2 p-2 h-screen w-screen">
-        {{-- Topbar region --}}
-        <div class="flex-none">
-            <livewire:topbar />
-        </div>
-
-        {{-- Middle region: sidebar + main --}}
+    <div class="app-shell h-screen w-screen flex flex-col gap-2 p-2">
+        {{-- Middle region: sidebar + main (topbar lives inside main) --}}
         <div class="flex gap-2 flex-1 min-h-0">
-            <aside class="w-[280px] flex-none">
+            <div class="w-[320px] flex-none flex flex-col gap-2 min-h-0">
                 <livewire:sidebar />
-            </aside>
-            <main class="flex-1 min-w-0">
-                <div class="bg-surface rounded-lg h-full overflow-auto">
+            </div>
+            <main class="flex-1 min-w-0 bg-surface rounded-lg flex flex-col overflow-hidden">
+                <livewire:topbar />
+                <div class="flex-1 min-h-0 overflow-hidden">
                     {{ $slot }}
                 </div>
             </main>
