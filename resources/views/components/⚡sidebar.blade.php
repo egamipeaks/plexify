@@ -1,13 +1,21 @@
 <?php
 
+use App\Models\Folder;
+use App\Models\FolderPlaylist;
 use App\Services\Plex\Dto\Playlist;
+use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexClient;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 new class extends Component {
+    public ?int $renamingFolderId = null;
+
+    public ?string $renamingPlaylistId = null;
+
     protected PlexClient $plex;
 
     public function boot(PlexClient $plex): void
@@ -26,9 +34,188 @@ new class extends Component {
         }
     }
 
+    /** @return Collection<int, Folder> */
+    #[Computed]
+    public function folders(): Collection
+    {
+        return Folder::with('folderPlaylists')->orderBy('position')->orderBy('id')->get();
+    }
+
+    /** @return array<string, int> Plex playlist id => folder id */
+    #[Computed]
+    public function folderOf(): array
+    {
+        $map = [];
+
+        foreach ($this->folders as $folder) {
+            foreach ($folder->folderPlaylists as $fp) {
+                $map[$fp->plex_playlist_id] = $folder->id;
+            }
+        }
+
+        return $map;
+    }
+
     public function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
+    }
+
+    public function createFolder(): void
+    {
+        $folder = Folder::create([
+            'name' => 'New Folder',
+            'position' => (int) Folder::max('position') + 1,
+            'expanded' => true,
+        ]);
+
+        unset($this->folders, $this->folderOf);
+        $this->renamingFolderId = $folder->id;
+    }
+
+    public function renameFolder(int $id, string $name): void
+    {
+        $name = trim($name);
+
+        if ($name !== '') {
+            Folder::whereKey($id)->update(['name' => $name]);
+            unset($this->folders);
+        }
+
+        $this->renamingFolderId = null;
+    }
+
+    public function deleteFolder(int $id): void
+    {
+        Folder::whereKey($id)->delete();
+        unset($this->folders, $this->folderOf);
+    }
+
+    public function toggleFolder(int $id): void
+    {
+        $folder = Folder::find($id);
+
+        if (! $folder) {
+            return;
+        }
+
+        $folder->update(['expanded' => ! $folder->expanded]);
+        unset($this->folders);
+    }
+
+    public function movePlaylistToFolder(string $playlistId, ?int $folderId): void
+    {
+        FolderPlaylist::where('plex_playlist_id', $playlistId)->delete();
+
+        if ($folderId !== null && Folder::whereKey($folderId)->exists()) {
+            FolderPlaylist::create([
+                'folder_id' => $folderId,
+                'plex_playlist_id' => $playlistId,
+                'position' => (int) FolderPlaylist::where('folder_id', $folderId)->max('position') + 1,
+            ]);
+        }
+
+        unset($this->folders, $this->folderOf);
+    }
+
+    public function addTrackToPlaylist(string $playlistId, string $trackId): bool
+    {
+        try {
+            $this->plex->addTrackToPlaylist($playlistId, $trackId);
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('addTrackToPlaylist failed', ['playlist' => $playlistId, 'track' => $trackId, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+
+        unset($this->playlists);
+
+        return true;
+    }
+
+    public function addAlbumToPlaylist(string $playlistId, string $albumId): bool
+    {
+        try {
+            $this->plex->addAlbumToPlaylist($playlistId, $albumId);
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('addAlbumToPlaylist failed', ['playlist' => $playlistId, 'album' => $albumId, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+
+        unset($this->playlists);
+
+        return true;
+    }
+
+    public function createPlaylistFromTrack(string $trackId): bool
+    {
+        try {
+            $newId = $this->plex->createPlaylist('New Playlist', $trackId);
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('createPlaylistFromTrack failed', ['track' => $trackId, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+
+        unset($this->playlists);
+        $this->renamingPlaylistId = $newId;
+
+        return true;
+    }
+
+    public function renamePlaylist(string $playlistId, string $name): void
+    {
+        $name = trim($name);
+
+        if ($name !== '') {
+            try {
+                $this->plex->renamePlaylist($playlistId, $name);
+                unset($this->playlists);
+            } catch (PlexException $e) {
+                Log::channel('plex')->warning('renamePlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+            }
+        }
+
+        $this->renamingPlaylistId = null;
+    }
+
+    public function deletePlaylist(string $playlistId): void
+    {
+        try {
+            $this->plex->deletePlaylist($playlistId);
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('deletePlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+
+            return;
+        }
+
+        FolderPlaylist::where('plex_playlist_id', $playlistId)->delete();
+        unset($this->playlists, $this->folders, $this->folderOf);
+    }
+
+    public function playPlaylist(string $playlistId): void
+    {
+        try {
+            $tracks = $this->plex->playlistTracks($playlistId);
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('playPlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+
+            return;
+        }
+
+        $track = $tracks->first();
+
+        if (! $track instanceof Track) {
+            return;
+        }
+
+        $this->dispatch('play-track',
+            url: $this->plex->streamUrl($track),
+            title: $track->title,
+            artist: $track->artist,
+            artwork: $this->thumbFor($track->thumb),
+        );
     }
 };
 ?>
