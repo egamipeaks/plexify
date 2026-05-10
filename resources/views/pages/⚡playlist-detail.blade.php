@@ -190,7 +190,50 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
     </div>
 
-    {{-- Tracklist — added in Task 5 --}}
-    <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
+    {{-- Tracklist --}}
+    <div class="flex-1 min-h-0 flex flex-col px-2 pb-2 overflow-hidden" data-region="tracklist">
+        <div class="flex-1 min-h-0 flex flex-col relative bg-surface rounded-lg overflow-hidden">
+            <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10"
+                 style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                <span></span>
+                <span class="text-right">#</span>
+                <span>Title</span>
+                <span>Album</span>
+                <span></span>
+                <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+            </div>
+            <div class="overflow-y-auto scroll flex-1 py-1">
+                @foreach ($this->tracks as $i => $track)
+                    <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                            class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
+                            style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                        <span class="text-text-3 group-hover:text-white grid place-items-center">
+                            <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
+                        </span>
+                        <span class="tabular-nums text-text-2 text-right">{{ $i + 1 }}</span>
+                        <div class="min-w-0 flex items-center gap-3">
+                            @if ($track->thumb)
+                                <img src="{{ $this->thumbFor($track->thumb) }}" alt="{{ $track->title }}"
+                                     class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                            @else
+                                <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                    <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                                </div>
+                            @endif
+                            <div class="min-w-0">
+                                <div class="truncate font-medium text-white">{{ $track->title }}</div>
+                                <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
+                            </div>
+                        </div>
+                        <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                        <span class="grid place-items-center text-text-2 hover:text-white">
+                            <x-lucide-heart class="w-3.5 h-3.5" />
+                        </span>
+                        <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    </div>
 @endif
 </div>
