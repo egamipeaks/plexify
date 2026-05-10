@@ -555,13 +555,15 @@ it('deletes a playlist via DELETE /playlists/{id}', function () {
         'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242' => Http::response('', 200),
     ]);
     Cache::put('plex:playlists', 'stale', 300);
+    Cache::put('plex:playlist:4242:items', 'stale', 300);
 
     app(PlexClient::class)->deletePlaylist('4242');
 
     Http::assertSent(fn ($request) => $request->method() === 'DELETE'
         && str_ends_with($request->url(), '/playlists/4242'));
 
-    expect(Cache::has('plex:playlists'))->toBeFalse();
+    expect(Cache::has('plex:playlists'))->toBeFalse()
+        ->and(Cache::has('plex:playlist:4242:items'))->toBeFalse();
 });
 
 it('maps a 404 from createPlaylist to PlexNotFoundException', function () {
