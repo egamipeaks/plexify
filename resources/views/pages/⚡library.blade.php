@@ -31,7 +31,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->selectedAlbumId = $id;
     }
 
-    public function playTrack(string $trackId): void
+    public function playTrack(PlexClient $plex, string $trackId): void
     {
         $track = $this->tracks->firstWhere('id', $trackId);
 
@@ -40,13 +40,13 @@ new #[Layout('components.layouts.app')] class extends Component {
         }
 
         $this->dispatch('play-track',
-            url: app(PlexClient::class)->streamUrl($track),
+            url: $plex->streamUrl($track),
             title: $track->title,
             artist: $track->artist,
         );
     }
 
-    public function formatMs(int $ms): string
+    protected function formatMs(int $ms): string
     {
         $seconds = (int) round($ms / 1000);
         $m = intdiv($seconds, 60);
@@ -135,25 +135,38 @@ new #[Layout('components.layouts.app')] class extends Component {
 @else
     <div class="h-full flex flex-col">
         {{-- Miller columns: Artists + Albums --}}
-        <div class="grid grid-cols-2 gap-2 px-2 pt-2 flex-none" style="height: 220px;">
+        <div class="grid grid-cols-2 gap-2 px-2 pt-2 pb-2 flex-none" style="height: 220px;">
             {{-- Artists column --}}
             <div class="flex flex-col min-h-0 bg-surface rounded-lg overflow-hidden">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between gap-2 flex-none">
                     <div class="text-[13px] font-bold uppercase tracking-wider text-text-2 whitespace-nowrap">Artists</div>
-                    <div class="text-[11px] text-text-3">{{ $this->artists->count() }}</div>
+                    <div class="flex items-center gap-2 flex-none">
+                        <button type="button" class="text-[11px] text-text-2 hover:text-white font-semibold flex items-center gap-1 whitespace-nowrap">
+                            <x-lucide-arrow-up-down class="w-[11px] h-[11px]" /> A&ndash;Z
+                        </button>
+                        <span class="text-[11px] text-text-3 tabular-nums">{{ $this->artists->count() }}</span>
+                        <div class="flex items-center bg-surface-2 rounded p-0.5">
+                            <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                                <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
+                            </button>
+                            <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                                <x-lucide-menu class="w-[11px] h-[11px]" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="overflow-y-auto flex-1" data-region="artists-column">
+                <div class="overflow-y-auto scroll flex-1" data-region="artists-column">
                     @foreach ($this->artists as $artist)
-                        <button wire:click="selectArtist('{{ $artist->id }}')"
+                        <button type="button" wire:click="selectArtist('{{ $artist->id }}')"
                                 @class([
-                                    'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                                    'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
                                     'bg-surface-3 text-white' => $selectedArtistId === $artist->id,
                                     'text-text-2 hover:text-white hover:bg-surface-2' => $selectedArtistId !== $artist->id,
                                 ])>
-                            <div class="w-9 h-9 rounded-full bg-surface-2 flex-none grid place-items-center">
+                            <div class="rounded-full relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
                                 <x-lucide-user class="w-4 h-4 text-text-3" />
                             </div>
-                            <div class="min-w-0 flex-1">
+                            <div class="flex-1 min-w-0">
                                 <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
                                 <div class="text-[11px] text-text-2 truncate">{{ $artist->albumCount }} albums</div>
                             </div>
@@ -166,30 +179,41 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div class="flex flex-col min-h-0 bg-surface rounded-lg overflow-hidden">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between gap-2 flex-none">
                     <div class="text-[13px] font-bold uppercase tracking-wider text-text-2 whitespace-nowrap">Albums</div>
-                    @if ($selectedArtistId)
-                        <div class="text-[11px] text-text-3">{{ $this->albums->count() }}</div>
-                    @endif
+                    <div class="flex items-center gap-2 flex-none">
+                        <button type="button" class="text-[11px] text-text-2 hover:text-white font-semibold flex items-center gap-1 whitespace-nowrap">
+                            <x-lucide-arrow-up-down class="w-[11px] h-[11px]" /> A&ndash;Z
+                        </button>
+                        <span class="text-[11px] text-text-3 tabular-nums">{{ $this->albums->count() }}</span>
+                        <div class="flex items-center bg-surface-2 rounded p-0.5">
+                            <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                                <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
+                            </button>
+                            <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                                <x-lucide-menu class="w-[11px] h-[11px]" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="overflow-y-auto flex-1" data-region="albums-column">
+                <div class="overflow-y-auto scroll flex-1" data-region="albums-column">
                     @if (! $selectedArtistId)
                         <div class="grid place-items-center h-full text-text-3 text-[12px]">Select an artist</div>
                     @elseif ($this->albums->isEmpty())
                         <div class="grid place-items-center h-full text-text-3 text-[12px]">No albums</div>
                     @else
                         @foreach ($this->albums as $album)
-                            <button wire:click="selectAlbum('{{ $album->id }}')"
+                            <button type="button" wire:click="selectAlbum('{{ $album->id }}')"
                                     @class([
-                                        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                                        'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
                                         'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
                                         'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
                                     ])>
-                                <div class="w-9 h-9 rounded bg-surface-2 flex-none grid place-items-center">
+                                <div class="rounded relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
                                     <x-lucide-disc class="w-4 h-4 text-text-3" />
                                 </div>
-                                <div class="min-w-0 flex-1">
+                                <div class="flex-1 min-w-0">
                                     <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
                                     <div class="text-[11px] text-text-2 truncate">
-                                        {{ $album->year ?: '' }}{{ $album->year ? ' · ' : '' }}{{ $album->trackCount }} tracks
+                                        @if ($album->year){{ $album->year }} · @endif{{ $album->trackCount }} tracks
                                     </div>
                                 </div>
                             </button>
@@ -201,48 +225,89 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         {{-- Album header --}}
         @if ($this->selectedAlbum)
-            <div class="flex-none p-2">
-                <div class="bg-gradient-to-b from-surface-3 to-surface rounded-lg p-6 flex items-end gap-6">
-                    <div class="w-[120px] h-[120px] rounded shadow-2xl bg-surface-2 grid place-items-center flex-none">
-                        <x-lucide-disc class="w-10 h-10 text-text-3" />
-                    </div>
-                    <div class="min-w-0">
-                        <div class="text-[11px] font-bold uppercase tracking-wider text-text-2">Album</div>
-                        <h1 class="font-black truncate" style="font-size: clamp(22px, 3.4vw, 40px);">{{ $this->selectedAlbum->title }}</h1>
-                        <div class="text-[13px] text-text-2 mt-2">
-                            {{ $this->selectedAlbum->artist }}
-                            @if ($this->selectedAlbum->year)
-                                · {{ $this->selectedAlbum->year }}
-                            @endif
-                            · {{ $this->selectedAlbum->trackCount }} songs · {{ $this->formatMs($this->selectedAlbum->durationMs) }}
+            <div class="px-2 pb-2 flex-none">
+                <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    <div class="px-6 py-5 flex items-center gap-5">
+                        <div class="rounded-md relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 120px; height: 120px;">
+                            <x-lucide-disc class="w-10 h-10 text-text-3" />
                         </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-white/80">Album</div>
+                            <h1 class="text-[clamp(22px,3.4vw,40px)] font-black tracking-tight leading-[1.05] truncate">{{ $this->selectedAlbum->title }}</h1>
+                            <div class="mt-2 flex items-center gap-2 text-[13px] text-text-2 flex-wrap">
+                                <span class="text-white font-semibold">{{ $this->selectedAlbum->artist }}</span>
+                                @if ($this->selectedAlbum->year)
+                                    <span>·</span>
+                                    <span>{{ $this->selectedAlbum->year }}</span>
+                                @endif
+                                <span>·</span>
+                                <span class="whitespace-nowrap tabular-nums">{{ $this->selectedAlbum->trackCount }} songs, {{ $this->formatMs($this->selectedAlbum->durationMs) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-4 flex items-center gap-4">
+                        <button type="button" class="w-14 h-14 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black shadow-xl hover:scale-105 active:scale-100 transition-transform">
+                            <x-lucide-play class="w-[22px] h-[22px]" style="fill: currentColor;" />
+                        </button>
+                        <button type="button" class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-all">
+                            <x-lucide-shuffle class="w-[22px] h-[22px]" />
+                        </button>
+                        <button type="button" class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-all">
+                            <x-lucide-download class="w-5 h-5" />
+                        </button>
+                        <div class="flex-1"></div>
                     </div>
                 </div>
             </div>
         @endif
 
         {{-- Tracklist --}}
-        @if ($selectedAlbumId)
-            <div class="flex-1 p-2 overflow-auto" data-region="tracklist">
-                <div class="bg-surface rounded-lg">
-                    <div class="grid gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-text-2 border-b border-surface-2 sticky top-0 bg-surface"
-                         style="grid-template-columns: 36px 1fr 60px;">
-                        <div class="text-right">#</div>
-                        <div>Title</div>
-                        <div class="text-right">Time</div>
-                    </div>
-                    @foreach ($this->tracks as $track)
-                        <button wire:click="playTrack('{{ $track->id }}')"
-                                class="w-full grid gap-2 px-4 py-2 hover:bg-surface-2 transition-colors text-left text-[13px] tabular-nums"
-                                style="grid-template-columns: 36px 1fr 60px;">
-                            <div class="text-text-2 text-right">{{ $track->trackNumber }}</div>
-                            <div class="min-w-0">
-                                <div class="font-semibold truncate text-white">{{ $track->title }}</div>
-                                <div class="text-[11px] text-text-2 truncate">{{ $track->artist }}</div>
-                            </div>
-                            <div class="text-text-2 text-right">{{ $this->formatMs($track->durationMs) }}</div>
+        @if ($this->selectedAlbum)
+            <div class="flex-1 min-h-0 flex flex-col px-2 pb-2 overflow-hidden" data-region="tracklist">
+                <div class="flex-1 min-h-0 flex flex-col relative bg-surface rounded-lg overflow-hidden">
+                    <div class="absolute right-2 top-1.5 z-20 flex items-center bg-surface-2 rounded p-0.5">
+                        <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                            <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
                         </button>
-                    @endforeach
+                        <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                            <x-lucide-menu class="w-[11px] h-[11px]" />
+                        </button>
+                    </div>
+                    <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
+                         style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                        <span></span>
+                        <span class="text-right">#</span>
+                        <span>Title</span>
+                        <span>Album</span>
+                        <span></span>
+                        <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+                    </div>
+                    <div class="overflow-y-auto scroll flex-1 py-1">
+                        @foreach ($this->tracks as $track)
+                            <button type="button" wire:click="playTrack('{{ $track->id }}')"
+                                    class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
+                                    style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                                <span class="text-text-3 group-hover:text-white grid place-items-center">
+                                    <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
+                                </span>
+                                <span class="tabular-nums text-text-2 text-right">{{ $track->trackNumber }}</span>
+                                <div class="min-w-0 flex items-center gap-3">
+                                    <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                        <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="truncate font-medium text-white">{{ $track->title }}</div>
+                                        <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                                <span class="grid place-items-center text-text-2 hover:text-white">
+                                    <x-lucide-heart class="w-3.5 h-3.5" />
+                                </span>
+                                <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         @else
