@@ -107,6 +107,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 ?>
 
 <div class="h-full flex flex-col">
+{{-- Resolve the results computed up front so a Plex failure populates $errorMessage before the checks below. --}}
 @php($this->results)
 @if ($this->errorMessage)
     <div class="flex-1 grid place-items-center p-12 text-center">
