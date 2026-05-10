@@ -130,6 +130,42 @@ class PlexClient
         );
     }
 
+    public function ping(): array
+    {
+        $resources = $this->ownedServerResource();
+        $name = $resources['name'] ?? 'Unknown';
+
+        try {
+            $response = $this->server()->timeout(3)->get('/identity');
+        } catch (ConnectionException) {
+            return [
+                'name' => $name,
+                'reachable' => false,
+                'connection' => 'down',
+                'machineIdentifier' => null,
+            ];
+        }
+
+        if (! $response->successful()) {
+            return [
+                'name' => $name,
+                'reachable' => false,
+                'connection' => 'down',
+                'machineIdentifier' => null,
+            ];
+        }
+
+        $isLocal = str_contains($this->baseUrl(), 'plex.direct')
+            && (collect($resources['connections'] ?? [])->firstWhere('uri', $this->baseUrl())['local'] ?? false);
+
+        return [
+            'name' => $name,
+            'reachable' => true,
+            'connection' => $isLocal ? 'direct' : 'relay',
+            'machineIdentifier' => data_get($response->json(), 'MediaContainer.machineIdentifier'),
+        ];
+    }
+
     private function server(): PendingRequest
     {
         // No ->throw() — Laravel's HTTP client does NOT auto-throw on 4xx/5xx by
@@ -144,29 +180,7 @@ class PlexClient
 
     private function discoverBaseUrl(): string
     {
-        try {
-            $response = $this->plexTv()->get('/resources', ['includeHttps' => 1]);
-        } catch (ConnectionException $e) {
-            throw new PlexUnreachableException('Cannot reach plex.tv: ' . $e->getMessage(), previous: $e);
-        }
-
-        if ($response->status() === 401 || $response->status() === 403) {
-            throw new PlexAuthException('Plex token rejected by plex.tv (status ' . $response->status() . ').');
-        }
-
-        if (! $response->successful()) {
-            throw new PlexUnreachableException('plex.tv resources endpoint returned status ' . $response->status());
-        }
-
-        $resources = $response->json();
-        $owned = collect($resources)->first(
-            fn (array $r) => str_contains($r['provides'] ?? '', 'server') && ($r['owned'] ?? false),
-        );
-
-        if (! $owned) {
-            throw new PlexUnreachableException('No owned Plex server found for this token.');
-        }
-
+        $owned = $this->ownedServerResource();
         $connections = collect($owned['connections'] ?? []);
         $best = $connections->firstWhere('local', true)
             ?? $connections->firstWhere('protocol', 'https')
@@ -177,6 +191,35 @@ class PlexClient
         }
 
         return $best['uri'];
+    }
+
+    private function ownedServerResource(): array
+    {
+        return $this->cache->remember('owned_resource', PlexCache::TTL_RESOURCES, function () {
+            try {
+                $response = $this->plexTv()->get('/resources', ['includeHttps' => 1]);
+            } catch (ConnectionException $e) {
+                throw new PlexUnreachableException('Cannot reach plex.tv: ' . $e->getMessage(), previous: $e);
+            }
+
+            if ($response->status() === 401 || $response->status() === 403) {
+                throw new PlexAuthException('Plex token rejected by plex.tv (status ' . $response->status() . ').');
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('plex.tv resources endpoint returned status ' . $response->status());
+            }
+
+            $owned = collect($response->json())->first(
+                fn (array $r) => str_contains($r['provides'] ?? '', 'server') && ($r['owned'] ?? false),
+            );
+
+            if (! $owned) {
+                throw new PlexUnreachableException('No owned Plex server found for this token.');
+            }
+
+            return $owned;
+        });
     }
 
     private function plexTv(): PendingRequest

@@ -223,3 +223,35 @@ it('returns null thumbUrl for empty input', function () {
     expect($client->thumbUrl(null))->toBeNull();
     expect($client->thumbUrl(''))->toBeNull();
 });
+
+it('reports ping status with server name when reachable', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => Http::response([
+            'MediaContainer' => [
+                'machineIdentifier' => 'fdc67453cc21f68f457007dcba5e108675f02a56',
+                'version' => '1.42.2.10156',
+            ],
+        ], 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $status = $client->ping();
+
+    expect($status['name'])->toBe('HOMESERVER');
+    expect($status['connection'])->toBe('direct');
+    expect($status['reachable'])->toBeTrue();
+});
+
+it('reports unreachable when /identity fails', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => fn () => throw new \Illuminate\Http\Client\ConnectionException('refused'),
+    ]);
+
+    $client = app(PlexClient::class);
+    $status = $client->ping();
+
+    expect($status['reachable'])->toBeFalse();
+    expect($status['connection'])->toBe('down');
+});
