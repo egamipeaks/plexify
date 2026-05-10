@@ -42,7 +42,7 @@ class PlexClient
             $response = $this->server()->get('/library/sections');
 
             if (! $response->successful()) {
-                throw new PlexUnreachableException('library/sections returned ' . $response->status());
+                throw new PlexUnreachableException('library/sections returned '.$response->status());
             }
 
             $directory = data_get($response->json(), 'MediaContainer.Directory', []);
@@ -63,7 +63,7 @@ class PlexClient
             $response = $this->server()->get("/library/sections/{$sectionId}/all", ['type' => 8]);
 
             if (! $response->successful()) {
-                throw new PlexUnreachableException('artists endpoint returned ' . $response->status());
+                throw new PlexUnreachableException('artists endpoint returned '.$response->status());
             }
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
@@ -107,6 +107,25 @@ class PlexClient
         });
     }
 
+    public function playlists(): Collection
+    {
+        return $this->cache->remember('playlists', PlexCache::TTL_PLAYLISTS, function () {
+            $response = $this->server()->get('/playlists', ['playlistType' => 'audio']);
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException('playlists endpoint not found.');
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('playlists endpoint returned '.$response->status());
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->values();
+        });
+    }
+
     public function searchAll(string $query): SearchResults
     {
         $query = trim($query);
@@ -121,15 +140,15 @@ class PlexClient
                 'limit' => 30,
             ]);
         } catch (ConnectionException $e) {
-            throw new PlexUnreachableException('Plex search failed: ' . $e->getMessage(), previous: $e);
+            throw new PlexUnreachableException('Plex search failed: '.$e->getMessage(), previous: $e);
         }
 
         if ($response->status() === 401 || $response->status() === 403) {
-            throw new PlexAuthException('Plex rejected the search request (status ' . $response->status() . ').');
+            throw new PlexAuthException('Plex rejected the search request (status '.$response->status().').');
         }
 
         if (! $response->successful()) {
-            throw new PlexUnreachableException('hubs/search returned ' . $response->status());
+            throw new PlexUnreachableException('hubs/search returned '.$response->status());
         }
 
         $hubs = collect(data_get($response->json(), 'MediaContainer.Hub', []));
@@ -240,15 +259,15 @@ class PlexClient
             try {
                 $response = $this->plexTv()->get('/resources', ['includeHttps' => 1]);
             } catch (ConnectionException $e) {
-                throw new PlexUnreachableException('Cannot reach plex.tv: ' . $e->getMessage(), previous: $e);
+                throw new PlexUnreachableException('Cannot reach plex.tv: '.$e->getMessage(), previous: $e);
             }
 
             if ($response->status() === 401 || $response->status() === 403) {
-                throw new PlexAuthException('Plex token rejected by plex.tv (status ' . $response->status() . ').');
+                throw new PlexAuthException('Plex token rejected by plex.tv (status '.$response->status().').');
             }
 
             if (! $response->successful()) {
-                throw new PlexUnreachableException('plex.tv resources endpoint returned status ' . $response->status());
+                throw new PlexUnreachableException('plex.tv resources endpoint returned status '.$response->status());
             }
 
             $owned = collect($response->json())->first(

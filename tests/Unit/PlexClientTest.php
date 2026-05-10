@@ -1,7 +1,9 @@
 <?php
 
 use App\Services\Plex\Dto\SearchResults;
+use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexAuthException;
+use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
 use Illuminate\Http\Client\ConnectionException;
@@ -61,7 +63,7 @@ it('throws PlexAuthException when plex.tv returns 401', function () {
 
 it('throws PlexUnreachableException when plex.tv connection fails', function () {
     Http::fake([
-        'https://plex.tv/api/v2/resources*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('connect timed out'),
+        'https://plex.tv/api/v2/resources*' => fn () => throw new ConnectionException('connect timed out'),
     ]);
 
     $client = app(PlexClient::class);
@@ -122,7 +124,7 @@ it('throws PlexNotFoundException when no music section exists', function () {
 
     $client = app(PlexClient::class);
 
-    expect(fn () => $client->musicSectionId())->toThrow(\App\Services\Plex\Exceptions\PlexNotFoundException::class);
+    expect(fn () => $client->musicSectionId())->toThrow(PlexNotFoundException::class);
 });
 
 it('lists artists in the music section', function () {
@@ -192,7 +194,7 @@ it('builds a stream URL for a track', function () {
     ]);
 
     $client = app(PlexClient::class);
-    $track = new \App\Services\Plex\Dto\Track(
+    $track = new Track(
         id: '1',
         title: 'Test',
         artist: 'A',
@@ -248,7 +250,7 @@ it('reports ping status with server name when reachable', function () {
 it('reports unreachable when /identity fails', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
-        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => fn () => throw new \Illuminate\Http\Client\ConnectionException('refused'),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/identity' => fn () => throw new ConnectionException('refused'),
     ]);
 
     $client = app(PlexClient::class);
@@ -340,4 +342,47 @@ it('maps a 500 from hubs/search to PlexUnreachableException', function () {
     ]);
 
     expect(fn () => app(PlexClient::class)->searchAll('bon'))->toThrow(PlexUnreachableException::class);
+});
+
+it('lists audio playlists', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response(file_get_contents(fixturePath('playlists.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $playlists = $client->playlists();
+
+    expect($playlists)->toHaveCount(2)
+        ->and($playlists->first()->title)->toBe('Late Night')
+        ->and($playlists->first()->trackCount)->toBe(3)
+        ->and($playlists->first()->summary)->toBe('Wind-down listening.')
+        ->and($playlists->last()->summary)->toBeNull();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/playlists')
+        && str_contains($request->url(), 'playlistType=audio'));
+});
+
+it('caches the playlists list', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response(file_get_contents(fixturePath('playlists.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $client->playlists();
+    $client->playlists();
+
+    Http::assertSentCount(2); // resources + playlists, no second playlists call
+});
+
+it('maps a 500 from /playlists to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response('boom', 500),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect(fn () => $client->playlists())->toThrow(PlexUnreachableException::class);
 });

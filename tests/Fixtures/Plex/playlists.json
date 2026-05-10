@@ -1,0 +1,26 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "4242",
+        "title": "Late Night",
+        "summary": "Wind-down listening.",
+        "leafCount": 3,
+        "duration": 720000,
+        "composite": "/playlists/4242/composite/1700000000",
+        "playlistType": "audio",
+        "smart": false
+      },
+      {
+        "ratingKey": "4243",
+        "title": "Bangers",
+        "leafCount": 2,
+        "duration": 480000,
+        "composite": "/playlists/4243/composite/1700000001",
+        "playlistType": "audio",
+        "smart": false
+      }
+    ]
+  }
+}
