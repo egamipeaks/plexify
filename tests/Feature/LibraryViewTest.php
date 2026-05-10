@@ -98,6 +98,7 @@ it('dispatches play-track event with stream URL when track clicked', function ()
         ]));
         $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$track]));
         $mock->shouldReceive('streamUrl')->with(\Mockery::on(fn ($t) => $t->id === '9001'))->andReturn('https://plex/file.flac?X-Plex-Token=t');
+        $mock->shouldReceive('thumbUrl')->with(null)->andReturn(null);
     });
 
     Livewire::test('pages::library')
@@ -108,5 +109,6 @@ it('dispatches play-track event with stream URL when track clicked', function ()
             url: 'https://plex/file.flac?X-Plex-Token=t',
             title: 'Test',
             artist: 'A',
+            artwork: null,
         );
 });

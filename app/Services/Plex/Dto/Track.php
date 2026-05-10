@@ -22,7 +22,7 @@ readonly class Track
         return new self(
             id: (string) $row['ratingKey'],
             title: $row['title'],
-            artist: $row['grandparentTitle'] ?? '',
+            artist: $row['originalTitle'] ?? $row['grandparentTitle'] ?? '',
             album: $row['parentTitle'] ?? '',
             trackNumber: $row['index'] ?? 0,
             durationMs: $row['duration'] ?? 0,

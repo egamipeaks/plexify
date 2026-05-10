@@ -22,3 +22,21 @@ it('listens for play-track events and loads the track', function () {
         ->assertSet('trackTitle', 'Evt Track')
         ->assertDispatched('audio-load', url: 'https://example.com/track.mp3');
 });
+
+it('sets trackArtwork when loadTrack is called with artwork', function () {
+    Livewire::test('player')
+        ->call('loadTrack', 'https://example.com/track.mp3', 'T', 'A', 'https://example.com/art.jpg')
+        ->assertSet('trackArtwork', 'https://example.com/art.jpg');
+});
+
+it('trackArtwork defaults to null when loadTrack called without artwork', function () {
+    Livewire::test('player')
+        ->call('loadTrack', 'https://example.com/track.mp3', 'T', 'A')
+        ->assertSet('trackArtwork', null);
+});
+
+it('sets trackArtwork via play-track event', function () {
+    Livewire::test('player')
+        ->dispatch('play-track', url: 'https://example.com/track.mp3', title: 'T', artist: 'A', artwork: 'https://example.com/art.jpg')
+        ->assertSet('trackArtwork', 'https://example.com/art.jpg');
+});

@@ -43,6 +43,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             url: $plex->streamUrl($track),
             title: $track->title,
             artist: $track->artist,
+            artwork: $this->thumbFor($this->selectedAlbum?->thumb),
         );
     }
 

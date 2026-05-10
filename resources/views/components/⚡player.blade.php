@@ -7,20 +7,22 @@ new class extends Component {
     public string $trackUrl = '';
     public string $trackTitle = '';
     public string $trackArtist = '';
+    public ?string $trackArtwork = null;
 
-    public function loadTrack(string $url, string $title = '', string $artist = ''): void
+    public function loadTrack(string $url, string $title = '', string $artist = '', ?string $artwork = null): void
     {
         $this->trackUrl = $url;
         $this->trackTitle = $title;
         $this->trackArtist = $artist;
+        $this->trackArtwork = $artwork;
 
         $this->dispatch('audio-load', url: $url);
     }
 
     #[On('play-track')]
-    public function onPlayTrack(string $url, string $title = '', string $artist = ''): void
+    public function onPlayTrack(string $url, string $title = '', string $artist = '', ?string $artwork = null): void
     {
-        $this->loadTrack($url, $title, $artist);
+        $this->loadTrack($url, $title, $artist, $artwork);
     }
 };
 ?>
@@ -31,9 +33,14 @@ new class extends Component {
 
     {{-- Now-playing --}}
     <div class="flex items-center gap-3 min-w-[280px] max-w-[30%]">
-        <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none">
-            <x-lucide-music class="w-6 h-6 text-text-3" />
-        </div>
+        @if ($trackArtwork)
+            <img src="{{ $trackArtwork }}" alt="{{ $trackTitle }}"
+                 class="w-14 h-14 rounded-md flex-none object-cover">
+        @else
+            <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none">
+                <x-lucide-music class="w-6 h-6 text-text-3" />
+            </div>
+        @endif
         <div class="min-w-0 flex-1">
             <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer">{{ $trackTitle ?: '' }}</div>
             <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer">{{ $trackArtist ?: '' }}</div>

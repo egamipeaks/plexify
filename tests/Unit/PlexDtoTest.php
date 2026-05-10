@@ -77,6 +77,32 @@ it('builds Track from Plex JSON row', function () {
     expect($track->container)->toBe('flac');
 });
 
+it('prefers originalTitle over grandparentTitle for track artist on compilation albums', function () {
+    $row = [
+        'ratingKey' => '22222',
+        'title' => 'Holocene',
+        'originalTitle' => 'Bon Iver',
+        'grandparentTitle' => 'Various Artists',
+        'parentTitle' => 'Now That\'s What I Call Music',
+        'index' => 5,
+        'duration' => 249000,
+        'Media' => [
+            [
+                'Part' => [
+                    [
+                        'id' => 111,
+                        'container' => 'mp3',
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $track = Track::fromPlex($row);
+
+    expect($track->artist)->toBe('Bon Iver');
+});
+
 it('handles missing optional fields gracefully', function () {
     $artist = Artist::fromPlex([
         'ratingKey' => '1',
