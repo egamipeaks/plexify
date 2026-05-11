@@ -43,18 +43,50 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function playTrack(PlexClient $plex, string $trackId): void
     {
-        $track = $this->tracks->firstWhere('id', $trackId);
+        $tracks = $this->tracks->values();
+        $i = $tracks->search(fn ($t) => $t->id === $trackId);
 
-        if (! $track) {
+        if ($i === false) {
+            return;
+        }
+
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: $i);
+    }
+
+    public function playAlbum(PlexClient $plex): void
+    {
+        if ($this->tracks->isEmpty()) {
+            return;
+        }
+
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: 0);
+    }
+
+    public function shuffleAlbum(PlexClient $plex): void
+    {
+        if ($this->tracks->isEmpty()) {
             return;
         }
 
         $this->dispatch('play-track',
-            url: $plex->streamUrl($track),
-            title: $track->title,
-            artist: $track->artist,
-            artwork: $this->thumbFor($this->selectedAlbum?->thumb),
+            queue: $this->albumQueue($plex),
+            index: random_int(0, $this->tracks->count() - 1),
+            shuffle: true,
         );
+    }
+
+    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string}> */
+    protected function albumQueue(PlexClient $plex): array
+    {
+        $artwork = $this->thumbFor($this->selectedAlbum?->thumb);
+
+        return $this->tracks->values()->map(fn ($t) => [
+            'id' => $t->id,
+            'url' => $plex->streamUrl($t),
+            'title' => $t->title,
+            'artist' => $t->artist,
+            'artwork' => $artwork,
+        ])->all();
     }
 
     protected function formatMs(int $ms): string
@@ -289,10 +321,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </div>
                     </div>
                     <div class="px-6 pb-4 flex items-center gap-4">
-                        <button type="button" class="w-14 h-14 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black shadow-xl hover:scale-105 active:scale-100 transition-transform">
+                        <button type="button" wire:click="playAlbum" class="w-14 h-14 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black shadow-xl hover:scale-105 active:scale-100 transition-transform">
                             <x-lucide-play class="w-[22px] h-[22px]" style="fill: currentColor;" />
                         </button>
-                        <button type="button" class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-all">
+                        <button type="button" wire:click="shuffleAlbum" class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-all">
                             <x-lucide-shuffle class="w-[22px] h-[22px]" />
                         </button>
                         <button type="button" class="w-10 h-10 rounded-full grid place-items-center text-text-2 hover:text-white hover:scale-105 transition-all">

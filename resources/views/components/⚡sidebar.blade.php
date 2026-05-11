@@ -3,7 +3,6 @@
 use App\Models\Folder;
 use App\Models\FolderPlaylist;
 use App\Services\Plex\Dto\Playlist;
-use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexClient;
 use Illuminate\Support\Collection;
@@ -184,24 +183,26 @@ new class extends Component {
     public function playPlaylist(string $playlistId): void
     {
         try {
-            $tracks = $this->plex->playlistTracks($playlistId);
+            $tracks = $this->plex->playlistTracks($playlistId)->values();
         } catch (PlexException $e) {
             Log::channel('plex')->warning('playPlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
 
             return;
         }
 
-        $track = $tracks->first();
-
-        if (! $track instanceof Track) {
+        if ($tracks->isEmpty()) {
             return;
         }
 
         $this->dispatch('play-track',
-            url: $this->plex->streamUrl($track),
-            title: $track->title,
-            artist: $track->artist,
-            artwork: $this->thumbFor($track->thumb),
+            queue: $tracks->map(fn ($t) => [
+                'id' => $t->id,
+                'url' => $this->plex->streamUrl($t),
+                'title' => $t->title,
+                'artist' => $t->artist,
+                'artwork' => $this->thumbFor($t->thumb),
+            ])->values()->all(),
+            index: 0,
         );
     }
 };

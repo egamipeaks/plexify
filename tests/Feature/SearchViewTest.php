@@ -93,10 +93,14 @@ it('dispatches play-track when a track row is clicked', function () {
     Livewire::test('pages::search', ['q' => 'bon'])
         ->call('playTrack', '9001')
         ->assertDispatched('play-track',
-            url: 'https://server/library/parts/660001/file.flac?X-Plex-Token=t',
-            title: 'Holocene',
-            artist: 'Bon Iver',
-            artwork: 'https://thumb/t/9001',
+            queue: [[
+                'id' => '9001',
+                'url' => 'https://server/library/parts/660001/file.flac?X-Plex-Token=t',
+                'title' => 'Holocene',
+                'artist' => 'Bon Iver',
+                'artwork' => 'https://thumb/t/9001',
+            ]],
+            index: 0,
         );
 });
 

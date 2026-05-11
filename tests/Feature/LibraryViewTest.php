@@ -109,11 +109,73 @@ it('dispatches play-track event with stream URL when track clicked', function ()
         ->call('selectAlbum', '1001')
         ->call('playTrack', '9001')
         ->assertDispatched('play-track',
-            url: 'https://plex/file.flac?X-Plex-Token=t',
-            title: 'Test',
-            artist: 'A',
-            artwork: null,
+            queue: [[
+                'id' => '9001',
+                'url' => 'https://plex/file.flac?X-Plex-Token=t',
+                'title' => 'Test',
+                'artist' => 'A',
+                'artwork' => null,
+            ]],
+            index: 0,
         );
+});
+
+it('plays the whole album when the album-header Play button is pressed', function () {
+    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac');
+    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac');
+
+    $this->mock(PlexClient::class, function ($mock) use ($t1, $t2) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->andReturn(collect([
+            new Album(id: '1001', title: 'B', artist: 'A', year: 2024, thumb: null, trackCount: 2, durationMs: 3000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$t1, $t2]));
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://plex/{$t->partId}.flac?X-Plex-Token=t");
+        $mock->shouldReceive('thumbUrl')->with(null)->andReturn(null);
+    });
+
+    Livewire::test('pages::library')
+        ->call('selectArtist', '100')
+        ->call('selectAlbum', '1001')
+        ->call('playAlbum')
+        ->assertDispatched('play-track',
+            queue: [
+                ['id' => '9001', 'url' => 'https://plex/991.flac?X-Plex-Token=t', 'title' => 'One', 'artist' => 'A', 'artwork' => null],
+                ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null],
+            ],
+            index: 0,
+        );
+});
+
+it('shuffles the album when the album-header Shuffle button is pressed', function () {
+    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac');
+    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac');
+
+    $this->mock(PlexClient::class, function ($mock) use ($t1, $t2) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->andReturn(collect([
+            new Album(id: '1001', title: 'B', artist: 'A', year: 2024, thumb: null, trackCount: 2, durationMs: 3000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$t1, $t2]));
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://plex/{$t->partId}.flac?X-Plex-Token=t");
+        $mock->shouldReceive('thumbUrl')->with(null)->andReturn(null);
+    });
+
+    Livewire::test('pages::library')
+        ->call('selectArtist', '100')
+        ->call('selectAlbum', '1001')
+        ->call('shuffleAlbum')
+        ->assertDispatched('play-track', function ($event, $params) {
+            return ($params['shuffle'] ?? false) === true
+                && in_array($params['index'], [0, 1], true)
+                && count($params['queue']) === 2
+                && $params['queue'][0]['id'] === '9001'
+                && $params['queue'][1]['id'] === '9002';
+        });
 });
 
 it('preselects an artist passed as a query parameter', function () {

@@ -4,25 +4,10 @@ use Livewire\Component;
 use Livewire\Attributes\On;
 
 new class extends Component {
-    public string $trackUrl = '';
-    public string $trackTitle = '';
-    public string $trackArtist = '';
-    public ?string $trackArtwork = null;
-
-    public function loadTrack(string $url, string $title = '', string $artist = '', ?string $artwork = null): void
-    {
-        $this->trackUrl = $url;
-        $this->trackTitle = $title;
-        $this->trackArtist = $artist;
-        $this->trackArtwork = $artwork;
-
-        $this->dispatch('audio-load', url: $url);
-    }
-
     #[On('play-track')]
-    public function onPlayTrack(string $url, string $title = '', string $artist = '', ?string $artwork = null): void
+    public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false): void
     {
-        $this->loadTrack($url, $title, $artist, $artwork);
+        $this->dispatch('queue-load', queue: $queue, index: $index, shuffle: $shuffle);
     }
 };
 ?>
@@ -33,17 +18,18 @@ new class extends Component {
 
     {{-- Now-playing --}}
     <div class="flex items-center gap-3 min-w-[280px] max-w-[30%]">
-        @if ($trackArtwork)
-            <img src="{{ $trackArtwork }}" alt="{{ $trackTitle }}"
+        <template x-if="current && current.artwork">
+            <img :src="current.artwork" :alt="current.title"
                  class="w-14 h-14 rounded-md flex-none object-cover">
-        @else
+        </template>
+        <template x-if="!(current && current.artwork)">
             <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none">
                 <x-lucide-music class="w-6 h-6 text-text-3" />
             </div>
-        @endif
+        </template>
         <div class="min-w-0 flex-1">
-            <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer">{{ $trackTitle ?: '' }}</div>
-            <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer">{{ $trackArtist ?: '' }}</div>
+            <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer" x-text="current ? current.title : ''"></div>
+            <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer" x-text="current ? current.artist : ''"></div>
         </div>
         <button type="button" class="text-accent hover:scale-110 transition-transform">
             <x-lucide-heart class="w-4 h-4" />
@@ -53,10 +39,12 @@ new class extends Component {
     {{-- Transport --}}
     <div class="flex-1 flex flex-col items-center gap-1.5 max-w-[722px] mx-auto">
         <div class="flex items-center gap-5">
-            <button type="button" class="text-text-2 hover:text-white">
+            <button type="button" @click="toggleShuffle()"
+                    :class="shuffle ? 'text-accent' : 'text-text-2 hover:text-white'">
                 <x-lucide-shuffle class="w-4 h-4" />
             </button>
-            <button type="button" class="text-text-2 hover:text-white">
+            <button type="button" @click="previous()" :disabled="queue.length === 0"
+                    class="text-text-2 hover:text-white disabled:opacity-40 disabled:hover:text-text-2">
                 <x-lucide-skip-back class="w-[18px] h-[18px] fill-current" />
             </button>
             <button type="button" @click="togglePlay"
@@ -68,11 +56,18 @@ new class extends Component {
                     <x-lucide-pause class="w-4 h-4 fill-current" />
                 </template>
             </button>
-            <button type="button" class="text-text-2 hover:text-white">
+            <button type="button" @click="next()" :disabled="queue.length === 0"
+                    class="text-text-2 hover:text-white disabled:opacity-40 disabled:hover:text-text-2">
                 <x-lucide-skip-forward class="w-[18px] h-[18px] fill-current" />
             </button>
-            <button type="button" class="text-text-2 hover:text-white">
-                <x-lucide-repeat class="w-4 h-4" />
+            <button type="button" @click="cycleRepeat()"
+                    :class="repeat !== 'off' ? 'text-accent' : 'text-text-2 hover:text-white'">
+                <template x-if="repeat !== 'one'">
+                    <x-lucide-repeat class="w-4 h-4" />
+                </template>
+                <template x-if="repeat === 'one'">
+                    <x-lucide-repeat-1 class="w-4 h-4" />
+                </template>
             </button>
         </div>
         <div class="flex items-center gap-2 w-full text-[11px] text-text-2">
@@ -111,9 +106,10 @@ new class extends Component {
     <audio x-ref="audio"
            @timeupdate="currentTime = $event.target.currentTime"
            @loadedmetadata="duration = $event.target.duration"
-           @play="isPlaying = true"
+           @play="isPlaying = true; consecutiveErrors = 0"
            @pause="isPlaying = false"
-           @ended="isPlaying = false"></audio>
+           @ended="next()"
+           x-on:error="onTrackError()"></audio>
 </div>
 
 @script
@@ -125,22 +121,141 @@ new class extends Component {
             duration: 0,
             volume: 1,
 
+            queue: [],         // playback order: [{ id, url, title, artist, artwork }]
+            originalQueue: [],  // the unshuffled order, so toggling shuffle off restores it
+            index: 0,           // position in `queue` of the current track
+            shuffle: false,
+            repeat: 'off',      // 'off' | 'all' | 'one'
+            consecutiveErrors: 0,
+
+            get current() {
+                return this.queue[this.index] ?? null;
+            },
+
             init() {
-                // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is.
-                // The dispatched payload is in event.detail.
-                window.addEventListener('audio-load', (e) => {
-                    this.$refs.audio.src = e.detail.url;
-                    this.$refs.audio.play().catch(() => {});
+                // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
+                // the payload is in event.detail.
+                window.addEventListener('queue-load', (e) => {
+                    this.consecutiveErrors = 0;
+                    this.originalQueue = e.detail.queue ?? [];
+                    const startIndex = e.detail.index ?? 0;
+                    if (e.detail.shuffle) {
+                        this.shuffle = true;
+                    }
+                    if (this.shuffle) {
+                        this.applyShuffle(startIndex);
+                        this.loadAndPlay(0);
+                    } else {
+                        this.queue = [...this.originalQueue];
+                        this.loadAndPlay(startIndex);
+                    }
                 });
                 this.$refs.audio.volume = this.volume;
             },
 
+            loadAndPlay(i) {
+                if (i < 0 || i >= this.queue.length) {
+                    return;
+                }
+                this.index = i;
+                this.currentTime = 0;
+                this.duration = 0;
+                this.$refs.audio.src = this.queue[i].url;
+                this.$refs.audio.play().catch(() => {});
+            },
+
             togglePlay() {
+                if (!this.current) {
+                    return;
+                }
                 if (this.$refs.audio.paused) {
                     this.$refs.audio.play();
                 } else {
                     this.$refs.audio.pause();
                 }
+            },
+
+            next(skipRepeatOne = false) {
+                if (this.repeat === 'one' && !skipRepeatOne) {
+                    this.$refs.audio.currentTime = 0;
+                    this.$refs.audio.play().catch(() => {});
+                    return;
+                }
+                if (this.index < this.queue.length - 1) {
+                    this.loadAndPlay(this.index + 1);
+                    return;
+                }
+                if (this.repeat === 'all' && this.queue.length > 0) {
+                    this.loadAndPlay(0);
+                    return;
+                }
+                // End of queue with repeat off: stop, keep the queue loaded.
+                this.$refs.audio.pause();
+                this.isPlaying = false;
+            },
+
+            previous() {
+                if (this.$refs.audio.currentTime > 3 || this.index === 0) {
+                    this.$refs.audio.currentTime = 0;
+                    return;
+                }
+                this.loadAndPlay(this.index - 1);
+            },
+
+            jumpTo(i) {
+                this.loadAndPlay(i);
+            },
+
+            toggleShuffle() {
+                if (!this.shuffle) {
+                    this.shuffle = true;
+                    if (this.queue.length > 0) {
+                        this.applyShuffle(this.index);
+                    }
+                } else {
+                    this.shuffle = false;
+                    const currentId = this.current ? this.current.id : null;
+                    this.queue = [...this.originalQueue];
+                    const newIndex = this.queue.findIndex((t) => t.id === currentId);
+                    this.index = newIndex >= 0 ? newIndex : 0;
+                }
+            },
+
+            // Rebuild this.queue as [track at sourceIndex of originalQueue, ...Fisher-Yates(rest)]
+            // and set this.index = 0. Does NOT touch the <audio> element, so playback continues.
+            applyShuffle(sourceIndex) {
+                const list = [...this.originalQueue];
+                if (list.length === 0) {
+                    this.queue = [];
+                    this.index = 0;
+                    return;
+                }
+                const idx = Math.min(Math.max(sourceIndex, 0), list.length - 1);
+                const head = list.splice(idx, 1)[0];
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [list[i], list[j]] = [list[j], list[i]];
+                }
+                this.queue = [head, ...list];
+                this.index = 0;
+            },
+
+            cycleRepeat() {
+                this.repeat = this.repeat === 'off' ? 'all' : (this.repeat === 'all' ? 'one' : 'off');
+            },
+
+            onTrackError() {
+                if (this.queue.length === 0) {
+                    return;
+                }
+                this.consecutiveErrors++;
+                if (this.consecutiveErrors > this.queue.length) {
+                    console.warn('audioPlayer: every track in the queue failed to load; stopping.');
+                    this.$refs.audio.pause();
+                    this.isPlaying = false;
+                    return;
+                }
+                this.next(true);
             },
 
             seek(value) {
