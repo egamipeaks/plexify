@@ -39,3 +39,29 @@ it('renders the settings route', function () {
         ->assertOk()
         ->assertSee('Settings');
 });
+
+it('renders the recently added route', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('recentlyAddedAlbums')->andReturn(collect());
+        $mock->shouldReceive('playlists')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+        $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+    });
+
+    $this->get('/recently-added')
+        ->assertOk()
+        ->assertSee('Recently Added');
+});
+
+it('renders the recently played route', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('recentlyPlayedTracks')->andReturn(collect());
+        $mock->shouldReceive('playlists')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+        $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+    });
+
+    $this->get('/recently-played')
+        ->assertOk()
+        ->assertSee('Recently Played');
+});

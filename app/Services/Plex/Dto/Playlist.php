@@ -12,6 +12,7 @@ readonly class Playlist
         public ?string $thumb,
         public string $playlistType,
         public ?string $summary = null,
+        public bool $smart = false,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -24,6 +25,7 @@ readonly class Playlist
             thumb: $row['composite'] ?? $row['thumb'] ?? null,
             playlistType: $row['playlistType'] ?? 'audio',
             summary: ($row['summary'] ?? '') !== '' ? $row['summary'] : null,
+            smart: (bool) ($row['smart'] ?? false),
         );
     }
 }

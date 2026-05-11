@@ -123,6 +123,7 @@ class PlexClient
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->reject(fn (Playlist $p) => $p->smart)
                 ->values();
         });
     }
@@ -142,6 +143,46 @@ class PlexClient
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Track::fromPlex($row))
+                ->values();
+        });
+    }
+
+    public function recentlyAddedAlbums(int $limit = 50): Collection
+    {
+        return $this->cache->remember("recently_added:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+            $sectionId = $this->musicSectionId();
+
+            $response = $this->server()
+                ->withHeader('X-Plex-Container-Size', (string) $limit)
+                ->get("/library/sections/{$sectionId}/recentlyAdded", ['type' => 9]);
+
+            $this->ensureOk($response, "library/sections/{$sectionId}/recentlyAdded");
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Album::fromPlex($row))
+                ->values();
+        });
+    }
+
+    public function recentlyPlayedTracks(int $limit = 50): Collection
+    {
+        return $this->cache->remember("recently_played:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+            $sectionId = $this->musicSectionId();
+
+            // Ask for 4x so we can slice past any unplayed rows Plex's :desc sort allowed through.
+            $response = $this->server()
+                ->withHeader('X-Plex-Container-Size', (string) ($limit * 4))
+                ->get("/library/sections/{$sectionId}/all", [
+                    'type' => 10,
+                    'sort' => 'lastViewedAt:desc',
+                ]);
+
+            $this->ensureOk($response, "library/sections/{$sectionId}/all");
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->filter(fn (array $row) => ! empty($row['lastViewedAt']))
+                ->map(fn (array $row) => Track::fromPlex($row))
+                ->take($limit)
                 ->values();
         });
     }
@@ -210,6 +251,7 @@ class PlexClient
             playlists: $metadata('playlist')
                 ->filter(fn (array $row) => ($row['playlistType'] ?? 'audio') === 'audio')
                 ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->reject(fn (Playlist $p) => $p->smart)
                 ->values(),
         );
     }
