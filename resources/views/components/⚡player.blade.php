@@ -158,6 +158,8 @@ new class extends Component {
                     return;
                 }
                 this.index = i;
+                this.currentTime = 0;
+                this.duration = 0;
                 this.$refs.audio.src = this.queue[i].url;
                 this.$refs.audio.play().catch(() => {});
             },
@@ -173,8 +175,8 @@ new class extends Component {
                 }
             },
 
-            next() {
-                if (this.repeat === 'one') {
+            next(skipRepeatOne = false) {
+                if (this.repeat === 'one' && !skipRepeatOne) {
                     this.$refs.audio.currentTime = 0;
                     this.$refs.audio.play().catch(() => {});
                     return;
@@ -253,7 +255,7 @@ new class extends Component {
                     this.isPlaying = false;
                     return;
                 }
-                this.next();
+                this.next(true);
             },
 
             seek(value) {
