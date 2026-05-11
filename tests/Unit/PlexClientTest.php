@@ -233,6 +233,48 @@ it('returns null thumbUrl for empty input', function () {
     expect($client->thumbUrl(''))->toBeNull();
 });
 
+it('builds a queue item from a Track, falling back to the track thumb', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    $track = new Track(
+        id: '9001', title: 'Holocene', artist: 'Bon Iver', album: '22, A Million',
+        trackNumber: 3, durationMs: 213000, partId: 660001, container: 'flac',
+        thumb: '/t/9001', albumId: '67890', artistId: '100',
+    );
+
+    $item = $client->queueItem($track);
+
+    expect($item['id'])->toBe('9001');
+    expect($item['title'])->toBe('Holocene');
+    expect($item['artist'])->toBe('Bon Iver');
+    expect($item['albumId'])->toBe('67890');
+    expect($item['artistId'])->toBe('100');
+    expect($item['url'])->toBe($client->streamUrl($track));
+    expect($item['artwork'])->toBe($client->thumbUrl('/t/9001'));
+});
+
+it('uses the artwork override for a queue item when given', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    $track = new Track(
+        id: '9001', title: 'x', artist: 'y', album: 'z',
+        trackNumber: 1, durationMs: 1000, partId: 1, container: 'flac',
+        thumb: '/t/track', albumId: '1001', artistId: '100',
+    );
+
+    $item = $client->queueItem($track, 'https://cdn/album-cover.jpg');
+
+    expect($item['artwork'])->toBe('https://cdn/album-cover.jpg');
+});
+
 it('reports ping status with server name when reachable', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
