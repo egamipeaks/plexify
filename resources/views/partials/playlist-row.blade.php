@@ -35,14 +35,14 @@
                'text-white bg-surface-2' => $isActive,
                'text-text-2 hover:text-white hover:bg-surface-2' => ! $isActive,
            ])>
-            @if ($p->thumb)
-                <img src="{{ $thumbUrl }}" alt="{{ $p->title }}" draggable="false"
-                     class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 32px; height: 32px;" loading="lazy">
-            @else
-                <div class="rounded-sm flex-none bg-surface-2 grid place-items-center" style="width: 32px; height: 32px;">
-                    <x-lucide-list-music class="w-3.5 h-3.5 text-text-3" />
-                </div>
-            @endif
+            <div class="relative rounded-sm flex-none bg-surface-2 grid place-items-center overflow-hidden" style="width: 32px; height: 32px;">
+                <x-lucide-list-music class="w-3.5 h-3.5 text-text-3" />
+                @if ($p->thumb && $thumbUrl)
+                    <img src="{{ $thumbUrl }}" alt="{{ $p->title }}" draggable="false" loading="lazy"
+                         onerror="this.remove()"
+                         class="absolute inset-0 w-full h-full object-cover">
+                @endif
+            </div>
             <div class="min-w-0 flex-1">
                 <div class="text-[14px] truncate">{{ $p->title }}</div>
                 <div class="text-[12px] text-text-3 truncate">Playlist · {{ $p->trackCount }} songs</div>

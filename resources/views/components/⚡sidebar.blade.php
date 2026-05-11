@@ -41,21 +41,6 @@ new class extends Component {
         return Folder::with('folderPlaylists')->orderBy('position')->orderBy('id')->get();
     }
 
-    /** @return array<string, int> Plex playlist id => folder id */
-    #[Computed]
-    public function folderOf(): array
-    {
-        $map = [];
-
-        foreach ($this->folders as $folder) {
-            foreach ($folder->folderPlaylists as $fp) {
-                $map[$fp->plex_playlist_id] = $folder->id;
-            }
-        }
-
-        return $map;
-    }
-
     public function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
@@ -69,7 +54,7 @@ new class extends Component {
             'expanded' => true,
         ]);
 
-        unset($this->folders, $this->folderOf);
+        unset($this->folders);
         $this->renamingFolderId = $folder->id;
     }
 
@@ -88,7 +73,7 @@ new class extends Component {
     public function deleteFolder(int $id): void
     {
         Folder::whereKey($id)->delete();
-        unset($this->folders, $this->folderOf);
+        unset($this->folders);
     }
 
     public function toggleFolder(int $id): void
@@ -115,7 +100,7 @@ new class extends Component {
             ]);
         }
 
-        unset($this->folders, $this->folderOf);
+        unset($this->folders);
     }
 
     public function addTrackToPlaylist(string $playlistId, string $trackId): bool
@@ -191,7 +176,7 @@ new class extends Component {
         }
 
         FolderPlaylist::where('plex_playlist_id', $playlistId)->delete();
-        unset($this->playlists, $this->folders, $this->folderOf);
+        unset($this->playlists, $this->folders);
     }
 
     public function playPlaylist(string $playlistId): void
@@ -264,7 +249,6 @@ new class extends Component {
             menu: null,
             dropTarget: null,
             flash: {},
-            folderOf: {{ Js::from((object) $this->folderOf) }},
             init() {
                 this._ds = (e) => { try { if ([...(e.dataTransfer?.types ?? [])].includes('plextune/track')) this.draggingTrack = true; } catch (_) {} };
                 this._de = () => { this.draggingTrack = false; this.dropTarget = null; };
@@ -352,8 +336,10 @@ new class extends Component {
                     $items = $folder->folderPlaylists
                         ->map(fn ($fp) => $byId->get($fp->plex_playlist_id))
                         ->filter()->values();
+                    $titlesJs = $items->pluck('title')->all();
                 @endphp
-                <div wire:key="folder-{{ $folder->id }}" class="flex flex-col">
+                <div wire:key="folder-{{ $folder->id }}" class="flex flex-col"
+                     x-show="!filter || {{ Js::from($titlesJs) }}.some(t => matches(t))">
                     <div wire:click="toggleFolder({{ $folder->id }})"
                          @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
                          @dragover.prevent="dropTarget = 'folder-{{ $folder->id }}'"
@@ -376,17 +362,17 @@ new class extends Component {
                                   @dblclick="$wire.set('renamingFolderId', {{ $folder->id }})"
                                   class="text-[13px] font-bold text-white flex-1 truncate">{{ $folder->name }}</span>
                         @endif
-                        <span class="text-[11px] text-text-3 tabular-nums flex-none">{{ $items->count() }}</span>
+                        <span class="text-[11px] text-text-3 tabular-nums flex-none"
+                              x-text="filter ? {{ Js::from($titlesJs) }}.filter(t => matches(t)).length : {{ $items->count() }}">{{ $items->count() }}</span>
                     </div>
-                    @if ($folder->expanded)
-                        <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5">
-                            @forelse ($items as $p)
-                                @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
-                            @empty
-                                <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty &mdash; drop a playlist here</div>
-                            @endforelse
-                        </div>
-                    @endif
+                    <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5"
+                         x-show="filter ? true : {{ $folder->expanded ? 'true' : 'false' }}">
+                        @forelse ($items as $p)
+                            @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                        @empty
+                            <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
+                        @endforelse
+                    </div>
                 </div>
             @endforeach
 
@@ -395,6 +381,7 @@ new class extends Component {
                 <div @dragover.prevent="dropTarget = '__root'"
                      @dragleave="dropTarget = null"
                      @drop="dropPlaylistOn(null, $event)"
+                     x-show="!filter || {{ Js::from($rootPlaylists->pluck('title')->all()) }}.some(t => matches(t))"
                      :class="dropTarget === '__root' ? 'bg-accent/10 ring-1 ring-accent/30 rounded' : ''"
                      class="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-text-3 font-bold">Other</div>
             @endif
@@ -425,25 +412,24 @@ new class extends Component {
         </div>
 
         {{-- Folder context menu --}}
-        <template x-if="menu && menu.kind === 'folder'">
-            <div class="fixed z-[1000] min-w-[200px] py-1 rounded-md bg-surface-3 ring-1 ring-white/10 shadow-2xl text-[13px]"
-                 :style="`left:${menu.x}px; top:${menu.y}px`"
-                 @click.outside="menu = null">
-                <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
-                        @click="$wire.set('renamingFolderId', menu.id); menu = null">Rename folder</button>
-                <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
-                        @click="$wire.toggleFolder(menu.id); menu = null">Expand / Collapse</button>
-                <div class="my-1 border-t border-white/10"></div>
-                <button type="button" class="w-full text-left px-3 py-1.5 text-red-400 hover:bg-red-500/10"
-                        @click="$wire.deleteFolder(menu.id); menu = null">Delete folder</button>
-            </div>
-        </template>
+        <div x-show="menu && menu.kind === 'folder'" x-cloak
+             class="fixed z-[1000] min-w-[200px] py-1 rounded-md bg-surface-3 ring-1 ring-white/10 shadow-2xl text-[13px]"
+             :style="menu ? { left: menu.x + 'px', top: menu.y + 'px' } : {}"
+             @click.outside="menu = null">
+            <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
+                    @click="$wire.set('renamingFolderId', menu.id); menu = null">Rename folder</button>
+            <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
+                    @click="$wire.toggleFolder(menu.id); menu = null">Expand / Collapse</button>
+            <div class="my-1 border-t border-white/10"></div>
+            <button type="button" class="w-full text-left px-3 py-1.5 text-red-400 hover:bg-red-500/10"
+                    @click="$wire.deleteFolder(menu.id); menu = null">Delete folder</button>
+        </div>
 
         {{-- Playlist context menu --}}
-        <template x-if="menu && menu.kind === 'playlist'">
-            <div class="fixed z-[1000] min-w-[210px] py-1 rounded-md bg-surface-3 ring-1 ring-white/10 shadow-2xl text-[13px]"
-                 :style="`left:${menu.x}px; top:${menu.y}px`"
-                 @click.outside="menu = null">
+        <div x-show="menu && menu.kind === 'playlist'" x-cloak
+             class="fixed z-[1000] min-w-[210px] py-1 rounded-md bg-surface-3 ring-1 ring-white/10 shadow-2xl text-[13px]"
+             :style="menu ? { left: menu.x + 'px', top: menu.y + 'px' } : {}"
+             @click.outside="menu = null">
                 <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
                         @click="$wire.playPlaylist(menu.id); menu = null">Play</button>
                 <div class="my-1 border-t border-white/10"></div>
@@ -453,20 +439,16 @@ new class extends Component {
                             @click="$wire.movePlaylistToFolder(menu.id, {{ $folder->id }}); menu = null">
                         <x-lucide-folder class="w-3 h-3 text-text-2 flex-none" />
                         <span class="flex-1 truncate">Move to {{ $folder->name }}</span>
-                        <span class="text-accent text-[11px]" x-show="folderOf[menu.id] === {{ $folder->id }}">&bull;</span>
                     </button>
                 @endforeach
-                <button type="button"
-                        class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                        x-bind:disabled="!folderOf[menu.id]"
-                        @click="if (folderOf[menu.id]) { $wire.movePlaylistToFolder(menu.id, null); } menu = null">Remove from folder</button>
+                <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
+                        @click="$wire.movePlaylistToFolder(menu.id, null); menu = null">Remove from folder</button>
                 <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
                         @click="$wire.set('renamingPlaylistId', menu.id); menu = null">Rename playlist</button>
                 <div class="my-1 border-t border-white/10"></div>
                 <button type="button" class="w-full text-left px-3 py-1.5 text-red-400 hover:bg-red-500/10"
                         @click="$wire.deletePlaylist(menu.id); menu = null">Delete playlist</button>
-            </div>
-        </template>
+        </div>
     </div>
 
     {{-- Server chip card --}}
