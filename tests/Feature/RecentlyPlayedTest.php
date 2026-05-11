@@ -88,5 +88,14 @@ it('playTrack dispatches play-track with the stream URL', function () {
 
     Livewire::test('pages::recently-played')
         ->call('playTrack', '70001')
-        ->assertDispatched('play-track', url: 'https://stream/70001.flac', title: 'Song');
+        ->assertDispatched('play-track',
+            queue: [[
+                'id' => '70001',
+                'url' => 'https://stream/70001.flac',
+                'title' => 'Song',
+                'artist' => 'Some Artist',
+                'artwork' => 'https://thumb/library/metadata/70001/thumb',
+            ]],
+            index: 0,
+        );
 });

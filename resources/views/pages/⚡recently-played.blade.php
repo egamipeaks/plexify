@@ -26,17 +26,22 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function playTrack(string $trackId): void
     {
-        $track = $this->tracks->firstWhere('id', $trackId);
+        $tracks = $this->tracks->values();
+        $i = $tracks->search(fn ($t) => $t->id === $trackId);
 
-        if (! $track instanceof Track) {
+        if ($i === false) {
             return;
         }
 
         $this->dispatch('play-track',
-            url: $this->plex->streamUrl($track),
-            title: $track->title,
-            artist: $track->artist,
-            artwork: $this->thumbFor($track->thumb),
+            queue: $tracks->map(fn ($t) => [
+                'id' => $t->id,
+                'url' => $this->plex->streamUrl($t),
+                'title' => $t->title,
+                'artist' => $t->artist,
+                'artwork' => $this->thumbFor($t->thumb),
+            ])->values()->all(),
+            index: $i,
         );
     }
 
