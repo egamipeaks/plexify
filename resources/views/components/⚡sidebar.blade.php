@@ -216,30 +216,28 @@ new class extends Component {
                'text-white bg-surface-2' => request()->routeIs('library'),
                'text-text-2 hover:text-white' => ! request()->routeIs('library'),
            ])>
-            <x-lucide-house class="w-5 h-5" />
-            <span class="flex-1 text-left">Home</span>
-        </a>
-
-        <a href="{{ route('search') }}" wire:navigate
-           @class([
-               'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
-               'text-white bg-surface-2' => request()->routeIs('search'),
-               'text-text-2 hover:text-white' => ! request()->routeIs('search'),
-           ])>
-            <x-lucide-search class="w-5 h-5" />
-            <span class="flex-1 text-left">Search</span>
-        </a>
-
-        <a href="{{ route('library') }}" wire:navigate
-           class="w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors text-text-2 hover:text-white">
             <x-lucide-library class="w-5 h-5" />
             <span class="flex-1 text-left">Your Library</span>
         </a>
 
-        <a href="{{ route('library') }}" wire:navigate
-           class="w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors text-text-2 hover:text-white">
+        <a href="{{ route('recentlyAdded') }}" wire:navigate
+           @class([
+               'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
+               'text-white bg-surface-2' => request()->routeIs('recentlyAdded'),
+               'text-text-2 hover:text-white' => ! request()->routeIs('recentlyAdded'),
+           ])>
             <x-lucide-clock class="w-5 h-5" />
             <span class="flex-1 text-left">Recently Added</span>
+        </a>
+
+        <a href="{{ route('recentlyPlayed') }}" wire:navigate
+           @class([
+               'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
+               'text-white bg-surface-2' => request()->routeIs('recentlyPlayed'),
+               'text-text-2 hover:text-white' => ! request()->routeIs('recentlyPlayed'),
+           ])>
+            <x-lucide-history class="w-5 h-5" />
+            <span class="flex-1 text-left">Recently Played</span>
         </a>
     </div>
 

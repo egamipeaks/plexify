@@ -211,3 +211,27 @@ it('shows the New folder button and the per-folder toggle control', function () 
         ->assertSeeHtml('toggleFolder('.$folder->id.')')
         ->assertSee('Filter playlists'); // the filter input placeholder
 });
+
+it('shows three top-level nav items: Library / Recently Added / Recently Played', function () {
+    mockSidebarPlex();
+
+    $html = Livewire::test('sidebar')->html();
+    $topNav = explode('Your Playlists', $html, 2)[0];
+
+    preg_match_all('/<a [^>]*wire:navigate/i', $topNav, $matches);
+    expect($matches[0])->toHaveCount(3);
+
+    expect($topNav)->toContain('Your Library')
+        ->and($topNav)->toContain('Recently Added')
+        ->and($topNav)->toContain('Recently Played')
+        ->and($topNav)->not->toContain('Home')
+        ->and($topNav)->not->toContain('Search');
+});
+
+it('links the Recently Added and Recently Played nav items to their routes', function () {
+    mockSidebarPlex();
+
+    Livewire::test('sidebar')
+        ->assertSeeHtml('href="'.route('recentlyAdded').'"')
+        ->assertSeeHtml('href="'.route('recentlyPlayed').'"');
+});
