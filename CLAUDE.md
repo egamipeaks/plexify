@@ -26,9 +26,9 @@ The product name in the design files is "Plextune". The repo and app title are "
 | 6 | Settings page | Next |
 | 7 | Polish (keyboard shortcuts, transitions, error toasts, compact/comfortable density, formatMs hour handling, etc.) | Not started |
 
-**Play queue and autoplay** shipped 2026-05-11 as a cross-cutting feature (branch `feat/play-queue`, ahead of M6). Spec: `docs/superpowers/specs/2026-05-11-plextune-play-queue-design.md`. Plan: `docs/superpowers/plans/2026-05-11-plextune-play-queue.md`. Covers: Alpine `audioPlayer()` queue with auto-advance, skip forward/back, shuffle, three-state repeat, consecutive-error guard; all views dispatch `play-track` with the full queue; new browser test `tests/Browser/PlayerQueueTest.php` (3 tests).
+**Play queue and autoplay** shipped 2026-05-11 as a cross-cutting feature (branch `feat/play-queue`, ahead of M6). Spec: `docs/superpowers/specs/2026-05-11-plextune-play-queue-design.md`. Plan: `docs/superpowers/plans/2026-05-11-plextune-play-queue.md`. Covers: Alpine `audioPlayer()` queue with auto-advance, skip forward/back, shuffle, three-state repeat, consecutive-error guard; all views dispatch `play-track` with the full queue (track rows, the playlist-detail Play/Shuffle header buttons, the library album-header Play/Shuffle buttons, the sidebar playlist context-menu Play); new browser test `tests/Browser/PlayerQueueTest.php` (3 tests).
 
-Git log is the authoritative record of what shipped. `php artisan test` should be green (157 tests after the play-queue feature, including 11 Playwright browser tests).
+Git log is the authoritative record of what shipped. `php artisan test` should be green (159 tests after the play-queue feature, including 11 Playwright browser tests).
 
 ## How work is done here
 
