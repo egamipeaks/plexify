@@ -1,0 +1,29 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "9001",
+        "parentRatingKey": "100",
+        "title": "Recently Added One",
+        "parentTitle": "Artist Alpha",
+        "year": 2026,
+        "leafCount": 10,
+        "duration": 2400000,
+        "thumb": "/library/metadata/9001/thumb/1700000001",
+        "addedAt": 1714000000
+      },
+      {
+        "ratingKey": "9002",
+        "parentRatingKey": "101",
+        "title": "Recently Added Two",
+        "parentTitle": "Artist Beta",
+        "year": 2025,
+        "leafCount": 8,
+        "duration": 1900000,
+        "thumb": "/library/metadata/9002/thumb/1700000002",
+        "addedAt": 1713000000
+      }
+    ]
+  }
+}

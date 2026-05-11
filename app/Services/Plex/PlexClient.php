@@ -147,6 +147,23 @@ class PlexClient
         });
     }
 
+    public function recentlyAddedAlbums(int $limit = 50): Collection
+    {
+        return $this->cache->remember("recently_added:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+            $sectionId = $this->musicSectionId();
+
+            $response = $this->server()
+                ->withHeader('X-Plex-Container-Size', (string) $limit)
+                ->get("/library/sections/{$sectionId}/recentlyAdded", ['type' => 9]);
+
+            $this->ensureOk($response, "library/sections/{$sectionId}/recentlyAdded");
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Album::fromPlex($row))
+                ->values();
+        });
+    }
+
     public function machineIdentifier(): string
     {
         return $this->cache->remember('machine_identifier', PlexCache::TTL_RESOURCES, function () {
