@@ -93,10 +93,12 @@ it('keeps the player alive when navigating between views', function () {
     $nowPlaying = drillDownAndPlay($page);
     expect($nowPlaying)->not->toBe('');
 
-    // Navigate to /search via the sidebar link (wire:navigate).
-    $page->click('Search')
-        ->assertUrlIs(url('/search'))
-        ->assertSee('Search your library');
+    // Navigate to /recently-added via the sidebar link (wire:navigate).
+    // The Search nav item was removed in the sidebar cleanup, so this exercises the
+    // same wire:navigate path with a sidebar nav item that still exists.
+    $page->click('Recently Added')
+        ->assertUrlIs(url('/recently-added'))
+        ->assertSee('Recently Added');
 
     // The @persist('player') wrapper keeps the player mounted across wire:navigate,
     // so the now-playing title element is still in the DOM with the same track.
