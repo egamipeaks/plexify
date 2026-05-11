@@ -51,7 +51,7 @@ it('renders the recently added route', function () {
     $this->get('/recently-added')
         ->assertOk()
         ->assertSee('Recently Added');
-})->skip('page component added in Task 5');
+});
 
 it('renders the recently played route', function () {
     test()->mock(PlexClient::class, function ($mock) {
