@@ -35,9 +35,9 @@ The product name in the design files is "Plextune". The repo and app title are "
 
 (Intentional, not a bug: pressing skip-forward while repeat is set to "one" restarts the current track rather than advancing — confirmed desired behavior.)
 
-**Search input bug (reported, not yet fixed):** typing a new query into the search box after results are already shown clears the typed text out of the input. Likely related to the `#[Url] $q` + live model binding re-rendering; investigate the `wire:model` on the search input in `pages::search`.
+**Search input bug (fixed 2026-05-11):** typing a new query into the search box after results were already shown cleared the typed text out of the input. Cause: the topbar's `query` was a plain prop, so the `redirect(navigate: true)` that re-ran the search landed on a fresh topbar with `query = ''` and Livewire then cleared the bound input. Fix: bind it with `#[Url(as: 'q', except: '')]` so it re-hydrates from `?q=` on arrival. Regression test: `tests/Browser/SearchTest.php` "keeps the typed query in the topbar input after the search re-runs".
 
-Git log is the authoritative record of what shipped. `php artisan test` should be green (159 tests after the play-queue feature, including 11 Playwright browser tests).
+Git log is the authoritative record of what shipped. `php artisan test` should be green (160 tests, including 12 Playwright browser tests).
 
 ## How work is done here
 

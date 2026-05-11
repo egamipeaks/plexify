@@ -1,8 +1,10 @@
 <?php
 
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new class extends Component {
+    #[Url(as: 'q', except: '')]
     public string $query = '';
 
     public function updatedQuery(): void

@@ -85,3 +85,29 @@ it('plays a track from the search results', function () {
     expect($nowPlaying)->not->toBe('', 'Expected the player to show a track title after clicking a search result.');
     $page->assertVisible('[data-region=now-playing-title]');
 });
+
+it('keeps the typed query in the topbar input after the search re-runs', function () {
+    // Regression: the topbar bound `query` to a plain prop, so the redirect(navigate: true)
+    // that runs a fresh search landed on a topbar whose `query` was '' and Livewire then
+    // cleared the input. Binding it with #[Url(as: 'q')] re-hydrates it from ?q= on arrival.
+    $page = visit('/search?q=the');
+
+    $page->fill('input[placeholder="What do you want to play?"]', 'weezer');
+
+    $value = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const sel = 'input[placeholder="What do you want to play?"]';
+            const deadline = Date.now() + 10000;
+            while (Date.now() < deadline) {
+                if (new URLSearchParams(location.search).get('q') === 'weezer') break;
+                await sleep(150);
+            }
+            await sleep(800); // let the navigate/morph settle
+            const el = document.querySelector(sel);
+            return el ? el.value : '<<no input>>';
+        })()
+    JS);
+
+    expect($value)->toBe('weezer');
+});
