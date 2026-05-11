@@ -277,6 +277,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                             @foreach ($this->results->tracks as $track)
                                 <button type="button" wire:key="search-tr-{{ $track->id }}"
                                         wire:click="playTrack('{{ $track->id }}')"
+                                        draggable="true"
+                                        ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
                                         class="group w-full grid items-center gap-3 px-3 py-2 rounded hover:bg-white/[0.06] transition-colors text-left"
                                         style="grid-template-columns: 44px 1fr auto;">
                                     @if ($track->thumb)

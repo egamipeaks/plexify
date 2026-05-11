@@ -12,6 +12,7 @@ use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
@@ -145,6 +146,35 @@ class PlexClient
         });
     }
 
+    public function machineIdentifier(): string
+    {
+        return $this->cache->remember('machine_identifier', PlexCache::TTL_RESOURCES, function () {
+            $response = $this->server()->get('/identity');
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('identity endpoint returned '.$response->status());
+            }
+
+            $id = data_get($response->json(), 'MediaContainer.machineIdentifier');
+
+            if (empty($id)) {
+                throw new PlexNotFoundException('Plex /identity did not return a machineIdentifier.');
+            }
+
+            return (string) $id;
+        });
+    }
+
+    public function addTrackToPlaylist(string $playlistId, string $trackId): void
+    {
+        $this->putPlaylistItem($playlistId, $this->libraryItemUri($trackId));
+    }
+
+    public function addAlbumToPlaylist(string $playlistId, string $albumId): void
+    {
+        $this->putPlaylistItem($playlistId, $this->libraryItemUri($albumId));
+    }
+
     public function searchAll(string $query): SearchResults
     {
         $query = trim($query);
@@ -243,6 +273,95 @@ class PlexClient
             'connection' => $isLocal ? 'direct' : 'relay',
             'machineIdentifier' => data_get($response->json(), 'MediaContainer.machineIdentifier'),
         ];
+    }
+
+    public function createPlaylist(string $title, string $seedTrackId): string
+    {
+        try {
+            $response = $this->server()->post('/playlists?'.http_build_query([
+                'type' => 'audio',
+                'title' => $title,
+                'smart' => 0,
+                'uri' => $this->libraryItemUri($seedTrackId),
+            ]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Creating playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, 'POST playlists');
+
+        $id = data_get($response->json(), 'MediaContainer.Metadata.0.ratingKey');
+
+        if (empty($id)) {
+            throw new PlexNotFoundException('Plex did not return a ratingKey for the new playlist.');
+        }
+
+        $this->cache->forget('playlists');
+
+        return (string) $id;
+    }
+
+    public function renamePlaylist(string $playlistId, string $title): void
+    {
+        try {
+            $response = $this->server()->put("/playlists/{$playlistId}?".http_build_query(['title' => $title]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Renaming playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "PUT playlists/{$playlistId}");
+        $this->cache->forget('playlists');
+    }
+
+    public function deletePlaylist(string $playlistId): void
+    {
+        try {
+            $response = $this->server()->delete("/playlists/{$playlistId}");
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Deleting playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "DELETE playlists/{$playlistId}");
+        $this->cache->forget('playlists');
+        $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
+    private function putPlaylistItem(string $playlistId, string $uri): void
+    {
+        try {
+            $response = $this->server()->put("/playlists/{$playlistId}/items?".http_build_query(['uri' => $uri]));
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Adding to playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "playlists/{$playlistId}/items");
+
+        $this->cache->forget('playlists');
+        $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
+    private function libraryItemUri(string $ratingKey): string
+    {
+        return sprintf(
+            'server://%s/com.plexapp.plugins.library/library/metadata/%s',
+            $this->machineIdentifier(),
+            $ratingKey,
+        );
+    }
+
+    private function ensureOk(Response $response, string $context): void
+    {
+        if ($response->status() === 404) {
+            throw new PlexNotFoundException("{$context}: not found.");
+        }
+
+        if (in_array($response->status(), [401, 403], true)) {
+            throw new PlexAuthException("{$context}: Plex rejected the request (status {$response->status()}).");
+        }
+
+        if (! $response->successful()) {
+            throw new PlexUnreachableException("{$context} returned {$response->status()}.");
+        }
     }
 
     private function server(): PendingRequest

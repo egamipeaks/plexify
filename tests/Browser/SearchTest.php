@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
 /*
  * End-to-end coverage for the topbar -> /search?q= flow and the search results view.
  * Hits the live Plex library configured via PLEX_TOKEN in .env; if Plex is unreachable

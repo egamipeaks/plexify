@@ -20,6 +20,8 @@
     --font-display: "Outfit", system-ui, sans-serif;
 }
 
+[x-cloak] { display: none !important; }
+
 html, body {
     background: var(--color-base);
     color: var(--color-text-1);
