@@ -118,15 +118,9 @@ new class extends Component {
 
 @script
 <script>
-    if (window.Alpine && !Alpine.store('player')) {
-        Alpine.store('player', { currentId: null, isPlaying: false });
-    }
-    document.addEventListener('alpine:init', () => {
-        if (!Alpine.store('player')) {
-            Alpine.store('player', { currentId: null, isPlaying: false });
-        }
-    });
-
+    // The `player` store is registered from the layout's <head> (before Alpine walks
+    // the DOM) so tracklist rows pick it up on first render; init() below is a no-op
+    // fallback in case that script is ever removed.
     window.audioPlayer = function () {
         return {
             isPlaying: false,
