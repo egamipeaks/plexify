@@ -1,6 +1,9 @@
 <?php
 
 use App\Services\Plex\PlexClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('renders the library route', function () {
     $this->get('/')

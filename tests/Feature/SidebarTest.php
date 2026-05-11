@@ -188,3 +188,26 @@ it('plays the first track of a playlist', function () {
         ->call('playPlaylist', '4242')
         ->assertDispatched('play-track', url: 'https://stream/1.flac', title: 'Song', artist: 'Band');
 });
+
+it('renders folder contents and an "Other" group', function () {
+    mockSidebarPlex([playlist('p1', 'Filed One'), playlist('p2', 'Unfiled Two')]);
+    $folder = Folder::factory()->create(['name' => 'Moods']);
+    $folder->folderPlaylists()->create(['plex_playlist_id' => 'p1', 'position' => 0]);
+
+    Livewire::test('sidebar')
+        ->assertSee('Moods')
+        ->assertSee('Filed One')
+        ->assertSee('Other')
+        ->assertSee('Unfiled Two')
+        ->assertSeeHtml('wire:key="folder-'.$folder->id.'"');
+});
+
+it('shows the New folder button and the per-folder toggle control', function () {
+    mockSidebarPlex();
+    $folder = Folder::factory()->create(['name' => 'Drafts']);
+
+    Livewire::test('sidebar')
+        ->assertSeeHtml('wire:click="createFolder"')
+        ->assertSeeHtml('toggleFolder('.$folder->id.')')
+        ->assertSee('Filter playlists'); // the filter input placeholder
+});

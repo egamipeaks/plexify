@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
 /*
  * End-to-end browser coverage for the library drill-down + click-to-play flow.
  *

@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
 /*
  * End-to-end browser coverage for the sidebar playlist list → playlist detail → play flow.
  *
@@ -24,14 +28,19 @@ it('navigates from the sidebar into a playlist and plays a track', function () {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
             const deadline = Date.now() + 8000;
             while (Date.now() < deadline) {
-                const links = [...document.querySelectorAll('[wire\\:key^="sidebar-pl-"]')];
-                if (links.length > 0) {
-                    // The textContent of each link contains "Playlist · N songs"; skip "0 songs".
-                    for (const el of links) {
-                        if (!el.textContent.includes('0 songs')) return el.getAttribute('href');
+                // Each playlist row is a <div wire:key="sidebar-pl-..."> containing an <a href="/playlist/...">.
+                const rows = [...document.querySelectorAll('[wire\\:key^="sidebar-pl-"]')];
+                if (rows.length > 0) {
+                    // The textContent of each row contains "Playlist · N songs"; skip "0 songs".
+                    for (const el of rows) {
+                        if (!el.textContent.includes('0 songs')) {
+                            const link = el.querySelector('a[href]') ?? el;
+                            return link.getAttribute('href');
+                        }
                     }
-                    // Fall back to the first link if all show 0 songs.
-                    return links[0].getAttribute('href');
+                    // Fall back to the first row's link if all show 0 songs.
+                    const fallback = rows[0].querySelector('a[href]') ?? rows[0];
+                    return fallback.getAttribute('href');
                 }
                 await sleep(150);
             }
@@ -49,7 +58,8 @@ it('navigates from the sidebar into a playlist and plays a track', function () {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
             const href = '.json_encode($targetHref).';
 
-            const link = [...document.querySelectorAll(\'[wire\\\\:key^="sidebar-pl-"]\')].find(el => el.getAttribute(\'href\') === href);
+            const rows = [...document.querySelectorAll(\'[wire\\\\:key^="sidebar-pl-"]\')];
+            const link = rows.map(el => el.querySelector(\'a[href]\') ?? el).find(el => el.getAttribute(\'href\') === href);
             if (!link) return false;
             link.click();
 
