@@ -28,24 +28,23 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function playTrack(string $trackId): void
     {
-        $track = $this->tracks->firstWhere('id', $trackId);
+        $tracks = $this->tracks->values();
+        $i = $tracks->search(fn ($t) => $t->id === $trackId);
 
-        if (! $track) {
+        if ($i === false) {
             return;
         }
 
-        $this->dispatchTrack($track);
+        $this->dispatch('play-track', queue: $this->queuePayload(), index: $i);
     }
 
     public function playAll(): void
     {
-        $track = $this->tracks->first();
-
-        if (! $track) {
+        if ($this->tracks->isEmpty()) {
             return;
         }
 
-        $this->dispatchTrack($track);
+        $this->dispatch('play-track', queue: $this->queuePayload(), index: 0);
     }
 
     public function shuffle(): void
@@ -54,7 +53,11 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatchTrack($this->tracks->random());
+        $this->dispatch('play-track',
+            queue: $this->queuePayload(),
+            index: random_int(0, $this->tracks->count() - 1),
+            shuffle: true,
+        );
     }
 
     public function retry(): void
@@ -92,14 +95,16 @@ new #[Layout('components.layouts.app')] class extends Component {
         }
     }
 
-    protected function dispatchTrack(Track $track): void
+    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string}> */
+    protected function queuePayload(): array
     {
-        $this->dispatch('play-track',
-            url: $this->plex->streamUrl($track),
-            title: $track->title,
-            artist: $track->artist,
-            artwork: $this->thumbFor($track->thumb),
-        );
+        return $this->tracks->values()->map(fn ($t) => [
+            'id' => $t->id,
+            'url' => $this->plex->streamUrl($t),
+            'title' => $t->title,
+            'artist' => $t->artist,
+            'artwork' => $this->thumbFor($t->thumb),
+        ])->all();
     }
 
     protected function thumbFor(?string $thumb): ?string

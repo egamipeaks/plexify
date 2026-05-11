@@ -65,10 +65,11 @@ it('dispatches play-track for a clicked row', function () {
     Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
         ->call('playTrack', '8002')
         ->assertDispatched('play-track',
-            url: 'https://server/library/parts/770002/file.flac?X-Plex-Token=t',
-            title: 'Skinny Love',
-            artist: 'Bon Iver',
-            artwork: 'https://thumb/t/8002',
+            queue: [
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001'],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002'],
+            ],
+            index: 1,
         );
 });
 
@@ -77,15 +78,25 @@ it('plays the first track when Play is pressed', function () {
 
     Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
         ->call('playAll')
-        ->assertDispatched('play-track', title: 'Holocene');
+        ->assertDispatched('play-track',
+            queue: [
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001'],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002'],
+            ],
+            index: 0,
+        );
 });
 
-it('plays a track from the playlist when Shuffle is pressed', function () {
+it('shuffles the playlist when Shuffle is pressed', function () {
     mockPlexForPlaylist();
 
     Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
         ->call('shuffle')
-        ->assertDispatched('play-track'); // any track in the playlist
+        ->assertDispatched('play-track', function ($event, $params) {
+            return ($params['shuffle'] ?? false) === true
+                && in_array($params['index'], [0, 1], true)
+                && count($params['queue']) === 2;
+        });
 });
 
 it('shows the Plex-unreachable panel and recovers on retry', function () {
