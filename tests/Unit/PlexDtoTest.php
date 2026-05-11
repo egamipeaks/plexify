@@ -260,3 +260,28 @@ it('normalizes an empty Playlist summary to null', function () {
 
     expect($playlist->summary)->toBeNull();
 });
+
+it('reads the smart flag on Playlist::fromPlex', function () {
+    expect(Playlist::fromPlex([
+        'ratingKey' => '1',
+        'title' => 'Smart',
+        'smart' => true,
+    ])->smart)->toBeTrue();
+
+    expect(Playlist::fromPlex([
+        'ratingKey' => '2',
+        'title' => 'Smart numeric',
+        'smart' => 1,
+    ])->smart)->toBeTrue();
+
+    expect(Playlist::fromPlex([
+        'ratingKey' => '3',
+        'title' => 'Plain',
+        'smart' => false,
+    ])->smart)->toBeFalse();
+
+    expect(Playlist::fromPlex([
+        'ratingKey' => '4',
+        'title' => 'Missing field',
+    ])->smart)->toBeFalse();
+});

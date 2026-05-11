@@ -1,6 +1,6 @@
 {
   "MediaContainer": {
-    "size": 2,
+    "size": 3,
     "Metadata": [
       {
         "ratingKey": "4242",
@@ -20,6 +20,15 @@
         "composite": "/playlists/4243/composite/1700000001",
         "playlistType": "audio",
         "smart": false
+      },
+      {
+        "ratingKey": "4244",
+        "title": "All Music",
+        "leafCount": 9999,
+        "duration": 0,
+        "composite": "/playlists/4244/composite/1700000002",
+        "playlistType": "audio",
+        "smart": true
       }
     ]
   }

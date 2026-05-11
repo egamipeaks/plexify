@@ -584,3 +584,38 @@ it('maps a 500 from renamePlaylist to PlexUnreachableException', function () {
 
     expect(fn () => app(PlexClient::class)->renamePlaylist('4242', 'X'))->toThrow(PlexUnreachableException::class);
 });
+
+it('filters smart playlists out of playlists()', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response(file_get_contents(fixturePath('playlists.json')), 200),
+    ]);
+
+    $titles = app(PlexClient::class)->playlists()->pluck('title')->all();
+
+    expect($titles)->toBe(['Late Night', 'Bangers'])
+        ->and($titles)->not->toContain('All Music');
+});
+
+it('filters smart playlists out of searchAll() playlist hub', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/hubs/search*' => Http::response([
+            'MediaContainer' => [
+                'Hub' => [
+                    [
+                        'type' => 'playlist',
+                        'Metadata' => [
+                            ['ratingKey' => '1', 'title' => 'User Mix', 'playlistType' => 'audio', 'smart' => false],
+                            ['ratingKey' => '2', 'title' => 'Fresh',    'playlistType' => 'audio', 'smart' => true],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $results = app(PlexClient::class)->searchAll('foo');
+
+    expect($results->playlists->pluck('title')->all())->toBe(['User Mix']);
+});

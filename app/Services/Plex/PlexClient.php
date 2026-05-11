@@ -123,6 +123,7 @@ class PlexClient
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->reject(fn (Playlist $p) => $p->smart)
                 ->values();
         });
     }
@@ -210,6 +211,7 @@ class PlexClient
             playlists: $metadata('playlist')
                 ->filter(fn (array $row) => ($row['playlistType'] ?? 'audio') === 'audio')
                 ->map(fn (array $row) => Playlist::fromPlex($row))
+                ->reject(fn (Playlist $p) => $p->smart)
                 ->values(),
         );
     }
