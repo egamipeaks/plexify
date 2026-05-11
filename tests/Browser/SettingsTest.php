@@ -25,8 +25,8 @@ it('density toggle persists the compact value to the database', function () {
         Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Compact').click()
     JS);
 
-    // Wait for the Livewire round-trip to complete.
-    $page->script(<<<'JS'
+    // Wait for the Livewire round-trip to complete (the active button gains bg-surface-3).
+    $ready = (bool) $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
             const deadline = Date.now() + 6000;
@@ -39,6 +39,7 @@ it('density toggle persists the compact value to the database', function () {
         })()
     JS);
 
+    expect($ready)->toBeTrue('Expected the Livewire round-trip to mark "Compact" active within 6 seconds.');
     expect(Setting::get('density'))->toBe('compact');
 });
 

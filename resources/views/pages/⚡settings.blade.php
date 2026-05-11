@@ -113,7 +113,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         wire:loading.attr="disabled"
                         class="bg-accent text-black font-bold px-4 py-2 rounded-full hover:bg-accent-hover transition-colors disabled:opacity-50">
                     <span wire:loading.remove wire:target="resyncMetadata">Resync metadata</span>
-                    <span wire:loading wire:target="resyncMetadata">Resyncing…</span>
+                    <span wire:loading wire:target="resyncMetadata" style="display:none">Resyncing…</span>
                 </button>
 
                 @if ($resyncedAt)
