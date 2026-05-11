@@ -75,15 +75,19 @@ class PlexClient
     public function albumsForArtist(string $artistId): Collection
     {
         return $this->cache->remember("albums:{$artistId}", PlexCache::TTL_ALBUMS, function () use ($artistId) {
-            $response = $this->server()->get("/library/metadata/{$artistId}/children");
+            // Filter section/all by artist.id instead of using /library/metadata/{id}/children.
+            // The /children endpoint returns 0 for "track artists" (artists credited via
+            // a track's originalTitle but not the album's parentTitle), which incorrectly
+            // hides albums whose parentRatingKey points to those artists. The filter
+            // approach returns the same set for normal album artists and the correct
+            // non-empty set for track artists.
+            $sectionId = $this->musicSectionId();
+            $response = $this->server()->get("/library/sections/{$sectionId}/all", [
+                'type' => 9,
+                'artist.id' => $artistId,
+            ]);
 
-            if ($response->status() === 404) {
-                throw new PlexNotFoundException("Artist {$artistId} not found.");
-            }
-
-            if (! $response->successful()) {
-                throw new PlexUnreachableException("albumsForArtist returned {$response->status()}");
-            }
+            $this->ensureOk($response, "library/sections/{$sectionId}/all?artist.id={$artistId}");
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Album::fromPlex($row));
