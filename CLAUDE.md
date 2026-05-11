@@ -28,6 +28,15 @@ The product name in the design files is "Plextune". The repo and app title are "
 
 **Play queue and autoplay** shipped 2026-05-11 as a cross-cutting feature (branch `feat/play-queue`, ahead of M6). Spec: `docs/superpowers/specs/2026-05-11-plextune-play-queue-design.md`. Plan: `docs/superpowers/plans/2026-05-11-plextune-play-queue.md`. Covers: Alpine `audioPlayer()` queue with auto-advance, skip forward/back, shuffle, three-state repeat, consecutive-error guard; all views dispatch `play-track` with the full queue (track rows, the playlist-detail Play/Shuffle header buttons, the library album-header Play/Shuffle buttons, the sidebar playlist context-menu Play); new browser test `tests/Browser/PlayerQueueTest.php` (3 tests).
 
+**Play-queue follow-ups (not built, for a later polish pass):**
+- **Highlight the currently-playing track** in the list it came from (library album tracklist, playlist-detail, search "Songs", recently-played) whenever playback starts from there, whether via a track row, the album/playlist Play button, or Shuffle. Needs the player to expose the playing track id (it has `current.id` in Alpine) and the list views to compare against it.
+- **A plain Play should reset shuffle to off.** Right now the `queue-load` handler keeps `shuffle` on across loads unless the incoming payload says otherwise (deliberate at first, but the desired behavior is: only the Shuffle button sets/keeps shuffle on; loading a new context with the normal Play button or a track row clears the toggle). Fix: in the `queue-load` handler set `this.shuffle = !!e.detail.shuffle` instead of only flipping it to `true` when the flag is present.
+- (Existing, pre-queue) The now-playing block in the player should navigate to the playing track's album when clicked. Needs `albumId`/`artistId` added to the `play-track` payload from every dispatcher.
+
+(Intentional, not a bug: pressing skip-forward while repeat is set to "one" restarts the current track rather than advancing — confirmed desired behavior.)
+
+**Search input bug (reported, not yet fixed):** typing a new query into the search box after results are already shown clears the typed text out of the input. Likely related to the `#[Url] $q` + live model binding re-rendering; investigate the `wire:model` on the search input in `pages::search`.
+
 Git log is the authoritative record of what shipped. `php artisan test` should be green (159 tests after the play-queue feature, including 11 Playwright browser tests).
 
 ## How work is done here
