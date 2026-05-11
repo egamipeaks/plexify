@@ -146,6 +146,9 @@ new class extends Component {
             },
 
             init() {
+                if (!Alpine.store('player')) {
+                    Alpine.store('player', { currentId: null, isPlaying: false });
+                }
                 // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
                 // the payload is in event.detail.
                 window.addEventListener('queue-load', (e) => {
