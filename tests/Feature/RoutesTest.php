@@ -64,4 +64,4 @@ it('renders the recently played route', function () {
     $this->get('/recently-played')
         ->assertOk()
         ->assertSee('Recently Played');
-})->skip('page component added in Task 6');
+});
