@@ -136,7 +136,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 };
 ?>
 
-<div class="h-full flex flex-col">
+<div class="h-full flex flex-col" data-selected-artist="{{ $selectedArtistId }}" data-selected-album="{{ $selectedAlbumId }}">
 @if ($errorMessage)
     <div class="flex-1 grid place-items-center p-12 text-center">
         <div class="max-w-md">
@@ -382,6 +382,25 @@ new #[Layout('components.layouts.app')] class extends Component {
                 }
             });
         });
+
+        // After this page renders (initial load or wire:navigate from elsewhere with
+        // ?artist=X&album=Y in the URL), scroll the miller columns so the selected
+        // rows are visible. Skips if the user has already scrolled in this session.
+        const scrollToSelection = () => {
+            const root = document.querySelector('[data-selected-artist]');
+            if (!root) return;
+            const artistId = root.dataset.selectedArtist;
+            const albumId = root.dataset.selectedAlbum;
+            if (artistId && saved['artists-column'] === undefined) {
+                document.querySelector(`[data-region="artists-column"] [wire\\:key="artist-${artistId}"]`)
+                    ?.scrollIntoView({ block: 'center' });
+            }
+            if (albumId && saved['albums-column'] === undefined) {
+                document.querySelector(`[data-region="albums-column"] [wire\\:key="album-${albumId}"]`)
+                    ?.scrollIntoView({ block: 'center' });
+            }
+        };
+        requestAnimationFrame(scrollToSelection);
     })();
 </script>
 @endscript
