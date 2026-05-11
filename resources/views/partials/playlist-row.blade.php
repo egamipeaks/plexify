@@ -5,7 +5,6 @@
 --}}
 @php($isActive = request()->routeIs('playlist') && (string) request()->route('playlist') === $p->id)
 <div wire:key="sidebar-pl-{{ $p->id }}"
-     x-show="matches(@js($p->title))"
      :class="{
         'ring-1 ring-emerald-400 rounded-md': flash['pl-{{ $p->id }}'] === 'ok',
         'ring-1 ring-red-400 rounded-md': flash['pl-{{ $p->id }}'] === 'err',

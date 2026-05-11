@@ -16,6 +16,8 @@ new class extends Component {
 
     public ?string $renamingPlaylistId = null;
 
+    public string $filter = '';
+
     protected PlexClient $plex;
 
     public function boot(PlexClient $plex): void
@@ -244,7 +246,6 @@ new class extends Component {
     {{-- Playlists card --}}
     <div class="bg-surface rounded-lg flex-1 min-h-0 flex flex-col"
          x-data="{
-            filter: '',
             draggingTrack: false,
             menu: null,
             dropTarget: null,
@@ -259,7 +260,6 @@ new class extends Component {
                 window.removeEventListener('dragstart', this._ds);
                 window.removeEventListener('dragend', this._de);
             },
-            matches(name) { return !this.filter || (name || '').toLowerCase().includes(this.filter.toLowerCase()); },
             openMenu(e, kind, id) { e.preventDefault(); e.stopPropagation(); this.menu = { x: e.clientX, y: e.clientY, kind, id }; },
             flashRow(key, ok) { this.flash[key] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[key] = null; }, 700); },
             async dropTrackOn(key, playlistId, e) {
@@ -311,7 +311,7 @@ new class extends Component {
         <div class="px-3 pb-2 flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5 flex-1 min-w-0 bg-surface-2 rounded-md h-7 px-2 text-text-2">
                 <x-lucide-search class="w-[14px] h-[14px] flex-none" />
-                <input type="text" x-model="filter" placeholder="Filter playlists"
+                <input type="text" wire:model.live.debounce.200ms="filter" placeholder="Filter playlists"
                        class="bg-transparent outline-none text-[12px] flex-1 min-w-0 text-white placeholder:text-text-3">
             </div>
             <button type="button"
@@ -324,10 +324,13 @@ new class extends Component {
         {{-- List --}}
         <div class="flex-1 overflow-y-auto scroll px-2 pb-2 flex flex-col gap-0.5">
             @php
-                $playlists = $this->playlists;
-                $byId = $playlists->keyBy('id');
+                $allPlaylists = $this->playlists;
+                $byId = $allPlaylists->keyBy('id');
+                $filter = trim($this->filter);
+                $matches = fn ($title) => $filter === '' || str_contains(mb_strtolower((string) $title), mb_strtolower($filter));
                 $filed = $this->folders->flatMap(fn ($f) => $f->folderPlaylists->pluck('plex_playlist_id'))->all();
-                $rootPlaylists = $playlists->reject(fn ($p) => in_array($p->id, $filed, true))->values();
+                $rootPlaylists = $allPlaylists->reject(fn ($p) => in_array($p->id, $filed, true))->values();
+                $visibleRoot = $rootPlaylists->filter(fn ($p) => $matches($p->title))->values();
             @endphp
 
             {{-- Folders --}}
@@ -336,62 +339,65 @@ new class extends Component {
                     $items = $folder->folderPlaylists
                         ->map(fn ($fp) => $byId->get($fp->plex_playlist_id))
                         ->filter()->values();
-                    $titlesJs = $items->pluck('title')->all();
+                    $visibleItems = $items->filter(fn ($p) => $matches($p->title))->values();
+                    $bodyOpen = $folder->expanded || $filter !== '';
                 @endphp
-                <div wire:key="folder-{{ $folder->id }}" class="flex flex-col"
-                     x-show="!filter || {{ Js::from($titlesJs) }}.some(t => matches(t))">
-                    <div wire:click="toggleFolder({{ $folder->id }})"
-                         @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
-                         @dragover.prevent="dropTarget = 'folder-{{ $folder->id }}'"
-                         @dragleave="dropTarget = null"
-                         @drop="dropPlaylistOn({{ $folder->id }}, $event)"
-                         :class="dropTarget === 'folder-{{ $folder->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : 'hover:bg-surface-2'"
-                         class="group w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer">
-                        <x-lucide-chevron-right @class(['w-3 h-3 flex-none text-text-2 transition-transform', 'rotate-90' => $folder->expanded]) />
-                        <x-lucide-folder class="w-4 h-4 text-text-2 flex-none" />
-                        @if ($renamingFolderId === $folder->id)
-                            <input type="text" value="{{ $folder->name }}"
-                                   x-init="$el.focus(); $el.select()"
-                                   @click.stop
-                                   @keydown.enter="$el.blur()"
-                                   @keydown.escape="$wire.set('renamingFolderId', null)"
-                                   @blur="$wire.renameFolder({{ $folder->id }}, $event.target.value)"
-                                   class="flex-1 min-w-0 bg-white/10 ring-1 ring-white/30 rounded px-1.5 py-0.5 text-[13px] font-bold text-white outline-none">
-                        @else
-                            <span @click.stop
-                                  @dblclick="$wire.set('renamingFolderId', {{ $folder->id }})"
-                                  class="text-[13px] font-bold text-white flex-1 truncate">{{ $folder->name }}</span>
+                @if ($filter === '' || $visibleItems->isNotEmpty())
+                    <div wire:key="folder-{{ $folder->id }}" class="flex flex-col">
+                        <div wire:click="toggleFolder({{ $folder->id }})"
+                             @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
+                             @dragover.prevent="dropTarget = 'folder-{{ $folder->id }}'"
+                             @dragleave="dropTarget = null"
+                             @drop="dropPlaylistOn({{ $folder->id }}, $event)"
+                             :class="dropTarget === 'folder-{{ $folder->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : 'hover:bg-surface-2'"
+                             class="group w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer">
+                            <x-lucide-chevron-right @class(['w-3 h-3 flex-none text-text-2 transition-transform', 'rotate-90' => $bodyOpen]) />
+                            <x-lucide-folder class="w-4 h-4 text-text-2 flex-none" />
+                            @if ($renamingFolderId === $folder->id)
+                                <input type="text" value="{{ $folder->name }}"
+                                       x-init="$el.focus(); $el.select()"
+                                       @click.stop
+                                       @keydown.enter="$el.blur()"
+                                       @keydown.escape="$wire.set('renamingFolderId', null)"
+                                       @blur="$wire.renameFolder({{ $folder->id }}, $event.target.value)"
+                                       class="flex-1 min-w-0 bg-white/10 ring-1 ring-white/30 rounded px-1.5 py-0.5 text-[13px] font-bold text-white outline-none">
+                            @else
+                                <span @click.stop
+                                      @dblclick="$wire.set('renamingFolderId', {{ $folder->id }})"
+                                      class="text-[13px] font-bold text-white flex-1 truncate">{{ $folder->name }}</span>
+                            @endif
+                            <span class="text-[11px] text-text-3 tabular-nums flex-none">{{ $filter === '' ? $items->count() : $visibleItems->count() }}</span>
+                        </div>
+                        @if ($bodyOpen)
+                            <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5">
+                                @forelse ($filter === '' ? $items : $visibleItems as $p)
+                                    @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                                @empty
+                                    <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
+                                @endforelse
+                            </div>
                         @endif
-                        <span class="text-[11px] text-text-3 tabular-nums flex-none"
-                              x-text="filter ? {{ Js::from($titlesJs) }}.filter(t => matches(t)).length : {{ $items->count() }}">{{ $items->count() }}</span>
                     </div>
-                    <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5"
-                         x-show="filter ? true : {{ $folder->expanded ? 'true' : 'false' }}">
-                        @forelse ($items as $p)
-                            @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
-                        @empty
-                            <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
-                        @endforelse
-                    </div>
-                </div>
+                @endif
             @endforeach
 
-            {{-- "Other" header (only when folders exist and there are unfiled playlists) --}}
-            @if ($this->folders->isNotEmpty() && $rootPlaylists->isNotEmpty())
+            {{-- "Other" header (only when folders exist and there are unfiled playlists visible) --}}
+            @if ($this->folders->isNotEmpty() && $visibleRoot->isNotEmpty())
                 <div @dragover.prevent="dropTarget = '__root'"
                      @dragleave="dropTarget = null"
                      @drop="dropPlaylistOn(null, $event)"
-                     x-show="!filter || {{ Js::from($rootPlaylists->pluck('title')->all()) }}.some(t => matches(t))"
                      :class="dropTarget === '__root' ? 'bg-accent/10 ring-1 ring-accent/30 rounded' : ''"
                      class="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-text-3 font-bold">Other</div>
             @endif
 
             {{-- Root playlists --}}
-            @forelse ($rootPlaylists as $p)
+            @forelse ($visibleRoot as $p)
                 @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
             @empty
-                @if ($this->folders->isEmpty())
+                @if ($this->folders->isEmpty() && $allPlaylists->isEmpty())
                     <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
+                @elseif ($this->folders->isEmpty() && $filter !== '')
+                    <div class="px-3 py-6 text-[12px] text-text-3 text-center">No matches.</div>
                 @endif
             @endforelse
 
