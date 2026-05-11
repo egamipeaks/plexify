@@ -1,0 +1,41 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "Metadata": [
+      {
+        "ratingKey": "70001",
+        "title": "Played Track One",
+        "grandparentTitle": "Artist One",
+        "parentTitle": "Album One",
+        "index": 3,
+        "duration": 215000,
+        "thumb": "/library/metadata/70001/thumb/1714000001",
+        "lastViewedAt": 1714000050,
+        "viewCount": 12,
+        "Media": [{ "Part": [{ "id": 7001, "container": "flac" }] }]
+      },
+      {
+        "ratingKey": "70002",
+        "title": "Played Track Two",
+        "grandparentTitle": "Artist Two",
+        "parentTitle": "Album Two",
+        "index": 1,
+        "duration": 188000,
+        "thumb": "/library/metadata/70002/thumb/1714000002",
+        "lastViewedAt": 1714000020,
+        "viewCount": 4,
+        "Media": [{ "Part": [{ "id": 7002, "container": "flac" }] }]
+      },
+      {
+        "ratingKey": "70003",
+        "title": "Never Played",
+        "grandparentTitle": "Artist Three",
+        "parentTitle": "Album Three",
+        "index": 1,
+        "duration": 200000,
+        "thumb": "/library/metadata/70003/thumb/1714000003",
+        "Media": [{ "Part": [{ "id": 7003, "container": "flac" }] }]
+      }
+    ]
+  }
+}

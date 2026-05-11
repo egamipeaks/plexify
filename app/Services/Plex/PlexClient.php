@@ -164,6 +164,29 @@ class PlexClient
         });
     }
 
+    public function recentlyPlayedTracks(int $limit = 50): Collection
+    {
+        return $this->cache->remember("recently_played:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+            $sectionId = $this->musicSectionId();
+
+            // Ask for 4x so we can slice past any unplayed rows Plex's :desc sort allowed through.
+            $response = $this->server()
+                ->withHeader('X-Plex-Container-Size', (string) ($limit * 4))
+                ->get("/library/sections/{$sectionId}/all", [
+                    'type' => 10,
+                    'sort' => 'lastViewedAt:desc',
+                ]);
+
+            $this->ensureOk($response, "library/sections/{$sectionId}/all");
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->filter(fn (array $row) => ! empty($row['lastViewedAt']))
+                ->map(fn (array $row) => Track::fromPlex($row))
+                ->take($limit)
+                ->values();
+        });
+    }
+
     public function machineIdentifier(): string
     {
         return $this->cache->remember('machine_identifier', PlexCache::TTL_RESOURCES, function () {

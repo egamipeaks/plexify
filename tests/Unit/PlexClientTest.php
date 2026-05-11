@@ -672,3 +672,55 @@ it('maps a 500 on recentlyAddedAlbums to PlexUnreachableException', function () 
 
     expect(fn () => app(PlexClient::class)->recentlyAddedAlbums(50))->toThrow(PlexUnreachableException::class);
 });
+
+it('fetches recently played tracks and drops unplayed rows in PHP', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response(file_get_contents(fixturePath('recently_played.json')), 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->recentlyPlayedTracks(50);
+
+    expect($tracks)->toHaveCount(2)
+        ->and($tracks->pluck('id')->all())->toBe(['70001', '70002']);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/library/sections/3/all')
+        && str_contains($request->url(), 'type=10')
+        && str_contains($request->url(), 'sort='.urlencode('lastViewedAt:desc'))
+        && $request->header('X-Plex-Container-Size') === ['200']);
+});
+
+it('caches recently played tracks under the limit-specific key', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response(file_get_contents(fixturePath('recently_played.json')), 200),
+    ]);
+
+    app(PlexClient::class)->recentlyPlayedTracks(50);
+    app(PlexClient::class)->recentlyPlayedTracks(50);
+
+    expect(Cache::has('plex:recently_played:50'))->toBeTrue();
+    Http::assertSentCount(3);
+});
+
+it('maps a 404 on recentlyPlayedTracks to PlexNotFoundException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response('nope', 404),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->recentlyPlayedTracks(50))->toThrow(PlexNotFoundException::class);
+});
+
+it('maps a 500 on recentlyPlayedTracks to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->recentlyPlayedTracks(50))->toThrow(PlexUnreachableException::class);
+});
