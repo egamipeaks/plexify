@@ -43,17 +43,24 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function playTrack(PlexClient $plex, string $trackId): void
     {
-        $track = $this->tracks->firstWhere('id', $trackId);
+        $tracks = $this->tracks->values();
+        $i = $tracks->search(fn ($t) => $t->id === $trackId);
 
-        if (! $track) {
+        if ($i === false) {
             return;
         }
 
+        $artwork = $this->thumbFor($this->selectedAlbum?->thumb);
+
         $this->dispatch('play-track',
-            url: $plex->streamUrl($track),
-            title: $track->title,
-            artist: $track->artist,
-            artwork: $this->thumbFor($this->selectedAlbum?->thumb),
+            queue: $tracks->map(fn ($t) => [
+                'id' => $t->id,
+                'url' => $plex->streamUrl($t),
+                'title' => $t->title,
+                'artist' => $t->artist,
+                'artwork' => $artwork,
+            ])->values()->all(),
+            index: $i,
         );
     }
 

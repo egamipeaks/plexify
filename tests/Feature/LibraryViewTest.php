@@ -109,10 +109,14 @@ it('dispatches play-track event with stream URL when track clicked', function ()
         ->call('selectAlbum', '1001')
         ->call('playTrack', '9001')
         ->assertDispatched('play-track',
-            url: 'https://plex/file.flac?X-Plex-Token=t',
-            title: 'Test',
-            artist: 'A',
-            artwork: null,
+            queue: [[
+                'id' => '9001',
+                'url' => 'https://plex/file.flac?X-Plex-Token=t',
+                'title' => 'Test',
+                'artist' => 'A',
+                'artwork' => null,
+            ]],
+            index: 0,
         );
 });
 
