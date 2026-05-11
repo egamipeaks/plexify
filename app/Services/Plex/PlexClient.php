@@ -285,6 +285,30 @@ class PlexClient
         );
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     url: string,
+     *     title: string,
+     *     artist: string,
+     *     artwork: ?string,
+     *     albumId: ?string,
+     *     artistId: ?string,
+     * }
+     */
+    public function queueItem(Track $track, ?string $artworkOverride = null): array
+    {
+        return [
+            'id' => $track->id,
+            'url' => $this->streamUrl($track),
+            'title' => $track->title,
+            'artist' => $track->artist,
+            'artwork' => $artworkOverride ?? $this->thumbUrl($track->thumb),
+            'albumId' => $track->albumId,
+            'artistId' => $track->artistId,
+        ];
+    }
+
     public function ping(): array
     {
         $resources = $this->ownedServerResource();

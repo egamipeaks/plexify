@@ -90,9 +90,10 @@ it('renders album header and tracklist when album selected', function () {
 });
 
 it('dispatches play-track event with stream URL when track clicked', function () {
-    $track = new Track(id: '9001', title: 'Test', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 999, container: 'flac');
+    $track = new Track(id: '9001', title: 'Test', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 999, container: 'flac', albumId: '1001', artistId: '100');
 
     $this->mock(PlexClient::class, function ($mock) use ($track) {
+        $mock->makePartial();
         $mock->shouldReceive('artists')->andReturn(collect([
             new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
         ]));
@@ -115,16 +116,19 @@ it('dispatches play-track event with stream URL when track clicked', function ()
                 'title' => 'Test',
                 'artist' => 'A',
                 'artwork' => null,
+                'albumId' => '1001',
+                'artistId' => '100',
             ]],
             index: 0,
         );
 });
 
 it('plays the whole album when the album-header Play button is pressed', function () {
-    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac');
-    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac');
+    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac', albumId: '1001', artistId: '100');
+    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac', albumId: '1001', artistId: '100');
 
     $this->mock(PlexClient::class, function ($mock) use ($t1, $t2) {
+        $mock->makePartial();
         $mock->shouldReceive('artists')->andReturn(collect([
             new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
         ]));
@@ -142,18 +146,19 @@ it('plays the whole album when the album-header Play button is pressed', functio
         ->call('playAlbum')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '9001', 'url' => 'https://plex/991.flac?X-Plex-Token=t', 'title' => 'One', 'artist' => 'A', 'artwork' => null],
-                ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null],
+                ['id' => '9001', 'url' => 'https://plex/991.flac?X-Plex-Token=t', 'title' => 'One', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
+                ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
             ],
             index: 0,
         );
 });
 
 it('shuffles the album when the album-header Shuffle button is pressed', function () {
-    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac');
-    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac');
+    $t1 = new Track(id: '9001', title: 'One', artist: 'A', album: 'B', trackNumber: 1, durationMs: 1000, partId: 991, container: 'flac', albumId: '1001', artistId: '100');
+    $t2 = new Track(id: '9002', title: 'Two', artist: 'A', album: 'B', trackNumber: 2, durationMs: 2000, partId: 992, container: 'flac', albumId: '1001', artistId: '100');
 
     $this->mock(PlexClient::class, function ($mock) use ($t1, $t2) {
+        $mock->makePartial();
         $mock->shouldReceive('artists')->andReturn(collect([
             new Artist(id: '100', name: 'A', thumb: null, albumCount: 1),
         ]));

@@ -324,3 +324,115 @@ it('skip-back restarts or goes to previous track; shuffle and repeat toggles wor
     // Repeat cycles: off -> all -> one -> off.
     expect($decoded['repeat'])->toBe(['off', 'all', 'one', 'off']);
 });
+
+it('highlights the currently-playing track in the library tracklist and moves the highlight on skip', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const rowHasEq = (i) => {
+                const rows = document.querySelectorAll('[data-region=tracklist] button[wire\\:click^="playTrack"]');
+                return !!rows[i]?.querySelector('.eq');
+            };
+
+            const p = playerData();
+            await sleep(300);
+            const before = {
+                idx: p.index,
+                eqOnCurrent: rowHasEq(p.index),
+                eqOnOther: rowHasEq(p.index === 0 ? 1 : 0),
+            };
+
+            p.next();
+            await sleep(500);
+            const after = { idx: p.index, eqOnCurrent: rowHasEq(p.index) };
+
+            return JSON.stringify({ before, after });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['before']['eqOnCurrent'])->toBeTrue('The playing row should show the equalizer marker');
+    expect($decoded['before']['eqOnOther'])->toBeFalse('Non-playing rows should not show the equalizer');
+    expect($decoded['after']['eqOnCurrent'])->toBeTrue('The equalizer should follow to the current track after skip');
+});
+
+it('navigates to the playing track album when the now-playing title is clicked from another page', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    // Move to the search page (the player + queue persist via @persist), then click the now-playing title.
+    $page->script("window.Livewire.navigate('/search')");
+
+    $onSearch = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            for (let i = 0; i < 50; i++) {
+                if (location.pathname.replace(/\/$/, '').endsWith('/search')) { return 'ON_SEARCH'; }
+                await sleep(100);
+            }
+            return 'STILL_' + location.pathname;
+        })()
+    JS);
+    expect($onSearch)->toBe('ON_SEARCH');
+
+    $page->assertVisible('[data-region=now-playing-title]');
+    $page->click('[data-region=now-playing-title]');
+
+    $url = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            for (let i = 0; i < 50; i++) {
+                if (/[?&]album=/.test(location.search)) { return location.href; }
+                await sleep(100);
+            }
+            return 'NO_ALBUM_PARAM:' + location.href;
+        })()
+    JS);
+    expect($url)->toMatch('/[?&]album=/');
+});
+
+it('clears the shuffle toggle when a plain track-row click loads a new queue', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+
+            const p = playerData();
+            if (!p.shuffle) { p.toggleShuffle(); }
+            await sleep(200);
+            const shuffleAfterToggle = playerData().shuffle;
+
+            const rows = document.querySelectorAll('[data-region=tracklist] button[wire\\:click^="playTrack"]');
+            rows[0].click();
+
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                const d = playerData();
+                if (d.queue.length > 0 && d.index === 0) { break; }
+                await sleep(100);
+            }
+            await sleep(200);
+
+            return JSON.stringify({ shuffleAfterToggle, shuffleAfterPlay: playerData().shuffle });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['shuffleAfterToggle'])->toBeTrue('Shuffle should be on after toggling it');
+    expect($decoded['shuffleAfterPlay'])->toBeFalse('Clicking a track row should clear the shuffle toggle');
+});

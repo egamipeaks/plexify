@@ -17,12 +17,15 @@ function recentTrack(string $id, string $title, string $album = 'Some Album', st
         partId: (int) $id,
         container: 'flac',
         thumb: "/library/metadata/{$id}/thumb",
+        albumId: "a{$id}",
+        artistId: 'art1',
     );
 }
 
 function mockRecentlyPlayedPlex(?Closure $extra = null): void
 {
     test()->mock(PlexClient::class, function ($mock) use ($extra) {
+        $mock->makePartial();
         $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
         $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($track) => "https://stream/{$track->id}.flac");
         $mock->shouldReceive('playlists')->andReturn(collect());
@@ -95,6 +98,8 @@ it('playTrack dispatches play-track with the stream URL', function () {
                 'title' => 'Song',
                 'artist' => 'Some Artist',
                 'artwork' => 'https://thumb/library/metadata/70001/thumb',
+                'albumId' => 'a70001',
+                'artistId' => 'art1',
             ]],
             index: 0,
         );

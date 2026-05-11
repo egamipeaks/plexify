@@ -195,13 +195,7 @@ new class extends Component {
         }
 
         $this->dispatch('play-track',
-            queue: $tracks->map(fn ($t) => [
-                'id' => $t->id,
-                'url' => $this->plex->streamUrl($t),
-                'title' => $t->title,
-                'artist' => $t->artist,
-                'artwork' => $this->thumbFor($t->thumb),
-            ])->values()->all(),
+            queue: $tracks->map(fn ($t) => $this->plex->queueItem($t))->values()->all(),
             index: 0,
         );
     }

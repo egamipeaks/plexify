@@ -20,16 +20,20 @@ new class extends Component {
     <div class="flex items-center gap-3 min-w-[280px] max-w-[30%]">
         <template x-if="current && current.artwork">
             <img :src="current.artwork" :alt="current.title"
-                 class="w-14 h-14 rounded-md flex-none object-cover">
+                 @click="goToAlbum()"
+                 class="w-14 h-14 rounded-md flex-none object-cover cursor-pointer">
         </template>
         <template x-if="!(current && current.artwork)">
-            <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none">
+            <div class="w-14 h-14 rounded-md bg-surface-2 grid place-items-center flex-none cursor-pointer"
+                 @click="goToAlbum()">
                 <x-lucide-music class="w-6 h-6 text-text-3" />
             </div>
         </template>
         <div class="min-w-0 flex-1">
-            <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer" x-text="current ? current.title : ''"></div>
-            <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer" x-text="current ? current.artist : ''"></div>
+            <div data-region="now-playing-title" class="truncate text-[14px] font-semibold hover:underline cursor-pointer"
+                 @click="goToAlbum()" x-text="current ? current.title : ''"></div>
+            <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer"
+                 @click="goToArtist()" x-text="current ? current.artist : ''"></div>
         </div>
         <button type="button" class="text-accent hover:scale-110 transition-transform">
             <x-lucide-heart class="w-4 h-4" />
@@ -106,14 +110,17 @@ new class extends Component {
     <audio x-ref="audio"
            @timeupdate="currentTime = $event.target.currentTime"
            @loadedmetadata="duration = $event.target.duration"
-           @play="isPlaying = true; consecutiveErrors = 0"
-           @pause="isPlaying = false"
+           @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true"
+           @pause="isPlaying = false; $store.player.isPlaying = false"
            @ended="next()"
            x-on:error="onTrackError()"></audio>
 </div>
 
 @script
 <script>
+    // The `player` store is registered from the layout's <head> (before Alpine walks
+    // the DOM) so tracklist rows pick it up on first render; init() below is a no-op
+    // fallback in case that script is ever removed.
     window.audioPlayer = function () {
         return {
             isPlaying: false,
@@ -133,15 +140,16 @@ new class extends Component {
             },
 
             init() {
+                if (!Alpine.store('player')) {
+                    Alpine.store('player', { currentId: null, isPlaying: false });
+                }
                 // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
                 // the payload is in event.detail.
                 window.addEventListener('queue-load', (e) => {
                     this.consecutiveErrors = 0;
                     this.originalQueue = e.detail.queue ?? [];
                     const startIndex = e.detail.index ?? 0;
-                    if (e.detail.shuffle) {
-                        this.shuffle = true;
-                    }
+                    this.shuffle = !!e.detail.shuffle;
                     if (this.shuffle) {
                         this.applyShuffle(startIndex);
                         this.loadAndPlay(0);
@@ -160,6 +168,7 @@ new class extends Component {
                 this.index = i;
                 this.currentTime = 0;
                 this.duration = 0;
+                Alpine.store('player').currentId = this.queue[i].id;
                 this.$refs.audio.src = this.queue[i].url;
                 this.$refs.audio.play().catch(() => {});
             },
@@ -256,6 +265,27 @@ new class extends Component {
                     return;
                 }
                 this.next(true);
+            },
+
+            goToAlbum() {
+                const c = this.current;
+                if (!c || !c.albumId) {
+                    return;
+                }
+                const params = new URLSearchParams();
+                if (c.artistId) {
+                    params.set('artist', c.artistId);
+                }
+                params.set('album', c.albumId);
+                Livewire.navigate('/?' + params.toString());
+            },
+
+            goToArtist() {
+                const c = this.current;
+                if (!c || !c.artistId) {
+                    return;
+                }
+                Livewire.navigate('/?artist=' + encodeURIComponent(c.artistId));
             },
 
             seek(value) {

@@ -75,18 +75,12 @@ new #[Layout('components.layouts.app')] class extends Component {
         );
     }
 
-    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string}> */
+    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string, albumId: ?string, artistId: ?string}> */
     protected function albumQueue(PlexClient $plex): array
     {
         $artwork = $this->thumbFor($this->selectedAlbum?->thumb);
 
-        return $this->tracks->values()->map(fn ($t) => [
-            'id' => $t->id,
-            'url' => $plex->streamUrl($t),
-            'title' => $t->title,
-            'artist' => $t->artist,
-            'artwork' => $artwork,
-        ])->all();
+        return $this->tracks->values()->map(fn ($t) => $plex->queueItem($t, $artwork))->all();
     }
 
     protected function formatMs(int $ms): string
@@ -357,7 +351,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <span></span>
                         <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
                     </div>
-                    <div class="overflow-y-auto scroll flex-1 py-1">
+                    <div class="overflow-y-auto scroll flex-1 py-1" x-data="{}">
                         @foreach ($this->tracks as $track)
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
                                     draggable="true"
@@ -367,7 +361,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <span class="text-text-3 group-hover:text-white grid place-items-center">
                                     <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
                                 </span>
-                                <span class="tabular-nums text-text-2 text-right">{{ $track->trackNumber }}</span>
+                                <span class="tabular-nums text-text-2 text-right">
+                                    <template x-if="$store.player?.currentId === '{{ $track->id }}'">
+                                        <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                    </template>
+                                    <template x-if="$store.player?.currentId !== '{{ $track->id }}'">
+                                        <span>{{ $track->trackNumber }}</span>
+                                    </template>
+                                </span>
                                 <div class="min-w-0 flex items-center gap-3">
                                     @if ($this->selectedAlbum->thumb)
                                         <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
@@ -378,7 +379,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         </div>
                                     @endif
                                     <div class="min-w-0">
-                                        <div class="truncate font-medium text-white">{{ $track->title }}</div>
+                                        <div class="truncate font-medium" :class="$store.player?.currentId === '{{ $track->id }}' ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
                                         <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                                     </div>
                                 </div>

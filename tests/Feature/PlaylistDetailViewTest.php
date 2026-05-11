@@ -23,14 +23,15 @@ function samplePlaylist(): Playlist
 function samplePlaylistTracks(): Collection
 {
     return collect([
-        new Track(id: '8001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 6, durationMs: 337000, partId: 770001, container: 'flac', thumb: '/t/8001'),
-        new Track(id: '8002', title: 'Skinny Love', artist: 'Bon Iver', album: 'For Emma, Forever Ago', trackNumber: 3, durationMs: 238000, partId: 770002, container: 'flac', thumb: '/t/8002'),
+        new Track(id: '8001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 6, durationMs: 337000, partId: 770001, container: 'flac', thumb: '/t/8001', albumId: '5001', artistId: '100'),
+        new Track(id: '8002', title: 'Skinny Love', artist: 'Bon Iver', album: 'For Emma, Forever Ago', trackNumber: 3, durationMs: 238000, partId: 770002, container: 'flac', thumb: '/t/8002', albumId: '5002', artistId: '100'),
     ]);
 }
 
 function mockPlexForPlaylist(): void
 {
     test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
         $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
         $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
         $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
@@ -66,8 +67,8 @@ it('dispatches play-track for a clicked row', function () {
         ->call('playTrack', '8002')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001'],
-                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002'],
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100'],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 1,
         );
@@ -80,8 +81,8 @@ it('plays the first track when Play is pressed', function () {
         ->call('playAll')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001'],
-                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002'],
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100'],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 0,
         );
