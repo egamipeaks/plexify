@@ -250,9 +250,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <div class="px-6 py-5 flex items-center gap-5">
                         @if ($this->selectedAlbum->thumb)
                             <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
-                                 class="rounded-md flex-none shadow-2xl bg-surface-2 object-cover" style="width: 120px; height: 120px;">
+                                 draggable="true" title="Drag onto a playlist to add the whole album"
+                                 ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/album', '{{ $this->selectedAlbum->id }}')"
+                                 class="rounded-md flex-none shadow-2xl bg-surface-2 object-cover cursor-grab active:cursor-grabbing" style="width: 120px; height: 120px;">
                         @else
-                            <div class="rounded-md relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 120px; height: 120px;">
+                            <div draggable="true" title="Drag onto a playlist to add the whole album"
+                                 ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/album', '{{ $this->selectedAlbum->id }}')"
+                                 class="rounded-md relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center cursor-grab active:cursor-grabbing" style="width: 120px; height: 120px;">
                                 <x-lucide-disc class="w-10 h-10 text-text-3" />
                             </div>
                         @endif
@@ -310,6 +314,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <div class="overflow-y-auto scroll flex-1 py-1">
                         @foreach ($this->tracks as $track)
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                    draggable="true"
+                                    ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
                                     class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
                                 <span class="text-text-3 group-hover:text-white grid place-items-center">

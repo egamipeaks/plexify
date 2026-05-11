@@ -83,7 +83,10 @@ it('renders album header and tracklist when album selected', function () {
         ->assertSee('22 (OVER S∞∞N)')
         ->assertSee('10 d E A T h b R E a s T')
         ->assertSee('2:49') // 169s formatted
-        ->assertSee('4:00'); // 240s formatted
+        ->assertSee('4:00') // 240s formatted
+        ->assertSeeHtml('ondragstart=')        // track rows are draggable
+        ->assertSeeHtml('plextune/track')
+        ->assertSeeHtml('plextune/album');     // the album-header cover is draggable
 });
 
 it('dispatches play-track event with stream URL when track clicked', function () {
@@ -97,7 +100,7 @@ it('dispatches play-track event with stream URL when track clicked', function ()
             new Album(id: '1001', title: 'B', artist: 'A', year: 2024, thumb: null, trackCount: 1, durationMs: 1000),
         ]));
         $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$track]));
-        $mock->shouldReceive('streamUrl')->with(\Mockery::on(fn ($t) => $t->id === '9001'))->andReturn('https://plex/file.flac?X-Plex-Token=t');
+        $mock->shouldReceive('streamUrl')->with(Mockery::on(fn ($t) => $t->id === '9001'))->andReturn('https://plex/file.flac?X-Plex-Token=t');
         $mock->shouldReceive('thumbUrl')->with(null)->andReturn(null);
     });
 

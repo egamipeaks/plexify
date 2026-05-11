@@ -205,6 +205,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div class="overflow-y-auto scroll flex-1 py-1">
                 @foreach ($this->tracks as $i => $track)
                     <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                            draggable="true"
+                            ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
                             class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                             style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
                         <span class="text-text-3 group-hover:text-white grid place-items-center">

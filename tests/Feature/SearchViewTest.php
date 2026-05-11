@@ -47,7 +47,8 @@ it('renders the results grouped by type with filter pills', function () {
         ->assertSee('Bon Voyage')
         ->assertSee('For Emma, Forever Ago')
         ->assertSee('Bon Iver')
-        ->assertSee('Holocene');
+        ->assertSee('Holocene')
+        ->assertSeeHtml('plextune/track');
 });
 
 it('shows a no-results message when the search returns nothing', function () {
@@ -60,7 +61,7 @@ it('shows a no-results message when the search returns nothing', function () {
 
 it('shows the Plex-unreachable panel when the search fails', function () {
     $this->mock(PlexClient::class)
-        ->shouldReceive('searchAll')->andThrow(new PlexUnreachableException("connection refused"));
+        ->shouldReceive('searchAll')->andThrow(new PlexUnreachableException('connection refused'));
 
     Livewire::test('pages::search', ['q' => 'bon'])
         ->assertSee("Can't reach your Plex server")
@@ -85,7 +86,7 @@ it('dispatches play-track when a track row is clicked', function () {
     $this->mock(PlexClient::class, function ($mock) {
         $mock->shouldReceive('searchAll')->andReturn(sampleResults());
         $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
-        $mock->shouldReceive('streamUrl')->with(\Mockery::on(fn ($t) => $t->id === '9001'))
+        $mock->shouldReceive('streamUrl')->with(Mockery::on(fn ($t) => $t->id === '9001'))
             ->andReturn('https://server/library/parts/660001/file.flac?X-Plex-Token=t');
     });
 

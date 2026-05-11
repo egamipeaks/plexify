@@ -55,7 +55,8 @@ it('renders one row per track with the album column', function () {
         ->assertSee('Holocene')
         ->assertSee('Bon Iver, Bon Iver')
         ->assertSee('Skinny Love')
-        ->assertSee('For Emma, Forever Ago');
+        ->assertSee('For Emma, Forever Ago')
+        ->assertSeeHtml('plextune/track');
 });
 
 it('dispatches play-track for a clicked row', function () {
