@@ -261,6 +261,36 @@ it('normalizes an empty Playlist summary to null', function () {
     expect($playlist->summary)->toBeNull();
 });
 
+it('maps parentRatingKey -> albumId and grandparentRatingKey -> artistId on a Track', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '11111',
+        'title' => '33 GOD',
+        'grandparentTitle' => 'Bon Iver',
+        'parentTitle' => '22, A Million',
+        'parentRatingKey' => '67890',
+        'grandparentRatingKey' => '100',
+        'index' => 3,
+        'duration' => 213000,
+        'Media' => [['Part' => [['id' => 999, 'container' => 'flac']]]],
+    ]);
+
+    expect($track->albumId)->toBe('67890');
+    expect($track->artistId)->toBe('100');
+});
+
+it('leaves Track albumId/artistId null when the parent keys are absent', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '1',
+        'title' => 'x',
+        'grandparentTitle' => 'a',
+        'parentTitle' => 'b',
+        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+    ]);
+
+    expect($track->albumId)->toBeNull();
+    expect($track->artistId)->toBeNull();
+});
+
 it('reads the smart flag on Playlist::fromPlex', function () {
     expect(Playlist::fromPlex([
         'ratingKey' => '1',
