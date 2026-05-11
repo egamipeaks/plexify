@@ -13,7 +13,7 @@ function sampleResults(): SearchResults
 {
     return new SearchResults(
         tracks: collect([
-            new Track(id: '9001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 0, durationMs: 337000, partId: 660001, container: 'flac', thumb: '/t/9001'),
+            new Track(id: '9001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 0, durationMs: 337000, partId: 660001, container: 'flac', thumb: '/t/9001', albumId: '1001', artistId: '100'),
         ]),
         artists: collect([
             new Artist(id: '100', name: 'Bon Iver', thumb: '/t/100', albumCount: 5),
@@ -84,6 +84,7 @@ it('narrows to a single section when a filter pill is clicked', function () {
 
 it('dispatches play-track when a track row is clicked', function () {
     $this->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
         $mock->shouldReceive('searchAll')->andReturn(sampleResults());
         $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
         $mock->shouldReceive('streamUrl')->with(Mockery::on(fn ($t) => $t->id === '9001'))
@@ -99,6 +100,8 @@ it('dispatches play-track when a track row is clicked', function () {
                 'title' => 'Holocene',
                 'artist' => 'Bon Iver',
                 'artwork' => 'https://thumb/t/9001',
+                'albumId' => '1001',
+                'artistId' => '100',
             ]],
             index: 0,
         );

@@ -75,18 +75,12 @@ new #[Layout('components.layouts.app')] class extends Component {
         );
     }
 
-    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string}> */
+    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string, albumId: ?string, artistId: ?string}> */
     protected function albumQueue(PlexClient $plex): array
     {
         $artwork = $this->thumbFor($this->selectedAlbum?->thumb);
 
-        return $this->tracks->values()->map(fn ($t) => [
-            'id' => $t->id,
-            'url' => $plex->streamUrl($t),
-            'title' => $t->title,
-            'artist' => $t->artist,
-            'artwork' => $artwork,
-        ])->all();
+        return $this->tracks->values()->map(fn ($t) => $plex->queueItem($t, $artwork))->all();
     }
 
     protected function formatMs(int $ms): string

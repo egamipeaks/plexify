@@ -95,16 +95,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         }
     }
 
-    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string}> */
+    /** @return list<array{id: string, url: string, title: string, artist: string, artwork: ?string, albumId: ?string, artistId: ?string}> */
     protected function queuePayload(): array
     {
-        return $this->tracks->values()->map(fn ($t) => [
-            'id' => $t->id,
-            'url' => $this->plex->streamUrl($t),
-            'title' => $t->title,
-            'artist' => $t->artist,
-            'artwork' => $this->thumbFor($t->thumb),
-        ])->all();
+        return $this->tracks->values()->map(fn ($t) => $this->plex->queueItem($t))->all();
     }
 
     protected function thumbFor(?string $thumb): ?string
