@@ -165,3 +165,38 @@ it('starts with no selection when no query parameters present', function () {
         ->assertSet('selectedArtistId', null)
         ->assertSet('selectedAlbumId', null);
 });
+
+it('hides the album header when no album is selected and lets the miller columns fill the page', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::library')
+        ->assertDontSee('ALBUM')
+        ->assertDontSeeHtml('wire:click="closeAlbum"')
+        ->assertSeeHtml('flex-1 min-h-0');
+});
+
+it('closes the album header when closeAlbum is called', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: 'For Emma', artist: 'Bon Iver', year: 2007, thumb: null, trackCount: 1, durationMs: 0, artistId: '100'),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->assertSet('selectedAlbumId', '1001')
+        ->assertSeeHtml('wire:click="closeAlbum"')
+        ->call('closeAlbum')
+        ->assertSet('selectedAlbumId', null)
+        ->assertDontSeeHtml('wire:click="closeAlbum"');
+});

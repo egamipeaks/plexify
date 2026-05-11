@@ -36,6 +36,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->selectedAlbumId = $id;
     }
 
+    public function closeAlbum(): void
+    {
+        $this->selectedAlbumId = null;
+    }
+
     public function playTrack(PlexClient $plex, string $trackId): void
     {
         $track = $this->tracks->firstWhere('id', $trackId);
@@ -145,8 +150,13 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
     </div>
 @else
-        {{-- Miller columns: Artists + Albums --}}
-        <div class="grid grid-cols-2 gap-2 px-2 pt-2 pb-2 flex-none" style="height: 220px;">
+        {{-- Miller columns: Artists + Albums (fills the page until an album is selected) --}}
+        <div @class([
+                'grid grid-cols-2 gap-2 px-2 pt-2 pb-2',
+                'flex-none' => $this->selectedAlbum,
+                'flex-1 min-h-0' => ! $this->selectedAlbum,
+             ])
+             @style(['height: 220px' => $this->selectedAlbum])>
             {{-- Artists column --}}
             <div class="flex flex-col min-h-0 bg-surface rounded-lg overflow-hidden">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between gap-2 flex-none">
@@ -247,6 +257,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         @if ($this->selectedAlbum)
             <div class="px-2 pb-2 flex-none">
                 <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    <button type="button" wire:click="closeAlbum" title="Close album"
+                            class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                        <x-lucide-x class="w-4 h-4" />
+                    </button>
                     <div class="px-6 py-5 flex items-center gap-5">
                         @if ($this->selectedAlbum->thumb)
                             <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
@@ -346,8 +360,6 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                 </div>
             </div>
-        @else
-            <div class="flex-1 p-2 overflow-auto" data-region="tracklist"></div>
         @endif
 @endif
 </div>
