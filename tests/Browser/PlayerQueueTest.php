@@ -87,7 +87,7 @@ it('builds a queue from the album tracklist and plays the clicked track', functi
     $decoded = json_decode((string) $nowPlaying, true);
     expect($decoded)->toBeArray("Expected the player queue to populate after clicking a track, got: {$nowPlaying}");
     expect($decoded['len'])->toBeGreaterThan(1);
-    expect($decoded['index'])->toBeGreaterThanOrEqual(0);
+    expect($decoded['index'])->toBe(1, 'Clicking the second track row should set the queue index to 1');
     expect($decoded['title'])->not->toBe('');
 
     $page->assertVisible('[data-region=now-playing-title]');
@@ -304,6 +304,7 @@ it('skip-back restarts or goes to previous track; shuffle and repeat toggles wor
     } else {
         // Went to previous track — only valid if media was not buffered so currentTime stayed 0.
         expect($decoded['restarted']['hadTimeBeforeCall'])->toBeLessThan(1.0, 'Went back a track but currentTime was >3 before the call — unexpected');
+        expect($decoded['restarted']['index'])->toBe($decoded['idxBefore'] - 1, 'Fallback: went back a track, so index should be idxBefore - 1');
     }
 
     // Skip-back within 3s goes to the previous track.
