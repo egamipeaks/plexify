@@ -21,28 +21,63 @@ class PlexCache
 
     private const PREFIX = 'plex:';
 
-    private array $keys = [];
+    private const INDEX_KEY = 'plex:_index';
+
+    private const INDEX_TTL = self::TTL_TRACKS;
 
     public function remember(string $key, int $ttl, Closure $callback): mixed
     {
         $namespaced = self::PREFIX.$key;
-        $this->keys[$namespaced] = true;
 
-        return Cache::remember($namespaced, $ttl, $callback);
+        $value = Cache::remember($namespaced, $ttl, $callback);
+
+        $this->trackKey($namespaced);
+
+        return $value;
     }
 
     public function forget(string $key): void
     {
         $namespaced = self::PREFIX.$key;
-        unset($this->keys[$namespaced]);
         Cache::forget($namespaced);
+        $this->untrackKey($namespaced);
     }
 
     public function flushAll(): void
     {
-        foreach (array_keys($this->keys) as $namespaced) {
+        $index = Cache::get(self::INDEX_KEY, []);
+
+        foreach ($index as $namespaced) {
             Cache::forget($namespaced);
         }
-        $this->keys = [];
+
+        Cache::forget(self::INDEX_KEY);
+    }
+
+    private function trackKey(string $namespaced): void
+    {
+        $index = Cache::get(self::INDEX_KEY, []);
+
+        if (in_array($namespaced, $index, true)) {
+            return;
+        }
+
+        $index[] = $namespaced;
+        Cache::put(self::INDEX_KEY, $index, self::INDEX_TTL);
+    }
+
+    private function untrackKey(string $namespaced): void
+    {
+        $index = Cache::get(self::INDEX_KEY, []);
+
+        $filtered = array_values(array_filter($index, fn ($k) => $k !== $namespaced));
+
+        if (empty($filtered)) {
+            Cache::forget(self::INDEX_KEY);
+
+            return;
+        }
+
+        Cache::put(self::INDEX_KEY, $filtered, self::INDEX_TTL);
     }
 }
