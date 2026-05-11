@@ -176,7 +176,7 @@ it('deletes a playlist through Plex and clears any folder placement', function (
     expect(FolderPlaylist::where('plex_playlist_id', '4242')->count())->toBe(0);
 });
 
-it('plays the first track of a playlist', function () {
+it('enqueues a playlist when played', function () {
     mockSidebarPlex([playlist('4242', 'Mix')], function ($mock) {
         $mock->shouldReceive('playlistTracks')->once()->with('4242')->andReturn(collect([
             new Track(id: '1', title: 'Song', artist: 'Band', album: 'Rec', trackNumber: 1, durationMs: 1000, partId: 7, container: 'flac', thumb: '/t'),
@@ -186,7 +186,16 @@ it('plays the first track of a playlist', function () {
 
     Livewire::test('sidebar')
         ->call('playPlaylist', '4242')
-        ->assertDispatched('play-track', url: 'https://stream/1.flac', title: 'Song', artist: 'Band');
+        ->assertDispatched('play-track',
+            queue: [[
+                'id' => '1',
+                'url' => 'https://stream/1.flac',
+                'title' => 'Song',
+                'artist' => 'Band',
+                'artwork' => 'https://thumb/t',
+            ]],
+            index: 0,
+        );
 });
 
 it('renders folder contents and an "Other" group', function () {
