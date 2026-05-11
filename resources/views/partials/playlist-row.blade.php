@@ -22,7 +22,8 @@
                    class="flex-1 min-w-0 bg-white/10 ring-1 ring-white/30 rounded px-1.5 py-0.5 text-[13px] font-medium text-white outline-none">
         </div>
     @else
-        <a href="{{ route('playlist', $p->id) }}" wire:navigate draggable="true"
+        <a href="{{ route('playlist', $p->id) }}" draggable="true"
+           @click.prevent="Livewire.navigate('{{ route('playlist', $p->id) }}')"
            @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/playlist', '{{ $p->id }}')"
            @contextmenu="openMenu($event, 'playlist', '{{ $p->id }}')"
            @dragover.prevent="if (draggingTrack) dropTarget = 'pl-{{ $p->id }}'"
