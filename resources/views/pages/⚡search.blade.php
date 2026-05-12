@@ -96,12 +96,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         return $this->plex->thumbUrl($thumb);
     }
 
-    protected function formatMs(int $ms): string
-    {
-        $seconds = (int) round($ms / 1000);
-
-        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
-    }
 };
 ?>
 
@@ -292,7 +286,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="truncate text-[14px] font-medium text-white">{{ $track->title }}</div>
                                         <div class="truncate text-[12px] text-text-2">{{ collect([$track->artist, $track->album])->filter()->implode(' · ') }}</div>
                                     </div>
-                                    <span class="text-[12px] tabular-nums text-text-3">{{ $this->formatMs($track->durationMs) }}</span>
+                                    <span class="text-[12px] tabular-nums text-text-3">{{ \App\Support\Duration::format($track->durationMs) }}</span>
                                 </button>
                             @endforeach
                         </div>

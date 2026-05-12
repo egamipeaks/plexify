@@ -61,12 +61,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         return $this->plex->thumbUrl($thumb);
     }
 
-    protected function formatMs(int $ms): string
-    {
-        $seconds = (int) round($ms / 1000);
-
-        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
-    }
 };
 ?>
 
@@ -138,7 +132,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             <span class="grid place-items-center text-text-2 hover:text-white">
                                 <x-lucide-heart class="w-3.5 h-3.5" />
                             </span>
-                            <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                            <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
                         </button>
                     @endforeach
                 </div>

@@ -83,15 +83,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         return $this->tracks->values()->map(fn ($t) => $plex->queueItem($t, $artwork))->all();
     }
 
-    protected function formatMs(int $ms): string
-    {
-        $seconds = (int) round($ms / 1000);
-        $m = intdiv($seconds, 60);
-        $s = $seconds % 60;
-
-        return sprintf('%d:%02d', $m, $s);
-    }
-
     protected function thumbFor(?string $thumb): ?string
     {
         return app(PlexClient::class)->thumbUrl($thumb);
@@ -310,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <span>{{ $this->selectedAlbum->year }}</span>
                                 @endif
                                 <span>·</span>
-                                <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ $this->formatMs($this->tracks->sum('durationMs')) }}</span>
+                                <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ \App\Support\Duration::format($this->tracks->sum('durationMs')) }}</span>
                             </div>
                         </div>
                     </div>
@@ -387,7 +378,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <span class="grid place-items-center text-text-2 hover:text-white">
                                     <x-lucide-heart class="w-3.5 h-3.5" />
                                 </span>
-                                <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                                <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
                             </button>
                         @endforeach
                     </div>

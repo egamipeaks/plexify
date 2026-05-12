@@ -106,12 +106,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         return $this->plex->thumbUrl($thumb);
     }
 
-    protected function formatMs(int $ms): string
-    {
-        $seconds = (int) round($ms / 1000);
-
-        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
-    }
 };
 ?>
 
@@ -164,7 +158,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="text-[14px] text-text-2 max-w-prose">{{ $meta->summary }}</div>
                     @endif
                     <div class="flex items-center gap-1.5 text-[13px] text-text-2 flex-wrap">
-                        <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ $this->formatMs($this->tracks->sum('durationMs')) }}</span>
+                        <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ \App\Support\Duration::format($this->tracks->sum('durationMs')) }}</span>
                     </div>
                 </div>
             </div>
@@ -237,7 +231,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <span class="grid place-items-center text-text-2 hover:text-white">
                             <x-lucide-heart class="w-3.5 h-3.5" />
                         </span>
-                        <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
+                        <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
                     </button>
                 @endforeach
             </div>
