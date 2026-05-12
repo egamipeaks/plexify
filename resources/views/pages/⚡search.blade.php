@@ -268,7 +268,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <span class="text-[12px] text-text-3">{{ $this->results->tracks->count() }}</span>
                             </div>
                         @endif
-                        <div class="flex flex-col">
+                        <div class="flex flex-col" x-data="{}">
                             @foreach ($this->results->tracks as $track)
                                 <button type="button" wire:key="search-tr-{{ $track->id }}"
                                         wire:click="playTrack('{{ $track->id }}')"
@@ -284,8 +284,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             <x-lucide-disc class="w-4 h-4 text-text-3" />
                                         </div>
                                     @endif
-                                    <div class="min-w-0">
-                                        <div class="truncate text-[14px] font-medium text-white">{{ $track->title }}</div>
+                                    <div class="min-w-0" x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'search'; } }">
+                                        <div class="truncate text-[14px] font-medium flex items-center gap-2" :class="playing ? 'text-accent' : 'text-white'">
+                                            <span class="truncate">{{ $track->title }}</span>
+                                            <template x-if="playing">
+                                                <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                            </template>
+                                        </div>
                                         <div class="truncate text-[12px] text-text-2">{{ collect([$track->artist, $track->album])->filter()->implode(' · ') }}</div>
                                     </div>
                                     <span class="text-[12px] tabular-nums text-text-3">{{ \App\Support\Duration::format($track->durationMs) }}</span>

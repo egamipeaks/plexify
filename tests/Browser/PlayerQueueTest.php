@@ -400,6 +400,54 @@ it('navigates to the playing track album when the now-playing title is clicked f
     expect($url)->toMatch('/[?&]album=/');
 });
 
+it('only highlights the playing row in the list it is playing from', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            await sleep(300);
+
+            // Should have .eq in the current album tracklist (context = album).
+            const eqInAlbum = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            // Navigate to search page (queue persists, context stays album).
+            window.Livewire.navigate('/search');
+            for (let i = 0; i < 50; i++) {
+                if (location.pathname.replace(/\/$/, '').endsWith('/search')) break;
+                await sleep(100);
+            }
+            await sleep(500);
+
+            // On the search page there is no [data-region=tracklist]; .eq should not exist.
+            const eqOnSearch = document.querySelectorAll('.eq').length;
+
+            // Navigate back to the library home (no album selected → no tracklist).
+            window.Livewire.navigate('/');
+            for (let i = 0; i < 50; i++) {
+                if (location.pathname === '/' || location.pathname === '') break;
+                await sleep(100);
+            }
+            await sleep(500);
+
+            // No album panel open so tracklist is gone; .eq should not be in DOM.
+            const eqOnHome = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            return JSON.stringify({ eqInAlbum, eqOnSearch, eqOnHome });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqInAlbum'])->toBeGreaterThan(0, 'The playing row should show .eq in its originating album tracklist');
+    expect($decoded['eqOnSearch'])->toBe(0, '.eq should not appear on the search page when context is album');
+    expect($decoded['eqOnHome'])->toBe(0, '.eq should not appear in the library when no album tracklist is open');
+});
+
 it('clears the shuffle toggle when a plain track-row click loads a new queue', function () {
     $page = visit('/');
 

@@ -207,11 +207,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <span class="text-text-3 group-hover:text-white grid place-items-center">
                             <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
                         </span>
-                        <span class="tabular-nums text-text-2 text-right">
-                            <template x-if="$store.player?.currentId === '{{ $track->id }}'">
+                        <span class="tabular-nums text-text-2 text-right"
+                              x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}'; } }">
+                            <template x-if="playing">
                                 <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
                             </template>
-                            <template x-if="$store.player?.currentId !== '{{ $track->id }}'">
+                            <template x-if="!playing">
                                 <span>{{ $i + 1 }}</span>
                             </template>
                         </span>
@@ -225,7 +226,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 </div>
                             @endif
                             <div class="min-w-0">
-                                <div class="truncate font-medium" :class="$store.player?.currentId === '{{ $track->id }}' ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
+                                <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
                                 <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                             </div>
                         </div>
