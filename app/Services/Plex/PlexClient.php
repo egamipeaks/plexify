@@ -285,6 +285,16 @@ class PlexClient
         );
     }
 
+    public function scrobbleUrl(string $ratingKey): string
+    {
+        return sprintf(
+            '%s/:/scrobble?key=%s&identifier=com.plexapp.plugins.library&X-Plex-Token=%s',
+            $this->baseUrl(),
+            $ratingKey,
+            $this->token(),
+        );
+    }
+
     /**
      * @return array{
      *     id: string,
