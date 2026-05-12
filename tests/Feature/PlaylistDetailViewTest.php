@@ -216,3 +216,20 @@ it('shows an empty-playlist state for a playlist with no tracks', function () {
     Livewire::test('pages::playlist-detail', ['playlist' => '9999'])
         ->assertSee('This playlist is empty');
 });
+
+it('renders the artist and album as plain text when a playlist track has no album/artist ids', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(collect([
+            new Track(id: '8003', title: 'Local Recording', artist: 'Field Tape', album: 'Untitled', trackNumber: 1, durationMs: 120000, partId: 770003, container: 'mp3', thumb: null, albumId: null, artistId: null),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSee('Local Recording')
+        ->assertSee('Field Tape')
+        ->assertSee('Untitled')
+        ->assertDontSee('?artist=');
+});
