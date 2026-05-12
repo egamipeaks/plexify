@@ -179,6 +179,16 @@ it('renders the compact playlist tracklist when tracksCompact is on', function (
         ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 1fr 50px');
 });
 
+it('links the artist and album to the library in the compact playlist tracklist', function () {
+    AppSetting::setPlaylistTracksCompact(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml("Livewire.navigate('".e(route('library', ['artist' => '100']))."')")
+        ->assertSeeHtml("Livewire.navigate('".e(route('library', ['artist' => '100', 'album' => '5001']))."')");
+});
+
 it('persists the playlist tracklist compact toggle', function () {
     mockPlexForPlaylist();
 
