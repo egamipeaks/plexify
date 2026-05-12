@@ -13,6 +13,10 @@
     <script>
         document.addEventListener('alpine:init', () => {
             window.Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
+
+            window.Alpine.data('topbarSearch', (initialTerm) => ({
+                term: initialTerm || '',
+            }));
         });
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])

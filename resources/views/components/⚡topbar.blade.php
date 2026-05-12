@@ -1,16 +1,9 @@
 <?php
 
-use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new class extends Component {
-    #[Url(as: 'q', except: '')]
-    public string $query = '';
-
-    public function updatedQuery(): void
-    {
-        $this->redirectRoute('search', ['q' => $this->query], navigate: true);
-    }
+    //
 };
 ?>
 
@@ -26,15 +19,23 @@ new class extends Component {
         </button>
     </div>
 
-    <div class="flex-1 max-w-[760px]">
+    <div class="flex-1 max-w-[760px]"
+         x-data="topbarSearch(@js(request()->query('q', '')))">
         <div class="flex items-center gap-3 bg-surface-1 hover:bg-surface-2 transition-colors rounded-full h-11 px-4 ring-1 ring-transparent focus-within:ring-white/30">
             <x-lucide-search class="w-[18px] h-[18px] text-white" />
             <input type="text"
                    id="topbar-search"
-                   wire:model.live.debounce.300ms="query"
+                   x-ref="searchInput"
+                   x-model="term"
+                   x-on:input.debounce.300ms="$dispatch('plextune-search', { term })"
                    placeholder="What do you want to play?"
                    class="bg-transparent outline-none text-[14px] flex-1 placeholder:text-text-2">
-            <span class="text-[11px] text-text-3 border border-text-3/40 rounded px-1.5 py-0.5">&#8984;K</span>
+            <button type="button" x-show="term !== ''" x-cloak data-region="search-clear"
+                    @click="term = ''; $refs.searchInput.focus(); $dispatch('plextune-search', { term: '' })"
+                    class="text-text-3 hover:text-white flex-none">
+                <x-lucide-x class="w-4 h-4" />
+            </button>
+            <span x-show="term === ''" class="text-[11px] text-text-3 border border-text-3/40 rounded px-1.5 py-0.5">&#8984;K</span>
         </div>
     </div>
 
