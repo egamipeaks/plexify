@@ -1,6 +1,6 @@
 # Plextune — persist player volume + wire mute toggle
 
-Status: approved (2026-05-12). One of the post-M7 polish follow-ups.
+Status: shipped 2026-05-12. One of the post-M7 polish follow-ups.
 
 ## Goal
 

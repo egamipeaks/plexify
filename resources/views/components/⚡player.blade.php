@@ -106,8 +106,9 @@ new class extends Component {
             <x-lucide-cast class="w-4 h-4" />
         </button>
         <div class="flex items-center gap-2 group">
-            <button type="button" class="text-text-2 hover:text-white">
-                <x-lucide-volume-2 class="w-4 h-4" />
+            <button type="button" data-control="mute" @click="toggleMute()" class="text-text-2 hover:text-white">
+                <x-lucide-volume-2 x-show="!muted" x-cloak data-icon="unmuted" class="w-4 h-4" />
+                <x-lucide-volume-x x-show="muted" x-cloak data-icon="muted" class="w-4 h-4" />
             </button>
             <input type="range" min="0" max="1" step="0.01"
                    :value="volume"
@@ -140,6 +141,7 @@ new class extends Component {
             currentTime: 0,
             duration: 0,
             volume: 1,
+            muted: false,
 
             queue: [],         // playback order: [{ id, url, title, artist, artwork, albumId, artistId }]
             originalQueue: [],  // the unshuffled order, so toggling shuffle off restores it
@@ -184,6 +186,12 @@ new class extends Component {
                         this.loadAndPlay(startIndex);
                     }
                 });
+                let storedVolume = null;
+                try { storedVolume = localStorage.getItem('plextune.volume'); } catch (e) {}
+                const parsedVolume = parseFloat(storedVolume);
+                if (Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1) {
+                    this.volume = parsedVolume;
+                }
                 this.$refs.audio.volume = this.volume;
 
                 if (firstInit) {
@@ -378,7 +386,15 @@ new class extends Component {
 
             setVolume(value) {
                 this.volume = parseFloat(value);
+                this.muted = false;
+                this.$refs.audio.muted = false;
                 this.$refs.audio.volume = this.volume;
+                try { localStorage.setItem('plextune.volume', this.volume); } catch (e) {}
+            },
+
+            toggleMute() {
+                this.muted = !this.muted;
+                this.$refs.audio.muted = this.muted;
             },
 
             formatTime(seconds) {
