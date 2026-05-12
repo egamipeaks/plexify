@@ -107,6 +107,53 @@ it('toggles play/pause on Space when not typing', function () {
     expect($decoded['toggleCallCount'])->toBe(1, 'Space should call togglePlay exactly once');
 });
 
+it('ignores Space and does not call togglePlay when focus is in the search input', function () {
+    $page = visit('/');
+
+    // Wait for the player Alpine component and its togglePlay method to be ready.
+    $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                const el = document.querySelector('[data-region="player"]');
+                if (el && window.Alpine && Alpine.$data(el) && Alpine.$data(el).togglePlay) break;
+                await sleep(100);
+            }
+        })()
+    JS);
+
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const p = Alpine.$data(document.querySelector('[data-region="player"]'));
+            if (!p) return 'NO_PLAYER';
+
+            // Spy on togglePlay — it must NOT be called while an input is focused.
+            let toggleCallCount = 0;
+            p.togglePlay = () => { toggleCallCount++; };
+
+            // Focus the topbar search input so e.target is a typing target.
+            const input = document.getElementById('topbar-search');
+            if (!input) return 'NO_INPUT';
+            input.focus();
+            await sleep(50);
+
+            // Dispatch Space from the focused input so e.target === input.
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+            await sleep(200);
+
+            const activeId = document.activeElement ? document.activeElement.id : '';
+            return JSON.stringify({ toggleCallCount, activeId });
+        })()
+    JS);
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected result object, got: {$result}");
+    expect($decoded['toggleCallCount'])->toBe(0, 'Space must not call togglePlay while typing in the search input');
+    expect($decoded['activeId'])->toBe('topbar-search', 'Focus must remain on the search input');
+});
+
 it('calls next() on ArrowRight and previous() on ArrowLeft when not typing', function () {
     $page = visit('/');
 
