@@ -25,6 +25,7 @@ new class extends Component {
 ?>
 
 <div class="bg-base h-[88px] flex items-center px-4 gap-4 flex-none"
+     data-region="player"
      x-data="audioPlayer(@js($scrobbleEnabled), @js($scrobbleUrlTemplate))"
      x-init="init()">
 

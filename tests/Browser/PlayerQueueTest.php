@@ -38,7 +38,7 @@ function drillIntoAlbumAndClickTrack($page): string
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -110,7 +110,7 @@ it('auto-advances to the next track when next() is called and stops at the end w
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -189,7 +189,7 @@ it('skip-back restarts or goes to previous track; shuffle and repeat toggles wor
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -334,7 +334,7 @@ it('highlights the currently-playing track in the library tracklist and moves th
     $result = $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
             const rowHasEq = (i) => {
                 const rows = document.querySelectorAll('[data-region=tracklist] button[wire\\:click^="playTrack"]');
                 return !!rows[i]?.querySelector('.eq');
@@ -457,7 +457,7 @@ it('clears the shuffle toggle when a plain track-row click loads a new queue', f
     $result = $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             const p = playerData();
             if (!p.shuffle) { p.toggleShuffle(); }
