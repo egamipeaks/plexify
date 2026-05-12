@@ -1,6 +1,26 @@
 <?php
 
+use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->plex = Mockery::mock(PlexClient::class);
+    $this->plex->shouldReceive('scrobbleUrl')
+        ->andReturnUsing(fn ($key) => "http://plex.test/:/scrobble?key={$key}&identifier=com.plexapp.plugins.library&X-Plex-Token=t");
+    $this->app->instance(PlexClient::class, $this->plex);
+});
+
+it('exposes scrobble config to the audio player', function () {
+    AppSetting::setScrobbleEnabled(true);
+
+    Livewire::test('player')
+        ->assertSet('scrobbleEnabled', true)
+        ->assertSeeHtml('__KEY__');
+});
 
 it('relays a play-track event as a queue-load browser event', function () {
     $queue = [

@@ -2,8 +2,20 @@
 
 use Livewire\Component;
 use Livewire\Attributes\On;
+use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
 
 new class extends Component {
+    public bool $scrobbleEnabled = true;
+
+    public string $scrobbleUrlTemplate = '';
+
+    public function mount(PlexClient $plex): void
+    {
+        $this->scrobbleEnabled = AppSetting::scrobbleEnabled();
+        $this->scrobbleUrlTemplate = $plex->scrobbleUrl('__KEY__');
+    }
+
     #[On('play-track')]
     public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false, ?string $contextType = null, ?string $contextId = null): void
     {
@@ -13,7 +25,7 @@ new class extends Component {
 ?>
 
 <div class="bg-base h-[88px] flex items-center px-4 gap-4 flex-none"
-     x-data="audioPlayer()"
+     x-data="audioPlayer(@js($scrobbleEnabled), @js($scrobbleUrlTemplate))"
      x-init="init()">
 
     {{-- Now-playing --}}
@@ -112,7 +124,7 @@ new class extends Component {
            @loadedmetadata="duration = $event.target.duration"
            @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true"
            @pause="isPlaying = false; $store.player.isPlaying = false"
-           @ended="next()"
+           @ended="scrobbleCurrent(); next()"
            x-on:error="onTrackError()"></audio>
 </div>
 
@@ -121,7 +133,7 @@ new class extends Component {
     // The `player` store is registered from the layout's <head> (before Alpine walks
     // the DOM) so tracklist rows pick it up on first render; init() below is a no-op
     // fallback in case that script is ever removed.
-    window.audioPlayer = function () {
+    window.audioPlayer = function (scrobbleEnabled, scrobbleUrlTemplate) {
         return {
             isPlaying: false,
             currentTime: 0,
@@ -136,6 +148,8 @@ new class extends Component {
             consecutiveErrors: 0,
             contextType: null,
             contextId: null,
+            scrobbleEnabled: !!scrobbleEnabled,
+            scrobbleUrlTemplate: scrobbleUrlTemplate || '',
 
             get current() {
                 return this.queue[this.index] ?? null;
@@ -271,6 +285,15 @@ new class extends Component {
                     return;
                 }
                 this.next(true);
+            },
+
+            scrobbleCurrent() {
+                if (!this.scrobbleEnabled || !this.scrobbleUrlTemplate || !this.current) {
+                    return;
+                }
+                try {
+                    fetch(this.scrobbleUrlTemplate.replace('__KEY__', encodeURIComponent(this.current.id)), { mode: 'no-cors' }).catch(() => {});
+                } catch (_) {}
             },
 
             goToAlbum() {
