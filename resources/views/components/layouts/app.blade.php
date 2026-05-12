@@ -12,7 +12,7 @@
          (which read $store.player) subscribe to it from their first render. --}}
     <script>
         document.addEventListener('alpine:init', () => {
-            window.Alpine.store('player', { currentId: null, isPlaying: false });
+            window.Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
         });
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])

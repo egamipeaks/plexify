@@ -120,6 +120,8 @@ it('dispatches play-track event with stream URL when track clicked', function ()
                 'artistId' => '100',
             ]],
             index: 0,
+            contextType: 'album',
+            contextId: '1001',
         );
 });
 
@@ -150,6 +152,8 @@ it('plays the whole album when the album-header Play button is pressed', functio
                 ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
             ],
             index: 0,
+            contextType: 'album',
+            contextId: '1001',
         );
 });
 
@@ -179,7 +183,9 @@ it('shuffles the album when the album-header Shuffle button is pressed', functio
                 && in_array($params['index'], [0, 1], true)
                 && count($params['queue']) === 2
                 && $params['queue'][0]['id'] === '9001'
-                && $params['queue'][1]['id'] === '9002';
+                && $params['queue'][1]['id'] === '9002'
+                && ($params['contextType'] ?? null) === 'album'
+                && ($params['contextId'] ?? null) === '1001';
         });
 });
 

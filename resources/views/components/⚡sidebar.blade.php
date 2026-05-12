@@ -197,6 +197,8 @@ new class extends Component {
         $this->dispatch('play-track',
             queue: $tracks->map(fn ($t) => $this->plex->queueItem($t))->values()->all(),
             index: 0,
+            contextType: 'playlist',
+            contextId: $playlistId,
         );
     }
 };

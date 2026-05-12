@@ -35,7 +35,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->queuePayload(), index: $i);
+        $this->dispatch('play-track', queue: $this->queuePayload(), index: $i, contextType: 'playlist', contextId: $this->playlist);
     }
 
     public function playAll(): void
@@ -44,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->queuePayload(), index: 0);
+        $this->dispatch('play-track', queue: $this->queuePayload(), index: 0, contextType: 'playlist', contextId: $this->playlist);
     }
 
     public function shuffle(): void
@@ -57,6 +57,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             queue: $this->queuePayload(),
             index: random_int(0, $this->tracks->count() - 1),
             shuffle: true,
+            contextType: 'playlist',
+            contextId: $this->playlist,
         );
     }
 

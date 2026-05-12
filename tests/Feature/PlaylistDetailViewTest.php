@@ -71,6 +71,8 @@ it('dispatches play-track for a clicked row', function () {
                 ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 1,
+            contextType: 'playlist',
+            contextId: '4242',
         );
 });
 
@@ -85,6 +87,8 @@ it('plays the first track when Play is pressed', function () {
                 ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 0,
+            contextType: 'playlist',
+            contextId: '4242',
         );
 });
 
@@ -96,7 +100,9 @@ it('shuffles the playlist when Shuffle is pressed', function () {
         ->assertDispatched('play-track', function ($event, $params) {
             return ($params['shuffle'] ?? false) === true
                 && in_array($params['index'], [0, 1], true)
-                && count($params['queue']) === 2;
+                && count($params['queue']) === 2
+                && ($params['contextType'] ?? null) === 'playlist'
+                && ($params['contextId'] ?? null) === '4242';
         });
 });
 

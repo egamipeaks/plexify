@@ -53,6 +53,8 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->dispatch('play-track',
             queue: $tracks->map(fn ($t) => $this->plex->queueItem($t))->values()->all(),
             index: $i,
+            contextType: 'search',
+            contextId: null,
         );
     }
 

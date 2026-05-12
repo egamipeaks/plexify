@@ -10,7 +10,7 @@ it('relays a play-track event as a queue-load browser event', function () {
 
     Livewire::test('player')
         ->dispatch('play-track', queue: $queue, index: 1)
-        ->assertDispatched('queue-load', queue: $queue, index: 1, shuffle: false);
+        ->assertDispatched('queue-load', queue: $queue, index: 1, shuffle: false, contextType: null, contextId: null);
 });
 
 it('forwards the shuffle flag on the queue-load event', function () {
@@ -26,5 +26,13 @@ it('defaults index to 0 and shuffle to false when omitted', function () {
 
     Livewire::test('player')
         ->dispatch('play-track', queue: $queue)
-        ->assertDispatched('queue-load', queue: $queue, index: 0, shuffle: false);
+        ->assertDispatched('queue-load', queue: $queue, index: 0, shuffle: false, contextType: null, contextId: null);
+});
+
+it('relays play-track to queue-load including playback context', function () {
+    $queue = [['id' => '1', 'url' => 'u', 'title' => 't', 'artist' => 'a', 'artwork' => null, 'albumId' => null, 'artistId' => null]];
+
+    Livewire::test('player')
+        ->dispatch('play-track', queue: $queue, index: 0, shuffle: false, contextType: 'album', contextId: '99')
+        ->assertDispatched('queue-load', queue: $queue, index: 0, shuffle: false, contextType: 'album', contextId: '99');
 });

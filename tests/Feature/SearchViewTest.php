@@ -104,6 +104,8 @@ it('dispatches play-track when a track row is clicked', function () {
                 'artistId' => '100',
             ]],
             index: 0,
+            contextType: 'search',
+            contextId: null,
         );
 });
 

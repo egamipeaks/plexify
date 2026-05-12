@@ -198,6 +198,8 @@ it('enqueues a playlist when played', function () {
                 'artistId' => 'art1',
             ]],
             index: 0,
+            contextType: 'playlist',
+            contextId: '4242',
         );
 });
 

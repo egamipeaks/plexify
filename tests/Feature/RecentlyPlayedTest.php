@@ -102,5 +102,7 @@ it('playTrack dispatches play-track with the stream URL', function () {
                 'artistId' => 'art1',
             ]],
             index: 0,
+            contextType: 'recently-played',
+            contextId: null,
         );
 });

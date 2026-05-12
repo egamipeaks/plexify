@@ -5,9 +5,9 @@ use Livewire\Attributes\On;
 
 new class extends Component {
     #[On('play-track')]
-    public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false): void
+    public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false, ?string $contextType = null, ?string $contextId = null): void
     {
-        $this->dispatch('queue-load', queue: $queue, index: $index, shuffle: $shuffle);
+        $this->dispatch('queue-load', queue: $queue, index: $index, shuffle: $shuffle, contextType: $contextType, contextId: $contextId);
     }
 };
 ?>
@@ -134,6 +134,8 @@ new class extends Component {
             shuffle: false,
             repeat: 'off',      // 'off' | 'all' | 'one'
             consecutiveErrors: 0,
+            contextType: null,
+            contextId: null,
 
             get current() {
                 return this.queue[this.index] ?? null;
@@ -141,7 +143,7 @@ new class extends Component {
 
             init() {
                 if (!Alpine.store('player')) {
-                    Alpine.store('player', { currentId: null, isPlaying: false });
+                    Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
                 }
                 // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
                 // the payload is in event.detail.
@@ -150,6 +152,10 @@ new class extends Component {
                     this.originalQueue = e.detail.queue ?? [];
                     const startIndex = e.detail.index ?? 0;
                     this.shuffle = !!e.detail.shuffle;
+                    this.contextType = e.detail.contextType ?? null;
+                    this.contextId = e.detail.contextId ?? null;
+                    Alpine.store('player').contextType = this.contextType;
+                    Alpine.store('player').contextId = this.contextId;
                     if (this.shuffle) {
                         this.applyShuffle(startIndex);
                         this.loadAndPlay(0);

@@ -50,7 +50,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: $i);
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: $i, contextType: 'album', contextId: $this->selectedAlbumId);
     }
 
     public function playAlbum(PlexClient $plex): void
@@ -59,7 +59,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: 0);
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: 0, contextType: 'album', contextId: $this->selectedAlbumId);
     }
 
     public function shuffleAlbum(PlexClient $plex): void
@@ -72,6 +72,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             queue: $this->albumQueue($plex),
             index: random_int(0, $this->tracks->count() - 1),
             shuffle: true,
+            contextType: 'album',
+            contextId: $this->selectedAlbumId,
         );
     }
 
