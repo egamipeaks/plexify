@@ -60,7 +60,7 @@ new class extends Component {
                     :class="shuffle ? 'text-accent' : 'text-text-2 hover:text-white'">
                 <x-lucide-shuffle class="w-4 h-4" />
             </button>
-            <button type="button" @click="previous()" :disabled="queue.length === 0"
+            <button type="button" data-control="previous" @click="previous()" :disabled="queue.length === 0"
                     class="text-text-2 hover:text-white disabled:opacity-40 disabled:hover:text-text-2">
                 <x-lucide-skip-back class="w-[18px] h-[18px] fill-current" />
             </button>
