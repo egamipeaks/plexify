@@ -156,6 +156,22 @@ it('persists the playlist header collapsed toggle', function () {
     expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
 });
 
+it('renders the compact playlist tracklist when tracksCompact is on', function () {
+    AppSetting::setPlaylistTracksCompact(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 1fr 50px');
+});
+
+it('persists the playlist tracklist compact toggle', function () {
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])->set('tracksCompact', true);
+    expect(AppSetting::playlistTracksCompact())->toBeTrue();
+});
+
 it('shows an empty-playlist state for a playlist with no tracks', function () {
     $this->mock(PlexClient::class, function ($mock) {
         $mock->shouldReceive('playlists')->andReturn(collect([
