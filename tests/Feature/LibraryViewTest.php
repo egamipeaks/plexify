@@ -5,7 +5,11 @@ use App\Services\Plex\Dto\Artist;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
 
 it('lists artists from PlexClient on mount', function () {
     $this->mock(PlexClient::class, function ($mock) {
@@ -120,6 +124,8 @@ it('dispatches play-track event with stream URL when track clicked', function ()
                 'artistId' => '100',
             ]],
             index: 0,
+            contextType: 'album',
+            contextId: '1001',
         );
 });
 
@@ -150,6 +156,8 @@ it('plays the whole album when the album-header Play button is pressed', functio
                 ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
             ],
             index: 0,
+            contextType: 'album',
+            contextId: '1001',
         );
 });
 
@@ -179,7 +187,9 @@ it('shuffles the album when the album-header Shuffle button is pressed', functio
                 && in_array($params['index'], [0, 1], true)
                 && count($params['queue']) === 2
                 && $params['queue'][0]['id'] === '9001'
-                && $params['queue'][1]['id'] === '9002';
+                && $params['queue'][1]['id'] === '9002'
+                && ($params['contextType'] ?? null) === 'album'
+                && ($params['contextId'] ?? null) === '1001';
         });
 });
 
@@ -266,4 +276,135 @@ it('closes the album header when closeAlbum is called', function () {
         ->call('closeAlbum')
         ->assertSet('selectedAlbumId', null)
         ->assertDontSeeHtml('wire:click="closeAlbum"');
+});
+
+it('renders the collapsed album header when the setting is on', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: 'For Emma', artist: 'Bon Iver', year: 2007, thumb: null, trackCount: 1, durationMs: 0, artistId: '100'),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->assertSet('headerCollapsed', true)
+        ->assertSeeHtml('data-album-header-collapsed');
+});
+
+it('shows a no-music state when the library has no artists', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect());
+    });
+
+    Livewire::test('pages::library')
+        ->assertSee('No music found');
+});
+
+it('persists the album header collapsed toggle', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: 'For Emma', artist: 'Bon Iver', year: 2007, thumb: null, trackCount: 1, durationMs: 0, artistId: '100'),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->set('headerCollapsed', false);
+
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
+});
+
+it('renders the compact artist row layout when artistsCompact is on', function () {
+    AppSetting::setArtistsCompact(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')
+        ->assertSet('artistsCompact', true)
+        ->assertSeeHtml('py-[3px]');
+});
+
+it('persists the artists compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')->set('artistsCompact', true);
+
+    expect(AppSetting::artistsCompact())->toBeTrue();
+});
+
+it('persists the albums compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')->set('albumsCompact', true);
+
+    expect(AppSetting::albumsCompact())->toBeTrue();
+});
+
+it('renders the compact tracklist layout when tracksCompact is on', function () {
+    AppSetting::setLibraryTracksCompact(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 169000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '715 - CRΣΣKS', artist: 'Bon Iver', album: '22, A Million', trackNumber: 4, durationMs: 178000, partId: 1, container: 'flac'),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 50px');
+});
+
+it('persists the library tracklist compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 169000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '715 - CRΣΣKS', artist: 'Bon Iver', album: '22, A Million', trackNumber: 4, durationMs: 178000, partId: 1, container: 'flac'),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->set('tracksCompact', true);
+
+    expect(AppSetting::libraryTracksCompact())->toBeTrue();
 });

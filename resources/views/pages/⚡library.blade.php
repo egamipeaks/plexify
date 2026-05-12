@@ -20,9 +20,41 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public ?string $errorMessage = null;
 
+    public bool $headerCollapsed = false;
+
+    public bool $artistsCompact = false;
+
+    public bool $albumsCompact = false;
+
+    public bool $tracksCompact = false;
+
     public function mount(PlexClient $plex): void
     {
+        $this->headerCollapsed = \App\Support\AppSetting::albumHeaderCollapsed();
+        $this->artistsCompact = \App\Support\AppSetting::artistsCompact();
+        $this->albumsCompact = \App\Support\AppSetting::albumsCompact();
+        $this->tracksCompact = \App\Support\AppSetting::libraryTracksCompact();
         $this->loadArtists($plex);
+    }
+
+    public function updatedHeaderCollapsed(bool $value): void
+    {
+        \App\Support\AppSetting::setAlbumHeaderCollapsed($value);
+    }
+
+    public function updatedArtistsCompact(bool $value): void
+    {
+        \App\Support\AppSetting::setArtistsCompact($value);
+    }
+
+    public function updatedAlbumsCompact(bool $value): void
+    {
+        \App\Support\AppSetting::setAlbumsCompact($value);
+    }
+
+    public function updatedTracksCompact(bool $value): void
+    {
+        \App\Support\AppSetting::setLibraryTracksCompact($value);
     }
 
     public function selectArtist(string $id): void
@@ -50,7 +82,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: $i);
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: $i, contextType: 'album', contextId: $this->selectedAlbumId);
     }
 
     public function playAlbum(PlexClient $plex): void
@@ -59,7 +91,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             return;
         }
 
-        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: 0);
+        $this->dispatch('play-track', queue: $this->albumQueue($plex), index: 0, contextType: 'album', contextId: $this->selectedAlbumId);
     }
 
     public function shuffleAlbum(PlexClient $plex): void
@@ -72,6 +104,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             queue: $this->albumQueue($plex),
             index: random_int(0, $this->tracks->count() - 1),
             shuffle: true,
+            contextType: 'album',
+            contextId: $this->selectedAlbumId,
         );
     }
 
@@ -81,15 +115,6 @@ new #[Layout('components.layouts.app')] class extends Component {
         $artwork = $this->thumbFor($this->selectedAlbum?->thumb);
 
         return $this->tracks->values()->map(fn ($t) => $plex->queueItem($t, $artwork))->all();
-    }
-
-    protected function formatMs(int $ms): string
-    {
-        $seconds = (int) round($ms / 1000);
-        $m = intdiv($seconds, 60);
-        $s = $seconds % 60;
-
-        return sprintf('%d:%02d', $m, $s);
     }
 
     protected function thumbFor(?string $thumb): ?string
@@ -193,36 +218,51 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </button>
                         <span class="text-[11px] text-text-3 tabular-nums">{{ $this->artists->count() }}</span>
                         <div class="flex items-center bg-surface-2 rounded p-0.5">
-                            <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                            <button type="button" title="Comfortable" wire:click="$set('artistsCompact', false)"
+                                    @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => ! $artistsCompact, 'text-text-2 hover:text-white' => $artistsCompact])>
                                 <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
                             </button>
-                            <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                            <button type="button" title="Compact list" wire:click="$set('artistsCompact', true)"
+                                    @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => $artistsCompact, 'text-text-2 hover:text-white' => ! $artistsCompact])>
                                 <x-lucide-menu class="w-[11px] h-[11px]" />
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="overflow-y-auto scroll flex-1" data-region="artists-column">
-                    @foreach ($this->artists as $artist)
-                        <button type="button" wire:key="artist-{{ $artist->id }}" wire:click="selectArtist('{{ $artist->id }}')"
-                                @class([
-                                    'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
-                                    'bg-surface-3 text-white' => $selectedArtistId === $artist->id,
-                                    'text-text-2 hover:text-white hover:bg-surface-2' => $selectedArtistId !== $artist->id,
-                                ])>
-                            @if ($artist->thumb)
-                                <img src="{{ $this->thumbFor($artist->thumb) }}" alt="{{ $artist->name }}"
-                                     class="rounded-full flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
-                            @else
-                                <div class="rounded-full relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                    <x-lucide-user class="w-4 h-4 text-text-3" />
+                    @forelse ($this->artists as $artist)
+                        @if ($artistsCompact)
+                            <button type="button" wire:key="artist-{{ $artist->id }}" wire:click="selectArtist('{{ $artist->id }}')"
+                                    @class([
+                                        'w-full flex items-center gap-3 px-3 py-[3px] text-[13px] text-left transition-colors',
+                                        'bg-accent/15 text-accent' => $selectedArtistId === $artist->id,
+                                        'text-text-2 hover:text-white hover:bg-surface-2' => $selectedArtistId !== $artist->id,
+                                    ])>
+                                <span class="flex-1 min-w-0 truncate">{{ $artist->name }}</span>
+                            </button>
+                        @else
+                            <button type="button" wire:key="artist-{{ $artist->id }}" wire:click="selectArtist('{{ $artist->id }}')"
+                                    @class([
+                                        'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
+                                        'bg-surface-3 text-white' => $selectedArtistId === $artist->id,
+                                        'text-text-2 hover:text-white hover:bg-surface-2' => $selectedArtistId !== $artist->id,
+                                    ])>
+                                @if ($artist->thumb)
+                                    <img src="{{ $this->thumbFor($artist->thumb) }}" alt="{{ $artist->name }}"
+                                         class="rounded-full flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                @else
+                                    <div class="rounded-full relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                        <x-lucide-user class="w-4 h-4 text-text-3" />
+                                    </div>
+                                @endif
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
                                 </div>
-                            @endif
-                            <div class="flex-1 min-w-0">
-                                <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
-                            </div>
-                        </button>
-                    @endforeach
+                            </button>
+                        @endif
+                    @empty
+                        <div class="grid place-items-center h-full text-text-3 text-[12px] px-4 text-center">No music found in your Plex library.</div>
+                    @endforelse
                 </div>
             </div>
 
@@ -236,10 +276,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </button>
                         <span class="text-[11px] text-text-3 tabular-nums">{{ $this->albums->count() }}</span>
                         <div class="flex items-center bg-surface-2 rounded p-0.5">
-                            <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                            <button type="button" title="Comfortable" wire:click="$set('albumsCompact', false)"
+                                    @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => ! $albumsCompact, 'text-text-2 hover:text-white' => $albumsCompact])>
                                 <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
                             </button>
-                            <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                            <button type="button" title="Compact list" wire:click="$set('albumsCompact', true)"
+                                    @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => $albumsCompact, 'text-text-2 hover:text-white' => ! $albumsCompact])>
                                 <x-lucide-menu class="w-[11px] h-[11px]" />
                             </button>
                         </div>
@@ -252,27 +294,38 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="grid place-items-center h-full text-text-3 text-[12px]">No albums</div>
                     @else
                         @foreach ($this->albums as $album)
-                            <button type="button" wire:key="album-{{ $album->id }}" wire:click="selectAlbum('{{ $album->id }}')"
-                                    @class([
-                                        'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
-                                        'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
-                                        'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
-                                    ])>
-                                @if ($album->thumb)
-                                    <img src="{{ $this->thumbFor($album->thumb) }}" alt="{{ $album->title }}"
-                                         class="rounded flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
-                                @else
-                                    <div class="rounded relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                        <x-lucide-disc class="w-4 h-4 text-text-3" />
+                            @if ($albumsCompact)
+                                <button type="button" wire:key="album-{{ $album->id }}" wire:click="selectAlbum('{{ $album->id }}')"
+                                        @class([
+                                            'w-full flex items-center gap-3 px-3 py-[3px] text-[13px] text-left transition-colors',
+                                            'bg-accent/15 text-accent' => $selectedAlbumId === $album->id,
+                                            'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
+                                        ])>
+                                    <span class="flex-1 min-w-0 truncate">{{ $album->title }}</span>
+                                </button>
+                            @else
+                                <button type="button" wire:key="album-{{ $album->id }}" wire:click="selectAlbum('{{ $album->id }}')"
+                                        @class([
+                                            'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
+                                            'bg-surface-3 text-white' => $selectedAlbumId === $album->id,
+                                            'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
+                                        ])>
+                                    @if ($album->thumb)
+                                        <img src="{{ $this->thumbFor($album->thumb) }}" alt="{{ $album->title }}"
+                                             class="rounded flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                    @else
+                                        <div class="rounded relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                            <x-lucide-disc class="w-4 h-4 text-text-3" />
+                                        </div>
+                                    @endif
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
+                                        <div class="text-[11px] text-text-2 truncate">
+                                            {{ $album->year ?? '' }}
+                                        </div>
                                     </div>
-                                @endif
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
-                                    <div class="text-[11px] text-text-2 truncate">
-                                        {{ $album->year ?? '' }}
-                                    </div>
-                                </div>
-                            </button>
+                                </button>
+                            @endif
                         @endforeach
                     @endif
                 </div>
@@ -281,12 +334,53 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         {{-- Album header --}}
         @if ($this->selectedAlbum)
-            <div class="px-2 pb-2 flex-none">
-                <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
-                    <button type="button" wire:click="closeAlbum" title="Close album"
-                            class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+            <div class="px-2 pb-2 flex-none" x-data="{ collapsed: @entangle('headerCollapsed') }" data-album-header>
+                {{-- Collapsed 56px row --}}
+                <div x-show="collapsed" x-cloak data-album-header-collapsed
+                     class="relative flex items-center gap-3 h-14 px-4 rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    @if ($this->selectedAlbum->thumb)
+                        <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                             class="w-10 h-10 rounded flex-none bg-surface-2 object-cover">
+                    @else
+                        <div class="w-10 h-10 rounded flex-none bg-surface-2 grid place-items-center">
+                            <x-lucide-disc class="w-5 h-5 text-text-3" />
+                        </div>
+                    @endif
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate text-[14px] font-bold text-white">{{ $this->selectedAlbum->title }}</div>
+                        <div class="truncate text-[11px] text-text-2">{{ collect(['Album', $this->selectedAlbum->artist, $this->selectedAlbum->year])->filter()->implode(' · ') }}</div>
+                    </div>
+                    <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
+                        <span data-source-indicator class="flex-none">
+                            <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                        </span>
+                    </template>
+                    <button type="button" wire:click="playAlbum" class="w-8 h-8 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black flex-none">
+                        <x-lucide-play class="w-4 h-4" style="fill: currentColor;" />
+                    </button>
+                    <button type="button" wire:click="shuffleAlbum" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                        <x-lucide-shuffle class="w-4 h-4" />
+                    </button>
+                    <button type="button" @click="collapsed = false" title="Expand" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                        <x-lucide-chevron-down class="w-4 h-4" />
+                    </button>
+                    <button type="button" wire:click="closeAlbum" title="Close album" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
                         <x-lucide-x class="w-4 h-4" />
                     </button>
+                </div>
+
+                {{-- Expanded header --}}
+                <div x-show="!collapsed" x-cloak class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    <div class="absolute top-3 right-3 z-10 flex items-center gap-1">
+                        <button type="button" @click="collapsed = true" title="Collapse"
+                                class="w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                            <x-lucide-chevron-up class="w-4 h-4" />
+                        </button>
+                        <button type="button" wire:click="closeAlbum" title="Close album"
+                                class="w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                            <x-lucide-x class="w-4 h-4" />
+                        </button>
+                    </div>
                     <div class="px-6 py-5 flex items-center gap-5">
                         @if ($this->selectedAlbum->thumb)
                             <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
@@ -303,6 +397,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="flex-1 min-w-0">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-white/80">Album</div>
                             <h1 class="text-[clamp(22px,3.4vw,40px)] font-black tracking-tight leading-[1.05] truncate">{{ $this->selectedAlbum->title }}</h1>
+                            <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
+                                <span data-source-indicator class="mt-2 block">
+                                    <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                                </span>
+                            </template>
                             <div class="mt-2 flex items-center gap-2 text-[13px] text-text-2 flex-wrap">
                                 <span class="text-white font-semibold">{{ $this->selectedAlbum->artist }}</span>
                                 @if ($this->selectedAlbum->year)
@@ -310,7 +409,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <span>{{ $this->selectedAlbum->year }}</span>
                                 @endif
                                 <span>·</span>
-                                <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ $this->formatMs($this->tracks->sum('durationMs')) }}</span>
+                                <span class="whitespace-nowrap tabular-nums">{{ $this->tracks->count() }} songs, {{ \App\Support\Duration::format($this->tracks->sum('durationMs')) }}</span>
                             </div>
                         </div>
                     </div>
@@ -335,60 +434,94 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div class="flex-1 min-h-0 flex flex-col px-2 pb-2 overflow-hidden" data-region="tracklist">
                 <div class="flex-1 min-h-0 flex flex-col relative bg-surface rounded-lg overflow-hidden">
                     <div class="absolute right-2 top-1.5 z-20 flex items-center bg-surface-2 rounded p-0.5">
-                        <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                        <button type="button" title="Comfortable" wire:click="$set('tracksCompact', false)"
+                                @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => ! $tracksCompact, 'text-text-2 hover:text-white' => $tracksCompact])>
                             <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
                         </button>
-                        <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                        <button type="button" title="Compact list" wire:click="$set('tracksCompact', true)"
+                                @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => $tracksCompact, 'text-text-2 hover:text-white' => ! $tracksCompact])>
                             <x-lucide-menu class="w-[11px] h-[11px]" />
                         </button>
                     </div>
-                    <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
-                         style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
-                        <span></span>
-                        <span class="text-right">#</span>
-                        <span>Title</span>
-                        <span>Album</span>
-                        <span></span>
-                        <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
-                    </div>
+                    @if ($tracksCompact)
+                        <div class="grid items-center px-4 py-1.5 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
+                             style="grid-template-columns: 20px 1.4fr 1fr 50px;">
+                            <span class="text-right pr-1">#</span>
+                            <span>Title</span>
+                            <span>Artist</span>
+                            <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+                        </div>
+                    @else
+                        <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
+                             style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                            <span></span>
+                            <span class="text-right">#</span>
+                            <span>Title</span>
+                            <span>Album</span>
+                            <span></span>
+                            <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+                        </div>
+                    @endif
                     <div class="overflow-y-auto scroll flex-1 py-1" x-data="{}">
                         @foreach ($this->tracks as $track)
-                            <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
-                                    draggable="true"
-                                    ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
-                                    class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
-                                    style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
-                                <span class="text-text-3 group-hover:text-white grid place-items-center">
-                                    <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
-                                </span>
-                                <span class="tabular-nums text-text-2 text-right">
-                                    <template x-if="$store.player?.currentId === '{{ $track->id }}'">
-                                        <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
-                                    </template>
-                                    <template x-if="$store.player?.currentId !== '{{ $track->id }}'">
-                                        <span>{{ $track->trackNumber }}</span>
-                                    </template>
-                                </span>
-                                <div class="min-w-0 flex items-center gap-3">
-                                    @if ($this->selectedAlbum->thumb)
-                                        <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
-                                             class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
-                                    @else
-                                        <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                            <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                            @if ($tracksCompact)
+                                <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                        draggable="true"
+                                        ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                        class="row group w-full grid items-center px-4 py-[3px] rounded text-[13px] text-left hover:bg-white/[0.07] transition-colors"
+                                        style="grid-template-columns: 20px 1.4fr 1fr 50px;">
+                                    <span class="tabular-nums text-text-2 text-right pr-1"
+                                          x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'; } }">
+                                        <template x-if="playing">
+                                            <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                        </template>
+                                        <template x-if="!playing">
+                                            <span>{{ $track->trackNumber }}</span>
+                                        </template>
+                                    </span>
+                                    <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
+                                    <div class="text-text-2 group-hover:text-white truncate">{{ $track->artist }}</div>
+                                    <div class="text-text-2 tabular-nums text-right text-[12px]">{{ \App\Support\Duration::format($track->durationMs) }}</div>
+                                </button>
+                            @else
+                                <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                        draggable="true"
+                                        ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                        class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
+                                        style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                                    <span class="text-text-3 group-hover:text-white grid place-items-center">
+                                        <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
+                                    </span>
+                                    <span class="tabular-nums text-text-2 text-right"
+                                          x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'; } }">
+                                        <template x-if="playing">
+                                            <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                        </template>
+                                        <template x-if="!playing">
+                                            <span>{{ $track->trackNumber }}</span>
+                                        </template>
+                                    </span>
+                                    <div class="min-w-0 flex items-center gap-3">
+                                        @if ($this->selectedAlbum->thumb)
+                                            <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                                                 class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                        @else
+                                            <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                                <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                                            </div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
+                                            <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                                         </div>
-                                    @endif
-                                    <div class="min-w-0">
-                                        <div class="truncate font-medium" :class="$store.player?.currentId === '{{ $track->id }}' ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
-                                        <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                                     </div>
-                                </div>
-                                <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
-                                <span class="grid place-items-center text-text-2 hover:text-white">
-                                    <x-lucide-heart class="w-3.5 h-3.5" />
-                                </span>
-                                <div class="text-text-2 tabular-nums text-right">{{ $this->formatMs($track->durationMs) }}</div>
-                            </button>
+                                    <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                                    <span class="grid place-items-center text-text-2 hover:text-white">
+                                        <x-lucide-heart class="w-3.5 h-3.5" />
+                                    </span>
+                                    <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
+                                </button>
+                            @endif
                         @endforeach
                     </div>
                 </div>

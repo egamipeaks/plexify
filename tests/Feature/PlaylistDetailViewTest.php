@@ -4,8 +4,12 @@ use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
 
 function samplePlaylist(): Playlist
 {
@@ -71,6 +75,8 @@ it('dispatches play-track for a clicked row', function () {
                 ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 1,
+            contextType: 'playlist',
+            contextId: '4242',
         );
 });
 
@@ -85,6 +91,8 @@ it('plays the first track when Play is pressed', function () {
                 ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
             ],
             index: 0,
+            contextType: 'playlist',
+            contextId: '4242',
         );
 });
 
@@ -96,7 +104,9 @@ it('shuffles the playlist when Shuffle is pressed', function () {
         ->assertDispatched('play-track', function ($event, $params) {
             return ($params['shuffle'] ?? false) === true
                 && in_array($params['index'], [0, 1], true)
-                && count($params['queue']) === 2;
+                && count($params['queue']) === 2
+                && ($params['contextType'] ?? null) === 'playlist'
+                && ($params['contextId'] ?? null) === '4242';
         });
 });
 
@@ -125,4 +135,60 @@ it('shows a not-found panel when the id is not a known playlist', function () {
 
     Livewire::test('pages::playlist-detail', ['playlist' => 'nope'])
         ->assertSee('Playlist not found');
+});
+
+it('renders the collapsed playlist header when the setting is on', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('headerCollapsed', true)
+        ->assertSeeHtml('data-playlist-header-collapsed');
+});
+
+it('persists the playlist header collapsed toggle', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->set('headerCollapsed', false);
+
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
+});
+
+it('renders the compact playlist tracklist when tracksCompact is on', function () {
+    AppSetting::setPlaylistTracksCompact(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 1fr 50px');
+});
+
+it('persists the playlist tracklist compact toggle', function () {
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])->set('tracksCompact', true);
+    expect(AppSetting::playlistTracksCompact())->toBeTrue();
+});
+
+it('shows an empty-playlist state for a playlist with no tracks', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('playlists')->andReturn(collect([
+            new Playlist(
+                id: '9999',
+                title: 'Empty Playlist',
+                trackCount: 0,
+                durationMs: 0,
+                thumb: null,
+                playlistType: 'audio',
+                summary: null,
+            ),
+        ]));
+        $mock->shouldReceive('playlistTracks')->with('9999')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '9999'])
+        ->assertSee('This playlist is empty');
 });

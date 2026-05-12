@@ -12,6 +12,8 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public string $density = AppSetting::DENSITY_COMFORTABLE;
 
+    public bool $scrobbleEnabled = true;
+
     public ?string $resyncedAt = null;
 
     public ?string $resyncError = null;
@@ -19,11 +21,17 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(): void
     {
         $this->density = AppSetting::density();
+        $this->scrobbleEnabled = AppSetting::scrobbleEnabled();
     }
 
     public function updatedDensity(string $value): void
     {
         AppSetting::setDensity($value);
+    }
+
+    public function updatedScrobbleEnabled(bool $value): void
+    {
+        AppSetting::setScrobbleEnabled($value);
     }
 
     public function resyncMetadata(PlexCache $cache, PlexClient $plex): void
@@ -126,14 +134,47 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </section>
 
+        {{-- Playback --}}
+        <section class="bg-surface-1 rounded-xl p-6">
+            <h2 class="text-xl font-bold mb-4">Playback</h2>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-sm font-semibold">Scrobble plays to Plex</div>
+                    <div class="text-xs text-text-2 mt-1">Report finished tracks back to your Plex server so play counts and Recently Played stay in sync.</div>
+                </div>
+
+                <div class="inline-flex rounded-full bg-surface-2 p-1">
+                    <button type="button"
+                            wire:click="$set('scrobbleEnabled', true)"
+                            @class([
+                                'px-4 py-1.5 rounded-full text-sm font-semibold transition-colors',
+                                'bg-surface-3 text-text-1' => $scrobbleEnabled,
+                                'text-text-2 hover:text-text-1' => ! $scrobbleEnabled,
+                            ])>
+                        On
+                    </button>
+                    <button type="button"
+                            wire:click="$set('scrobbleEnabled', false)"
+                            @class([
+                                'px-4 py-1.5 rounded-full text-sm font-semibold transition-colors',
+                                'bg-surface-3 text-text-1' => ! $scrobbleEnabled,
+                                'text-text-2 hover:text-text-1' => $scrobbleEnabled,
+                            ])>
+                        Off
+                    </button>
+                </div>
+            </div>
+        </section>
+
         {{-- Display --}}
         <section class="bg-surface-1 rounded-xl p-6">
             <h2 class="text-xl font-bold mb-4">Display</h2>
 
             <div class="flex items-center justify-between">
                 <div>
-                    <div class="text-sm font-semibold">Density</div>
-                    <div class="text-xs text-text-2 mt-1">Comfortable spaces rows out. Compact fits more on screen.</div>
+                    <div class="text-sm font-semibold">Density default</div>
+                    <div class="text-xs text-text-2 mt-1">Default for lists you haven't individually adjusted. Each artist, album, and track list has its own Comfortable / Compact toggle in its header.</div>
                 </div>
 
                 <div class="inline-flex rounded-full bg-surface-2 p-1">

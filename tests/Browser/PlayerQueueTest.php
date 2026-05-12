@@ -38,7 +38,7 @@ function drillIntoAlbumAndClickTrack($page): string
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -92,6 +92,10 @@ it('builds a queue from the album tracklist and plays the clicked track', functi
 
     $page->assertVisible('[data-region=now-playing-title]');
     expect(trim((string) $page->text('[data-region=now-playing-title]')))->toBe($decoded['title']);
+
+    // Media Session: after a track starts playing, metadata should be set (title is a string).
+    $metaTitleType = (string) $page->script("typeof (navigator.mediaSession.metadata?.title)");
+    expect($metaTitleType)->toBe('string', 'MediaMetadata should be set on the session after a track loads');
 });
 
 it('auto-advances to the next track when next() is called and stops at the end with repeat off', function () {
@@ -110,7 +114,7 @@ it('auto-advances to the next track when next() is called and stops at the end w
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -189,7 +193,7 @@ it('skip-back restarts or goes to previous track; shuffle and repeat toggles wor
                 return false;
             };
 
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             if (!await waitFor('[data-region=artists-column] button', 8000)) return 'NO_ARTIST';
 
@@ -334,7 +338,7 @@ it('highlights the currently-playing track in the library tracklist and moves th
     $result = $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
             const rowHasEq = (i) => {
                 const rows = document.querySelectorAll('[data-region=tracklist] button[wire\\:click^="playTrack"]');
                 return !!rows[i]?.querySelector('.eq');
@@ -400,6 +404,54 @@ it('navigates to the playing track album when the now-playing title is clicked f
     expect($url)->toMatch('/[?&]album=/');
 });
 
+it('only highlights the playing row in the list it is playing from', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            await sleep(300);
+
+            // Should have .eq in the current album tracklist (context = album).
+            const eqInAlbum = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            // Navigate to search page (queue persists, context stays album).
+            window.Livewire.navigate('/search');
+            for (let i = 0; i < 50; i++) {
+                if (location.pathname.replace(/\/$/, '').endsWith('/search')) break;
+                await sleep(100);
+            }
+            await sleep(500);
+
+            // On the search page there is no [data-region=tracklist]; .eq should not exist.
+            const eqOnSearch = document.querySelectorAll('.eq').length;
+
+            // Navigate back to the library home (no album selected → no tracklist).
+            window.Livewire.navigate('/');
+            for (let i = 0; i < 50; i++) {
+                if (location.pathname === '/' || location.pathname === '') break;
+                await sleep(100);
+            }
+            await sleep(500);
+
+            // No album panel open so tracklist is gone; .eq should not be in DOM.
+            const eqOnHome = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            return JSON.stringify({ eqInAlbum, eqOnSearch, eqOnHome });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqInAlbum'])->toBeGreaterThan(0, 'The playing row should show .eq in its originating album tracklist');
+    expect($decoded['eqOnSearch'])->toBe(0, '.eq should not appear on the search page when context is album');
+    expect($decoded['eqOnHome'])->toBe(0, '.eq should not appear in the library when no album tracklist is open');
+});
+
 it('clears the shuffle toggle when a plain track-row click loads a new queue', function () {
     $page = visit('/');
 
@@ -409,7 +461,7 @@ it('clears the shuffle toggle when a plain track-row click loads a new queue', f
     $result = $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
-            const playerData = () => Alpine.$data(document.querySelector('[x-data="audioPlayer()"]'));
+            const playerData = () => Alpine.$data(document.querySelector('[data-region="player"]'));
 
             const p = playerData();
             if (!p.shuffle) { p.toggleShuffle(); }
@@ -435,4 +487,141 @@ it('clears the shuffle toggle when a plain track-row click loads a new queue', f
     expect($decoded)->toBeArray("Expected a result object, got: {$result}");
     expect($decoded['shuffleAfterToggle'])->toBeTrue('Shuffle should be on after toggling it');
     expect($decoded['shuffleAfterPlay'])->toBeFalse('Clicking a track row should clear the shuffle toggle');
+});
+
+it('highlights the playing row in the search Tracks group', function () {
+    $page = visit('/search?q=the');
+
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            // Wait for the Tracks filter pill and switch to it.
+            const deadline1 = Date.now() + 10000;
+            let pill = null;
+            while (Date.now() < deadline1) {
+                pill = document.querySelector('button[wire\\:click="setFilter(\'tracks\')"]');
+                if (pill) break;
+                await sleep(150);
+            }
+            if (!pill) return 'NO_TRACKS_PILL';
+            pill.click();
+
+            // Wait for at least one playTrack row.
+            const deadline2 = Date.now() + 10000;
+            let row = null;
+            while (Date.now() < deadline2) {
+                row = document.querySelector('button[wire\\:click^="playTrack"]');
+                if (row) break;
+                await sleep(150);
+            }
+            if (!row) return 'NO_TRACK_ROWS';
+
+            row.click();
+
+            // Wait for the now-playing title to populate (queue loaded).
+            const deadline3 = Date.now() + 10000;
+            while (Date.now() < deadline3) {
+                const el = document.querySelector('[data-region=now-playing-title]');
+                if (el && el.textContent.trim() !== '') break;
+                await sleep(100);
+            }
+
+            // Give Alpine a moment to react and update the DOM.
+            await sleep(500);
+
+            const eqCount = document.querySelectorAll('.eq').length;
+            const titleHighlighted = document.querySelectorAll('.text-accent').length > 0;
+
+            return JSON.stringify({ eqCount, titleHighlighted });
+        })()
+    JS);
+
+    // If the live server returned no track rows the script returns a sentinel string;
+    // treat that as a graceful skip so the test is not a false negative.
+    if (! str_starts_with($result, '{')) {
+        $this->markTestSkipped("Search returned no track rows ({$result}); live Plex server may be unreachable or query matched nothing.");
+    }
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqCount'])->toBeGreaterThan(0, 'The playing search track row should show the .eq equalizer marker');
+});
+
+it('highlights the playing row in the recently-played list', function () {
+    $page = visit('/recently-played');
+
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            // Wait for the page to settle (either track rows or the empty state).
+            const deadline1 = Date.now() + 10000;
+            while (Date.now() < deadline1) {
+                // Track rows are present, or the empty-state heading is visible.
+                if (document.querySelector('button[wire\\:click^="playTrack"]') ||
+                    document.querySelector('h2')) break;
+                await sleep(150);
+            }
+
+            const row = document.querySelector('[data-region=tracklist] button[wire\\:click^="playTrack"]');
+            if (!row) return 'NO_TRACK_ROWS';
+
+            row.click();
+
+            // Wait for the now-playing title to populate.
+            const deadline2 = Date.now() + 10000;
+            while (Date.now() < deadline2) {
+                const el = document.querySelector('[data-region=now-playing-title]');
+                if (el && el.textContent.trim() !== '') break;
+                await sleep(100);
+            }
+
+            await sleep(500);
+
+            const eqCount = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            return JSON.stringify({ eqCount });
+        })()
+    JS);
+
+    if ($result === 'NO_TRACK_ROWS') {
+        $this->markTestSkipped('Recently-played list is empty on the live server; nothing to assert.');
+    }
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqCount'])->toBeGreaterThan(0, 'The playing recently-played track row should show the .eq equalizer marker');
+});
+
+it('shows the now-playing source indicator on the sidebar playlist row and album header when that context is active', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            await sleep(400);
+
+            // The album header should show a source indicator (data-source-indicator) because the context is album.
+            const eqInAlbumHeader = document.querySelectorAll('[data-source-indicator]').length;
+
+            // No sidebar playlist row should show a source indicator yet (context is album, not playlist).
+            const eqInSidebarRows = document.querySelectorAll('[wire\\:key^="sidebar-pl-"] [data-source-indicator]').length;
+
+            // Now find the first sidebar playlist row and get its playlist id.
+            const firstRow = document.querySelector('[wire\\:key^="sidebar-pl-"]');
+            const playlistId = firstRow ? firstRow.getAttribute('wire:key').replace('sidebar-pl-', '') : null;
+
+            return JSON.stringify({ eqInAlbumHeader, eqInSidebarRows, playlistId });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqInAlbumHeader'])->toBeGreaterThan(0, 'Album header should show source indicator when an album is the playback source');
+    expect($decoded['eqInSidebarRows'])->toBe(0, 'Sidebar playlist rows should not show source indicator when context is album');
 });

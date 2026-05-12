@@ -110,6 +110,7 @@ new class extends Component {
             $this->plex->addTrackToPlaylist($playlistId, $trackId);
         } catch (PlexException $e) {
             Log::channel('plex')->warning('addTrackToPlaylist failed', ['playlist' => $playlistId, 'track' => $trackId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t add that song to the playlist. Plex may be unreachable.');
 
             return false;
         }
@@ -125,6 +126,7 @@ new class extends Component {
             $this->plex->addAlbumToPlaylist($playlistId, $albumId);
         } catch (PlexException $e) {
             Log::channel('plex')->warning('addAlbumToPlaylist failed', ['playlist' => $playlistId, 'album' => $albumId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t add that album to the playlist. Plex may be unreachable.');
 
             return false;
         }
@@ -140,6 +142,7 @@ new class extends Component {
             $newId = $this->plex->createPlaylist('New Playlist', $trackId);
         } catch (PlexException $e) {
             Log::channel('plex')->warning('createPlaylistFromTrack failed', ['track' => $trackId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t create the playlist. Plex may be unreachable.');
 
             return false;
         }
@@ -160,6 +163,7 @@ new class extends Component {
                 unset($this->playlists);
             } catch (PlexException $e) {
                 Log::channel('plex')->warning('renamePlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+                $this->dispatch('notify', type: 'error', message: 'Couldn\'t rename the playlist. Plex may be unreachable.');
             }
         }
 
@@ -172,6 +176,7 @@ new class extends Component {
             $this->plex->deletePlaylist($playlistId);
         } catch (PlexException $e) {
             Log::channel('plex')->warning('deletePlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t delete the playlist. Plex may be unreachable.');
 
             return;
         }
@@ -186,6 +191,7 @@ new class extends Component {
             $tracks = $this->plex->playlistTracks($playlistId)->values();
         } catch (PlexException $e) {
             Log::channel('plex')->warning('playPlaylist failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t start that playlist. Plex may be unreachable.');
 
             return;
         }
@@ -197,6 +203,8 @@ new class extends Component {
         $this->dispatch('play-track',
             queue: $tracks->map(fn ($t) => $this->plex->queueItem($t))->values()->all(),
             index: 0,
+            contextType: 'playlist',
+            contextId: $playlistId,
         );
     }
 };

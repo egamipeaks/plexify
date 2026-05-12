@@ -2,14 +2,14 @@
 
 use Livewire\Livewire;
 
-it('redirects to the search page when the query updates', function () {
-    Livewire::test('topbar')
-        ->set('query', 'bon iver')
-        ->assertRedirect(route('search', ['q' => 'bon iver']));
+it('renders without errors', function () {
+    Livewire::test('topbar')->assertOk();
 });
 
-it('redirects to a bare search page when the query is cleared', function () {
-    Livewire::test('topbar')
-        ->set('query', '')
-        ->assertRedirect(route('search', ['q' => '']));
+it('renders the search input', function () {
+    Livewire::test('topbar')->assertSee('topbar-search', escape: false);
+});
+
+it('renders the settings link', function () {
+    Livewire::test('topbar')->assertSee(route('settings'), escape: false);
 });

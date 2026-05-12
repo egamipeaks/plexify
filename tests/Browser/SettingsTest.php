@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Setting;
+use App\Support\AppSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -26,13 +27,17 @@ it('density toggle persists the compact value to the database', function () {
     JS);
 
     // Wait for the Livewire round-trip to complete (the active button gains bg-surface-3).
+    // Scope the check to the Display section to avoid matching the Playback On/Off buttons.
     $ready = (bool) $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
             const deadline = Date.now() + 6000;
             while (Date.now() < deadline) {
-                const active = document.querySelector('button.bg-surface-3');
-                if (active && active.textContent.trim() === 'Compact') return true;
+                const section = Array.from(document.querySelectorAll('section')).find(s => s.querySelector('h2') && s.querySelector('h2').textContent.trim() === 'Display');
+                if (section) {
+                    const active = section.querySelector('button.bg-surface-3');
+                    if (active && active.textContent.trim() === 'Compact') return true;
+                }
                 await sleep(100);
             }
             return false;
@@ -41,6 +46,65 @@ it('density toggle persists the compact value to the database', function () {
 
     expect($ready)->toBeTrue('Expected the Livewire round-trip to mark "Compact" active within 6 seconds.');
     expect(Setting::get('density'))->toBe('compact');
+});
+
+it('scrobble toggle persists the off value to the database', function () {
+    $page = visit('/settings');
+
+    $page->assertSee('Scrobble plays to Plex');
+
+    // Click the "Off" button in the Playback section via script to avoid strict-locator ambiguity.
+    $page->script(<<<'JS'
+        Array.from(document.querySelectorAll('section')).find(s => s.querySelector('h2') && s.querySelector('h2').textContent.trim() === 'Playback')
+            ?.querySelectorAll('button')
+            [1]
+            ?.click()
+    JS);
+
+    // Wait for the Livewire round-trip: the "Off" button gains bg-surface-3.
+    $ready = (bool) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 6000;
+            while (Date.now() < deadline) {
+                const section = Array.from(document.querySelectorAll('section')).find(s => s.querySelector('h2') && s.querySelector('h2').textContent.trim() === 'Playback');
+                if (section) {
+                    const buttons = section.querySelectorAll('button');
+                    if (buttons[1] && buttons[1].classList.contains('bg-surface-3')) return true;
+                }
+                await sleep(100);
+            }
+            return false;
+        })()
+    JS);
+
+    expect($ready)->toBeTrue('Expected "Off" button to become active within 6 seconds.');
+    expect(AppSetting::scrobbleEnabled())->toBeFalse();
+
+    // Navigate away and back, assert the "Off" button is still active.
+    visit('/');
+    $page2 = visit('/settings');
+
+    $offActive = (bool) $page2->script(<<<'JS'
+        (() => {
+            const section = Array.from(document.querySelectorAll('section')).find(s => s.querySelector('h2') && s.querySelector('h2').textContent.trim() === 'Playback');
+            if (!section) return false;
+            const buttons = section.querySelectorAll('button');
+            return buttons[1] && buttons[1].classList.contains('bg-surface-3');
+        })()
+    JS);
+
+    expect($offActive)->toBeTrue('Expected "Off" button to remain active after navigating away and back.');
+});
+
+it('displays the "Density default" label in the Display section', function () {
+    $page = visit('/settings');
+
+    $page->assertSee('Density default');
+
+    // Verify data-density is NOT on the body (global wiring was retired in M7).
+    $bodyAttr = $page->script("document.body.getAttribute('data-density')");
+    expect($bodyAttr)->toBeNull();
 });
 
 it('resync metadata button shows a green confirmation message', function () {

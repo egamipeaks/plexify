@@ -762,6 +762,20 @@ it('maps a 404 on recentlyPlayedTracks to PlexNotFoundException', function () {
     expect(fn () => app(PlexClient::class)->recentlyPlayedTracks(50))->toThrow(PlexNotFoundException::class);
 });
 
+it('builds a scrobble url for a rating key', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    expect($client->scrobbleUrl('12345'))
+        ->toContain('/:/scrobble?')
+        ->toContain('key=12345')
+        ->toContain('identifier=com.plexapp.plugins.library')
+        ->toContain('X-Plex-Token=test-token');
+});
+
 it('maps a 500 on recentlyPlayedTracks to PlexUnreachableException', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),

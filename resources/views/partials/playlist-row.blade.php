@@ -47,6 +47,11 @@
                 <div class="text-[14px] truncate">{{ $p->title }}</div>
                 <div class="text-[12px] text-text-3 truncate">Playlist · {{ $p->trackCount }} songs</div>
             </div>
+            <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $p->id }}'">
+                <span data-source-indicator class="flex-none">
+                    <x-lucide-volume-1 class="w-3.5 h-3.5 text-accent" />
+                </span>
+            </template>
         </a>
     @endif
 </div>

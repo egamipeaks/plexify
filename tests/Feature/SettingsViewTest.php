@@ -4,6 +4,7 @@ use App\Models\Setting;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexCache;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -26,7 +27,13 @@ it('renders the page title and three section headings', function () {
         ->assertSee('Settings')
         ->assertSee('Plex Server')
         ->assertSee('Display')
-        ->assertSee('About');
+        ->assertSee('About')
+        ->assertSee('Playback');
+});
+
+it('renders the density label as "Density default"', function () {
+    Livewire::test('pages::settings')
+        ->assertSee('Density default');
 });
 
 it('renders the server name from ping', function () {
@@ -97,4 +104,19 @@ it('shows app version from config', function () {
 
     Livewire::test('pages::settings')
         ->assertSee('1.2.3');
+});
+
+it('renders the scrobble toggle reflecting the saved value', function () {
+    AppSetting::setScrobbleEnabled(false);
+
+    Livewire::test('pages::settings')
+        ->assertSet('scrobbleEnabled', false)
+        ->assertSee('Scrobble plays to Plex');
+});
+
+it('persists the scrobble toggle', function () {
+    Livewire::test('pages::settings')
+        ->set('scrobbleEnabled', false);
+
+    expect(AppSetting::scrobbleEnabled())->toBeFalse();
 });

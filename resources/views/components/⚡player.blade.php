@@ -2,18 +2,31 @@
 
 use Livewire\Component;
 use Livewire\Attributes\On;
+use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
 
 new class extends Component {
-    #[On('play-track')]
-    public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false): void
+    public bool $scrobbleEnabled = true;
+
+    public string $scrobbleUrlTemplate = '';
+
+    public function mount(PlexClient $plex): void
     {
-        $this->dispatch('queue-load', queue: $queue, index: $index, shuffle: $shuffle);
+        $this->scrobbleEnabled = AppSetting::scrobbleEnabled();
+        $this->scrobbleUrlTemplate = $plex->scrobbleUrl('__KEY__');
+    }
+
+    #[On('play-track')]
+    public function onPlayTrack(array $queue, int $index = 0, bool $shuffle = false, ?string $contextType = null, ?string $contextId = null): void
+    {
+        $this->dispatch('queue-load', queue: $queue, index: $index, shuffle: $shuffle, contextType: $contextType, contextId: $contextId);
     }
 };
 ?>
 
 <div class="bg-base h-[88px] flex items-center px-4 gap-4 flex-none"
-     x-data="audioPlayer()"
+     data-region="player"
+     x-data="audioPlayer(@js($scrobbleEnabled), @js($scrobbleUrlTemplate))"
      x-init="init()">
 
     {{-- Now-playing --}}
@@ -110,9 +123,9 @@ new class extends Component {
     <audio x-ref="audio"
            @timeupdate="currentTime = $event.target.currentTime"
            @loadedmetadata="duration = $event.target.duration"
-           @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true"
-           @pause="isPlaying = false; $store.player.isPlaying = false"
-           @ended="next()"
+           @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true; if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'"
+           @pause="isPlaying = false; $store.player.isPlaying = false; if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'"
+           @ended="scrobbleCurrent(); next()"
            x-on:error="onTrackError()"></audio>
 </div>
 
@@ -121,19 +134,23 @@ new class extends Component {
     // The `player` store is registered from the layout's <head> (before Alpine walks
     // the DOM) so tracklist rows pick it up on first render; init() below is a no-op
     // fallback in case that script is ever removed.
-    window.audioPlayer = function () {
+    window.audioPlayer = function (scrobbleEnabled, scrobbleUrlTemplate) {
         return {
             isPlaying: false,
             currentTime: 0,
             duration: 0,
             volume: 1,
 
-            queue: [],         // playback order: [{ id, url, title, artist, artwork }]
+            queue: [],         // playback order: [{ id, url, title, artist, artwork, albumId, artistId }]
             originalQueue: [],  // the unshuffled order, so toggling shuffle off restores it
             index: 0,           // position in `queue` of the current track
             shuffle: false,
             repeat: 'off',      // 'off' | 'all' | 'one'
             consecutiveErrors: 0,
+            contextType: null,
+            contextId: null,
+            scrobbleEnabled: !!scrobbleEnabled,
+            scrobbleUrlTemplate: scrobbleUrlTemplate || '',
 
             get current() {
                 return this.queue[this.index] ?? null;
@@ -141,15 +158,24 @@ new class extends Component {
 
             init() {
                 if (!Alpine.store('player')) {
-                    Alpine.store('player', { currentId: null, isPlaying: false });
+                    Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
                 }
+
+                // Guard against double-registration (Livewire re-runs the script block on component updates).
+                const firstInit = !window.__plexifyPlayerInited;
+                window.__plexifyPlayerInited = true;
+
                 // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
                 // the payload is in event.detail.
-                window.addEventListener('queue-load', (e) => {
+                if (firstInit) window.addEventListener('queue-load', (e) => {
                     this.consecutiveErrors = 0;
                     this.originalQueue = e.detail.queue ?? [];
                     const startIndex = e.detail.index ?? 0;
                     this.shuffle = !!e.detail.shuffle;
+                    this.contextType = e.detail.contextType ?? null;
+                    this.contextId = e.detail.contextId ?? null;
+                    Alpine.store('player').contextType = this.contextType;
+                    Alpine.store('player').contextId = this.contextId;
                     if (this.shuffle) {
                         this.applyShuffle(startIndex);
                         this.loadAndPlay(0);
@@ -159,6 +185,47 @@ new class extends Component {
                     }
                 });
                 this.$refs.audio.volume = this.volume;
+
+                if (firstInit) {
+                    if ('mediaSession' in navigator) {
+                        navigator.mediaSession.setActionHandler('play', () => { if (this.$refs.audio.paused) this.$refs.audio.play().catch(() => {}); });
+                        navigator.mediaSession.setActionHandler('pause', () => this.$refs.audio.pause());
+                        navigator.mediaSession.setActionHandler('previoustrack', () => this.previous());
+                        navigator.mediaSession.setActionHandler('nexttrack', () => this.next());
+                    }
+                }
+
+                if (firstInit) {
+                    const isTypingTarget = (el) => {
+                        if (!el) return false;
+                        const tag = el.tagName;
+                        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+                    };
+                    window.addEventListener('keydown', (e) => {
+                        // Focus search: Cmd/Ctrl+K, or "/" when not typing.
+                        if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            document.getElementById('topbar-search')?.focus();
+                            return;
+                        }
+                        if (e.key === '/' && !isTypingTarget(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                            e.preventDefault();
+                            document.getElementById('topbar-search')?.focus();
+                            return;
+                        }
+                        if (isTypingTarget(e.target)) return;
+                        if (e.metaKey || e.ctrlKey || e.altKey) return;
+                        if (e.key === ' ') {
+                            const tag = e.target?.tagName;
+                            if (tag === 'BUTTON' || (e.target && e.target.getAttribute && e.target.getAttribute('role') === 'button')) return;
+                            e.preventDefault();
+                            this.togglePlay();
+                            return;
+                        }
+                        if (e.key === 'ArrowRight') { this.next(); return; }
+                        if (e.key === 'ArrowLeft') { this.previous(); return; }
+                    });
+                }
             },
 
             loadAndPlay(i) {
@@ -169,6 +236,14 @@ new class extends Component {
                 this.currentTime = 0;
                 this.duration = 0;
                 Alpine.store('player').currentId = this.queue[i].id;
+                if ('mediaSession' in navigator) {
+                    const t = this.queue[i];
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: t.title || '',
+                        artist: t.artist || '',
+                        artwork: t.artwork ? [{ src: t.artwork }] : [],
+                    });
+                }
                 this.$refs.audio.src = this.queue[i].url;
                 this.$refs.audio.play().catch(() => {});
             },
@@ -265,6 +340,15 @@ new class extends Component {
                     return;
                 }
                 this.next(true);
+            },
+
+            scrobbleCurrent() {
+                if (!this.scrobbleEnabled || !this.scrobbleUrlTemplate || !this.current) {
+                    return;
+                }
+                try {
+                    fetch(this.scrobbleUrlTemplate.replace('__KEY__', encodeURIComponent(this.current.id)), { mode: 'no-cors' }).catch(() => {});
+                } catch (_) {}
             },
 
             goToAlbum() {
