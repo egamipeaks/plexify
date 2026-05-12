@@ -327,3 +327,41 @@ it('persists the album header collapsed toggle', function () {
 
     expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
 });
+
+it('renders the compact artist row layout when artistsCompact is on', function () {
+    AppSetting::setArtistsCompact(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')
+        ->assertSet('artistsCompact', true)
+        ->assertSeeHtml('py-[3px]');
+});
+
+it('persists the artists compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')->set('artistsCompact', true);
+
+    expect(AppSetting::artistsCompact())->toBeTrue();
+});
+
+it('persists the albums compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 5),
+        ]));
+    });
+
+    Livewire::test('pages::library')->set('albumsCompact', true);
+
+    expect(AppSetting::albumsCompact())->toBeTrue();
+});
