@@ -27,7 +27,8 @@ it('renders the page title and three section headings', function () {
         ->assertSee('Settings')
         ->assertSee('Plex Server')
         ->assertSee('Display')
-        ->assertSee('About');
+        ->assertSee('About')
+        ->assertSee('Playback');
 });
 
 it('renders the server name from ping', function () {

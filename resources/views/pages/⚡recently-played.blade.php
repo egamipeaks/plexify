@@ -58,7 +58,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         }
     }
 
-    public function thumbFor(?string $thumb): ?string
+    protected function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
     }
