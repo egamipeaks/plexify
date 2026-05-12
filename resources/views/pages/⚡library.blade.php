@@ -351,7 +351,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="truncate text-[11px] text-text-2">{{ collect(['Album', $this->selectedAlbum->artist, $this->selectedAlbum->year])->filter()->implode(' · ') }}</div>
                     </div>
                     <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
-                        <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                        <span data-source-indicator class="flex-none">
+                            <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                        </span>
                     </template>
                     <button type="button" wire:click="playAlbum" class="w-8 h-8 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black flex-none">
                         <x-lucide-play class="w-4 h-4" style="fill: currentColor;" />
@@ -396,7 +398,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                             <div class="text-[11px] font-bold uppercase tracking-wider text-white/80">Album</div>
                             <h1 class="text-[clamp(22px,3.4vw,40px)] font-black tracking-tight leading-[1.05] truncate">{{ $this->selectedAlbum->title }}</h1>
                             <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
-                                <span class="eq mt-2 inline-flex" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                <span data-source-indicator class="mt-2 block">
+                                    <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                                </span>
                             </template>
                             <div class="mt-2 flex items-center gap-2 text-[13px] text-text-2 flex-wrap">
                                 <span class="text-white font-semibold">{{ $this->selectedAlbum->artist }}</span>

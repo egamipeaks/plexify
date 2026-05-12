@@ -48,7 +48,9 @@
                 <div class="text-[12px] text-text-3 truncate">Playlist · {{ $p->trackCount }} songs</div>
             </div>
             <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $p->id }}'">
-                <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                <span data-source-indicator class="flex-none">
+                    <x-lucide-volume-1 class="w-3.5 h-3.5 text-accent" />
+                </span>
             </template>
         </a>
     @endif

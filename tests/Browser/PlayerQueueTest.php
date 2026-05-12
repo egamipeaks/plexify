@@ -606,11 +606,11 @@ it('shows the now-playing source indicator on the sidebar playlist row and album
 
             await sleep(400);
 
-            // The album header should show a source indicator (.eq) because the context is album.
-            const eqInAlbumHeader = document.querySelectorAll('.px-2.pb-2.flex-none .eq').length;
+            // The album header should show a source indicator (data-source-indicator) because the context is album.
+            const eqInAlbumHeader = document.querySelectorAll('[data-source-indicator]').length;
 
-            // No sidebar playlist row should show .eq yet (context is album, not playlist).
-            const eqInSidebarRows = document.querySelectorAll('[wire\\:key^="sidebar-pl-"] .eq').length;
+            // No sidebar playlist row should show a source indicator yet (context is album, not playlist).
+            const eqInSidebarRows = document.querySelectorAll('[wire\\:key^="sidebar-pl-"] [data-source-indicator]').length;
 
             // Now find the first sidebar playlist row and get its playlist id.
             const firstRow = document.querySelector('[wire\\:key^="sidebar-pl-"]');
@@ -622,6 +622,6 @@ it('shows the now-playing source indicator on the sidebar playlist row and album
 
     $decoded = json_decode((string) $result, true);
     expect($decoded)->toBeArray("Expected a result object, got: {$result}");
-    expect($decoded['eqInAlbumHeader'])->toBeGreaterThan(0, 'Album header should show .eq when an album is the playback source');
-    expect($decoded['eqInSidebarRows'])->toBe(0, 'Sidebar playlist rows should not show .eq when context is album');
+    expect($decoded['eqInAlbumHeader'])->toBeGreaterThan(0, 'Album header should show source indicator when an album is the playback source');
+    expect($decoded['eqInSidebarRows'])->toBe(0, 'Sidebar playlist rows should not show source indicator when context is album');
 });

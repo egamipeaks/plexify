@@ -176,7 +176,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="truncate text-[11px] text-text-2">{{ $this->tracks->count() }} songs, {{ \App\Support\Duration::format($this->tracks->sum('durationMs')) }}</div>
             </div>
             <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}'">
-                <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                <span data-source-indicator class="flex-none">
+                    <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                </span>
             </template>
             <button type="button" wire:click="playAll" class="w-8 h-8 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black flex-none">
                 <x-lucide-play class="w-4 h-4" style="fill: currentColor;" />
@@ -209,7 +211,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <div class="text-[11px] font-bold uppercase tracking-wider text-white">PLAYLIST</div>
                     <h1 class="text-white font-extrabold tracking-tight leading-[1.05] truncate self-start" style="font-size: clamp(28px, 4.2vw, 56px);">{{ $meta->title }}</h1>
                     <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}'">
-                        <span class="eq inline-flex" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                        <span data-source-indicator class="block">
+                            <x-lucide-volume-1 class="w-4 h-4 text-accent" />
+                        </span>
                     </template>
                     @if ($meta->summary)
                         <div class="text-[14px] text-text-2 max-w-prose">{{ $meta->summary }}</div>
