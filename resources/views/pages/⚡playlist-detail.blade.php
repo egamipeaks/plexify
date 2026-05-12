@@ -338,10 +338,20 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     @endif
                                     <div class="min-w-0">
                                         <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
-                                        <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
+                                        @if ($track->artistId)
+                                            <span class="block truncate text-[12px] text-text-2 group-hover:text-white hover:underline cursor-pointer"
+                                                  @click.stop="Livewire.navigate('{{ route('library', ['artist' => $track->artistId]) }}')">{{ $track->artist }}</span>
+                                        @else
+                                            <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
+                                        @endif
                                     </div>
                                 </div>
-                                <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                                @if ($track->artistId && $track->albumId)
+                                    <span class="text-text-2 group-hover:text-white truncate hover:underline cursor-pointer"
+                                          @click.stop="Livewire.navigate('{{ route('library', ['artist' => $track->artistId, 'album' => $track->albumId]) }}')">{{ $track->album }}</span>
+                                @else
+                                    <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                                @endif
                                 <span class="grid place-items-center text-text-2 hover:text-white">
                                     <x-lucide-heart class="w-3.5 h-3.5" />
                                 </span>

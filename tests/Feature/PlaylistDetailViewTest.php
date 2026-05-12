@@ -64,6 +64,20 @@ it('renders one row per track with the album column', function () {
         ->assertSeeHtml('plextune/track');
 });
 
+it('links the artist and album to the library from each comfortable playlist track row', function () {
+    mockPlexForPlaylist();
+
+    $artistUrl = route('library', ['artist' => '100']);
+    $albumUrl1 = route('library', ['artist' => '100', 'album' => '5001']);
+    $albumUrl2 = route('library', ['artist' => '100', 'album' => '5002']);
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', false)
+        ->assertSeeHtml("Livewire.navigate('".e($artistUrl)."')")
+        ->assertSeeHtml("Livewire.navigate('".e($albumUrl1)."')")
+        ->assertSeeHtml("Livewire.navigate('".e($albumUrl2)."')");
+});
+
 it('dispatches play-track for a clicked row', function () {
     mockPlexForPlaylist();
 
