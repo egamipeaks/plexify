@@ -106,8 +106,9 @@ new class extends Component {
             <x-lucide-cast class="w-4 h-4" />
         </button>
         <div class="flex items-center gap-2 group">
-            <button type="button" class="text-text-2 hover:text-white">
-                <x-lucide-volume-2 class="w-4 h-4" />
+            <button type="button" data-control="mute" @click="toggleMute()" class="text-text-2 hover:text-white">
+                <x-lucide-volume-2 x-show="!muted" x-cloak data-icon="unmuted" class="w-4 h-4" />
+                <x-lucide-volume-x x-show="muted" x-cloak data-icon="muted" class="w-4 h-4" />
             </button>
             <input type="range" min="0" max="1" step="0.01"
                    :value="volume"
@@ -389,6 +390,11 @@ new class extends Component {
                 this.$refs.audio.muted = false;
                 this.$refs.audio.volume = this.volume;
                 try { localStorage.setItem('plextune.volume', this.volume); } catch (e) {}
+            },
+
+            toggleMute() {
+                this.muted = !this.muted;
+                this.$refs.audio.muted = this.muted;
             },
 
             formatTime(seconds) {

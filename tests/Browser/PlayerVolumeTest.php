@@ -47,3 +47,29 @@ it('persists the volume to localStorage and restores it on reload', function () 
     $audioVol = (string) $page->script("String(document.querySelector('[data-region=\"player\"] audio').volume)");
     expect($audioVol)->toBe('0.5');
 });
+
+it('toggles mute when the speaker button is clicked', function () use ($waitForPlayer) {
+    $page = visit('/');
+    $waitForPlayer($page);
+
+    $page->click('[data-control="mute"]');
+
+    $muted = (string) $page->script("document.querySelector('[data-region=\"player\"] audio').muted ? '1' : '0'");
+    expect($muted)->toBe('1');
+
+    $iconState = (string) $page->script(<<<'JS'
+        (() => {
+            const region = document.querySelector('[data-region="player"]');
+            const mutedIcon = region.querySelector('[data-icon="muted"]');
+            const unmutedIcon = region.querySelector('[data-icon="unmuted"]');
+            const shown = el => el && getComputedStyle(el).display !== 'none';
+            return (shown(mutedIcon) && !shown(unmutedIcon)) ? '1' : '0';
+        })()
+    JS);
+    expect($iconState)->toBe('1');
+
+    $page->click('[data-control="mute"]');
+
+    $muted = (string) $page->script("document.querySelector('[data-region=\"player\"] audio').muted ? '1' : '0'");
+    expect($muted)->toBe('0');
+});
