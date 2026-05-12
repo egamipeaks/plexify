@@ -204,7 +204,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                 </div>
                 <div class="overflow-y-auto scroll flex-1" data-region="artists-column">
-                    @foreach ($this->artists as $artist)
+                    @forelse ($this->artists as $artist)
                         <button type="button" wire:key="artist-{{ $artist->id }}" wire:click="selectArtist('{{ $artist->id }}')"
                                 @class([
                                     'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors',
@@ -223,7 +223,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <div class="text-[14px] font-semibold truncate">{{ $artist->name }}</div>
                             </div>
                         </button>
-                    @endforeach
+                    @empty
+                        <div class="grid place-items-center h-full text-text-3 text-[12px] px-4 text-center">No music found in your Plex library.</div>
+                    @endforelse
                 </div>
             </div>
 

@@ -155,3 +155,24 @@ it('persists the playlist header collapsed toggle', function () {
 
     expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
 });
+
+it('shows an empty-playlist state for a playlist with no tracks', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('playlists')->andReturn(collect([
+            new Playlist(
+                id: '9999',
+                title: 'Empty Playlist',
+                trackCount: 0,
+                durationMs: 0,
+                thumb: null,
+                playlistType: 'audio',
+                summary: null,
+            ),
+        ]));
+        $mock->shouldReceive('playlistTracks')->with('9999')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '9999'])
+        ->assertSee('This playlist is empty');
+});

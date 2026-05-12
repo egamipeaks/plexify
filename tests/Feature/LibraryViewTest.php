@@ -298,6 +298,15 @@ it('renders the collapsed album header when the setting is on', function () {
         ->assertSeeHtml('data-album-header-collapsed');
 });
 
+it('shows a no-music state when the library has no artists', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect());
+    });
+
+    Livewire::test('pages::library')
+        ->assertSee('No music found');
+});
+
 it('persists the album header collapsed toggle', function () {
     AppSetting::setAlbumHeaderCollapsed(true);
 
