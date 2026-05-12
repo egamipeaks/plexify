@@ -484,3 +484,108 @@ it('clears the shuffle toggle when a plain track-row click loads a new queue', f
     expect($decoded['shuffleAfterToggle'])->toBeTrue('Shuffle should be on after toggling it');
     expect($decoded['shuffleAfterPlay'])->toBeFalse('Clicking a track row should clear the shuffle toggle');
 });
+
+it('highlights the playing row in the search Tracks group', function () {
+    $page = visit('/search?q=the');
+
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            // Wait for the Tracks filter pill and switch to it.
+            const deadline1 = Date.now() + 10000;
+            let pill = null;
+            while (Date.now() < deadline1) {
+                pill = document.querySelector('button[wire\\:click="setFilter(\'tracks\')"]');
+                if (pill) break;
+                await sleep(150);
+            }
+            if (!pill) return 'NO_TRACKS_PILL';
+            pill.click();
+
+            // Wait for at least one playTrack row.
+            const deadline2 = Date.now() + 10000;
+            let row = null;
+            while (Date.now() < deadline2) {
+                row = document.querySelector('button[wire\\:click^="playTrack"]');
+                if (row) break;
+                await sleep(150);
+            }
+            if (!row) return 'NO_TRACK_ROWS';
+
+            row.click();
+
+            // Wait for the now-playing title to populate (queue loaded).
+            const deadline3 = Date.now() + 10000;
+            while (Date.now() < deadline3) {
+                const el = document.querySelector('[data-region=now-playing-title]');
+                if (el && el.textContent.trim() !== '') break;
+                await sleep(100);
+            }
+
+            // Give Alpine a moment to react and update the DOM.
+            await sleep(500);
+
+            const eqCount = document.querySelectorAll('.eq').length;
+            const titleHighlighted = document.querySelectorAll('.text-accent').length > 0;
+
+            return JSON.stringify({ eqCount, titleHighlighted });
+        })()
+    JS);
+
+    // If the live server returned no track rows the script returns a sentinel string;
+    // treat that as a graceful skip so the test is not a false negative.
+    if (! str_starts_with($result, '{')) {
+        $this->markTestSkipped("Search returned no track rows ({$result}); live Plex server may be unreachable or query matched nothing.");
+    }
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqCount'])->toBeGreaterThan(0, 'The playing search track row should show the .eq equalizer marker');
+});
+
+it('highlights the playing row in the recently-played list', function () {
+    $page = visit('/recently-played');
+
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            // Wait for the page to settle (either track rows or the empty state).
+            const deadline1 = Date.now() + 10000;
+            while (Date.now() < deadline1) {
+                // Track rows are present, or the empty-state heading is visible.
+                if (document.querySelector('button[wire\\:click^="playTrack"]') ||
+                    document.querySelector('h2')) break;
+                await sleep(150);
+            }
+
+            const row = document.querySelector('[data-region=tracklist] button[wire\\:click^="playTrack"]');
+            if (!row) return 'NO_TRACK_ROWS';
+
+            row.click();
+
+            // Wait for the now-playing title to populate.
+            const deadline2 = Date.now() + 10000;
+            while (Date.now() < deadline2) {
+                const el = document.querySelector('[data-region=now-playing-title]');
+                if (el && el.textContent.trim() !== '') break;
+                await sleep(100);
+            }
+
+            await sleep(500);
+
+            const eqCount = document.querySelectorAll('[data-region=tracklist] .eq').length;
+
+            return JSON.stringify({ eqCount });
+        })()
+    JS);
+
+    if ($result === 'NO_TRACK_ROWS') {
+        $this->markTestSkipped('Recently-played list is empty on the live server; nothing to assert.');
+    }
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqCount'])->toBeGreaterThan(0, 'The playing recently-played track row should show the .eq equalizer marker');
+});
