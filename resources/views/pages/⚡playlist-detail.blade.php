@@ -143,7 +143,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     @php($meta = $this->playlistMeta)
     {{-- Gradient header --}}
     <div class="px-2 pt-2 pb-2 flex-none">
-        <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+        <div class="relative overflow-hidden rounded-lg" x-data="{}" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
             <div class="flex items-end gap-6 p-6">
                 <div class="rounded relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 180px; height: 180px;">
                     <x-lucide-list-music class="w-12 h-12 text-text-3" />
@@ -156,6 +156,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="min-w-0 flex-1 flex flex-col gap-2">
                     <div class="text-[11px] font-bold uppercase tracking-wider text-white">PLAYLIST</div>
                     <h1 class="text-white font-extrabold tracking-tight leading-[1.05] truncate self-start" style="font-size: clamp(28px, 4.2vw, 56px);">{{ $meta->title }}</h1>
+                    <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}'">
+                        <span class="eq inline-flex" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                    </template>
                     @if ($meta->summary)
                         <div class="text-[14px] text-text-2 max-w-prose">{{ $meta->summary }}</div>
                     @endif

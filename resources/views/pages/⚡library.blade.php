@@ -275,7 +275,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         {{-- Album header --}}
         @if ($this->selectedAlbum)
             <div class="px-2 pb-2 flex-none">
-                <div class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                <div class="relative overflow-hidden rounded-lg" x-data="{}" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
                     <button type="button" wire:click="closeAlbum" title="Close album"
                             class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
                         <x-lucide-x class="w-4 h-4" />
@@ -296,6 +296,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="flex-1 min-w-0">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-white/80">Album</div>
                             <h1 class="text-[clamp(22px,3.4vw,40px)] font-black tracking-tight leading-[1.05] truncate">{{ $this->selectedAlbum->title }}</h1>
+                            <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
+                                <span class="eq mt-2 inline-flex" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                            </template>
                             <div class="mt-2 flex items-center gap-2 text-[13px] text-text-2 flex-wrap">
                                 <span class="text-white font-semibold">{{ $this->selectedAlbum->artist }}</span>
                                 @if ($this->selectedAlbum->year)

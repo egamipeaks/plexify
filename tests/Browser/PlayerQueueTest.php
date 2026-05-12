@@ -589,3 +589,35 @@ it('highlights the playing row in the recently-played list', function () {
     expect($decoded)->toBeArray("Expected a result object, got: {$result}");
     expect($decoded['eqCount'])->toBeGreaterThan(0, 'The playing recently-played track row should show the .eq equalizer marker');
 });
+
+it('shows the now-playing source indicator on the sidebar playlist row and album header when that context is active', function () {
+    $page = visit('/');
+
+    $nowPlaying = drillIntoAlbumAndClickTrack($page);
+    expect(json_decode((string) $nowPlaying, true))->toBeArray("Expected the queue to populate, got: {$nowPlaying}");
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            await sleep(400);
+
+            // The album header should show a source indicator (.eq) because the context is album.
+            const eqInAlbumHeader = document.querySelectorAll('.px-2.pb-2.flex-none .eq').length;
+
+            // No sidebar playlist row should show .eq yet (context is album, not playlist).
+            const eqInSidebarRows = document.querySelectorAll('[wire\\:key^="sidebar-pl-"] .eq').length;
+
+            // Now find the first sidebar playlist row and get its playlist id.
+            const firstRow = document.querySelector('[wire\\:key^="sidebar-pl-"]');
+            const playlistId = firstRow ? firstRow.getAttribute('wire:key').replace('sidebar-pl-', '') : null;
+
+            return JSON.stringify({ eqInAlbumHeader, eqInSidebarRows, playlistId });
+        })()
+    JS);
+
+    $decoded = json_decode((string) $result, true);
+    expect($decoded)->toBeArray("Expected a result object, got: {$result}");
+    expect($decoded['eqInAlbumHeader'])->toBeGreaterThan(0, 'Album header should show .eq when an album is the playback source');
+    expect($decoded['eqInSidebarRows'])->toBe(0, 'Sidebar playlist rows should not show .eq when context is album');
+});
