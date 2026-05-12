@@ -22,7 +22,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full bg-base text-text-1" data-density="{{ \App\Support\AppSetting::density() }}">
+<body class="h-full bg-base text-text-1">
     <div class="app-shell h-screen w-screen flex flex-col gap-2 p-2">
         {{-- Middle region: sidebar + main (topbar lives inside main) --}}
         <div class="flex gap-2 flex-1 min-h-0">

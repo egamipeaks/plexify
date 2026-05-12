@@ -55,29 +55,3 @@ html, body {
 .eq > span:nth-child(3) { animation-duration: 0.7s; animation-delay: -0.2s; }
 
 .eq.is-paused > span { animation-play-state: paused; }
-
-/* Compact display density: tighter tracklist rows, sidebar rows, and album/playlist header. */
-[data-density="compact"] [data-region="tracklist"] .row {
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
-}
-
-[data-density="compact"] [data-region="tracklist"] .row img,
-[data-density="compact"] [data-region="tracklist"] .row .rounded-sm {
-    width: 28px !important;
-    height: 28px !important;
-}
-
-[data-density="compact"] aside .group.w-full,
-[data-density="compact"] aside a.w-full {
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
-}
-
-[data-density="compact"] [data-album-header] .px-6.py-5,
-[data-density="compact"] [data-album-header] .px-6.pb-4,
-[data-density="compact"] [data-playlist-header] .p-6,
-[data-density="compact"] [data-playlist-header] .px-6.pb-4 {
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-}

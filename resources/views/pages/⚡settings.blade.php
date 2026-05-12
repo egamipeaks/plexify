@@ -173,8 +173,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center justify-between">
                 <div>
-                    <div class="text-sm font-semibold">Density</div>
-                    <div class="text-xs text-text-2 mt-1">Comfortable spaces rows out. Compact fits more on screen.</div>
+                    <div class="text-sm font-semibold">Density default</div>
+                    <div class="text-xs text-text-2 mt-1">Default for lists you haven't individually adjusted. Each artist, album, and track list has its own Comfortable / Compact toggle in its header.</div>
                 </div>
 
                 <div class="inline-flex rounded-full bg-surface-2 p-1">

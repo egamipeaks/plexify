@@ -2,7 +2,6 @@
 
 use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\PlexClient;
-use App\Support\AppSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -91,18 +90,4 @@ it('renders the recently played route', function () {
     $this->get('/recently-played')
         ->assertOk()
         ->assertSee('Recently Played');
-});
-
-it('puts the density attribute on the body element', function () {
-    AppSetting::setDensity('compact');
-
-    $this->get('/settings')
-        ->assertOk()
-        ->assertSee('data-density="compact"', false);
-});
-
-it('defaults the body density attribute to comfortable', function () {
-    $this->get('/settings')
-        ->assertOk()
-        ->assertSee('data-density="comfortable"', false);
 });

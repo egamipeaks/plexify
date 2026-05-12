@@ -31,6 +31,11 @@ it('renders the page title and three section headings', function () {
         ->assertSee('Playback');
 });
 
+it('renders the density label as "Density default"', function () {
+    Livewire::test('pages::settings')
+        ->assertSee('Density default');
+});
+
 it('renders the server name from ping', function () {
     Livewire::test('pages::settings')
         ->assertSee('My Plex');
