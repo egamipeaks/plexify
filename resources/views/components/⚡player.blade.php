@@ -141,7 +141,7 @@ new class extends Component {
             duration: 0,
             volume: 1,
 
-            queue: [],         // playback order: [{ id, url, title, artist, artwork }]
+            queue: [],         // playback order: [{ id, url, title, artist, artwork, albumId, artistId }]
             originalQueue: [],  // the unshuffled order, so toggling shuffle off restores it
             index: 0,           // position in `queue` of the current track
             shuffle: false,

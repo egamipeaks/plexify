@@ -121,11 +121,12 @@ it('clears the overlay with the clear button', function () {
     $page->assertScript("document.getElementById('topbar-search').value", '');
 });
 
-it('opens the overlay on a direct visit to /?q=', function () {
-    $page = visit('/?q=the');
+it('opens the overlay on a direct visit to /search?q=', function () {
+    $page = visit('/search?q=the');
 
-    // The topbar seeds term from ?q=, then on page-load the search component re-hydrates
-    // its own #[Url] prop and renders the overlay.
+    // The /search stub route redirects to / with ?q= preserved; Livewire re-hydrates
+    // the search component's #[Url] prop and renders the overlay. The topbar input
+    // is also pre-filled from ?q= via its own #[Url] binding.
     $overlayAppeared = (bool) $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -138,7 +139,61 @@ it('opens the overlay on a direct visit to /?q=', function () {
         })()
     JS);
 
-    expect($overlayAppeared)->toBeTrue('Expected overlay on direct /?q=the visit.');
+    expect($overlayAppeared)->toBeTrue('Expected overlay on direct /search?q=the visit.');
+
+    // The topbar input must be pre-filled with the query term.
+    $page->assertScript("document.getElementById('topbar-search').value", 'the');
+});
+
+it('clicking an album result navigates to the library album and closes the overlay', function () {
+    $page = visit('/search?q=the');
+
+    // Wait for the overlay and then for album rows to appear.
+    $albumFound = (bool) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+            // Wait for overlay.
+            const deadline0 = Date.now() + 8000;
+            while (Date.now() < deadline0) {
+                if (document.querySelectorAll('[data-region="search-overlay"]').length > 0) break;
+                await sleep(150);
+            }
+
+            // Wait for at least one album row.
+            const deadline1 = Date.now() + 8000;
+            while (Date.now() < deadline1) {
+                if (document.querySelector('button[wire\\:key^="search-al-"]')) return true;
+                await sleep(150);
+            }
+            return false;
+        })()
+    JS);
+
+    if (! $albumFound) {
+        test()->markTestSkipped('No album results returned for query "the" — Plex may be unreachable or the library has no matching albums.');
+    }
+
+    // Click the first album row via script() to avoid strict locator issues.
+    $page->script("document.querySelector('button[wire\\\\:key^=\"search-al-\"]').click()");
+
+    // Wait for navigation: pathname changes to '/' with artist/album params.
+    $navigated = (bool) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                if (location.pathname === '/' && location.search.includes('album=')) return true;
+                await sleep(150);
+            }
+            return false;
+        })()
+    JS);
+
+    expect($navigated)->toBeTrue('Expected navigation to /?artist=...&album=... after clicking an album row.');
+
+    // The overlay must be gone (search component re-mounted with q='').
+    $page->assertScript("document.querySelectorAll('[data-region=\"search-overlay\"]').length", 0);
 });
 
 it('plays a track from the search results', function () {
