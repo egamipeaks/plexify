@@ -135,6 +135,16 @@ it('returns false from addTrackToPlaylist when Plex rejects it', function () {
     Livewire::test('sidebar')->call('addTrackToPlaylist', '4242', '99')->assertReturned(false);
 });
 
+it('dispatches a notify error when adding a track to a playlist fails', function () {
+    mockSidebarPlex([playlist('4242', 'Mix')], function ($mock) {
+        $mock->shouldReceive('addTrackToPlaylist')->andThrow(new PlexUnreachableException('refused'));
+    });
+
+    Livewire::test('sidebar')
+        ->call('addTrackToPlaylist', 'pl-1', 'tr-1')
+        ->assertDispatched('notify', type: 'error');
+});
+
 it('adds an album to a playlist via PlexClient', function () {
     mockSidebarPlex([playlist('4242', 'Mix')], function ($mock) {
         $mock->shouldReceive('addAlbumToPlaylist')->once()->with('4242', '1001')->andReturnNull();

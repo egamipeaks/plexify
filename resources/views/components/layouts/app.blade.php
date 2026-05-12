@@ -41,6 +41,8 @@
         </div>
     </div>
 
+    <livewire:toasts />
+
     @livewireScripts
 </body>
 </html>
