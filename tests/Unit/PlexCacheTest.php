@@ -52,7 +52,7 @@ it('flushes all plex: keys via flushAll()', function () {
     expect(Cache::get('plex:b'))->toBeNull();
 });
 
-test('remember appends the namespaced key to plex:_index', function () {
+it('appends the namespaced key to plex:_index on remember', function () {
     $cache = new PlexCache;
 
     $cache->remember('foo', 60, fn () => 'value-foo');
@@ -60,7 +60,7 @@ test('remember appends the namespaced key to plex:_index', function () {
     expect(Cache::get('plex:_index'))->toBe(['plex:foo']);
 });
 
-test('remember does not duplicate an existing index entry on a cache hit', function () {
+it('does not duplicate an existing index entry on a cache hit', function () {
     $cache = new PlexCache;
 
     $cache->remember('foo', 60, fn () => 'value-foo');
@@ -69,7 +69,7 @@ test('remember does not duplicate an existing index entry on a cache hit', funct
     expect(Cache::get('plex:_index'))->toBe(['plex:foo']);
 });
 
-test('remember appends each distinct key once across calls', function () {
+it('appends each distinct key once across calls', function () {
     $cache = new PlexCache;
 
     $cache->remember('foo', 60, fn () => 'a');
@@ -79,7 +79,7 @@ test('remember appends each distinct key once across calls', function () {
     expect(Cache::get('plex:_index'))->toEqualCanonicalizing(['plex:foo', 'plex:bar']);
 });
 
-test('forget removes the entry from plex:_index', function () {
+it('removes the entry from plex:_index on forget', function () {
     $cache = new PlexCache;
 
     $cache->remember('foo', 60, fn () => 'a');
@@ -91,7 +91,7 @@ test('forget removes the entry from plex:_index', function () {
     expect(Cache::get('plex:foo'))->toBeNull();
 });
 
-test('flushAll forgets every tracked key and clears the index', function () {
+it('forgets every tracked key and clears the index on flushAll', function () {
     $cache = new PlexCache;
 
     $cache->remember('foo', 60, fn () => 'a');
@@ -104,7 +104,7 @@ test('flushAll forgets every tracked key and clears the index', function () {
     expect(Cache::get('plex:_index'))->toBeNull();
 });
 
-test('flushAll is a no-op when the index is empty', function () {
+it('is a no-op when flushAll is called with an empty index', function () {
     $cache = new PlexCache;
 
     $cache->flushAll();
@@ -112,7 +112,7 @@ test('flushAll is a no-op when the index is empty', function () {
     expect(Cache::get('plex:_index'))->toBeNull();
 });
 
-test('flushAll works across instances (cross-request)', function () {
+it('flushes across instances (cross-request)', function () {
     $writer = new PlexCache;
     $writer->remember('foo', 60, fn () => 'a');
     $writer->remember('bar', 60, fn () => 'b');

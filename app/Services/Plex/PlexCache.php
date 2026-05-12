@@ -23,6 +23,7 @@ class PlexCache
 
     private const INDEX_KEY = 'plex:_index';
 
+    // Long enough to outlive every tracked entry's TTL (longest is TTL_TRACKS = 7 days).
     private const INDEX_TTL = self::TTL_TRACKS;
 
     public function remember(string $key, int $ttl, Closure $callback): mixed
@@ -71,6 +72,10 @@ class PlexCache
         $index = Cache::get(self::INDEX_KEY, []);
 
         $filtered = array_values(array_filter($index, fn ($k) => $k !== $namespaced));
+
+        if ($filtered === $index) {
+            return;
+        }
 
         if (empty($filtered)) {
             Cache::forget(self::INDEX_KEY);
