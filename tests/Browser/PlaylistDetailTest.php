@@ -107,3 +107,89 @@ it('navigates from the sidebar into a playlist and plays a track', function () {
     expect($nowPlaying)->not->toBe('', 'Expected the player to show a track title after clicking the first playlist track row.');
     $page->assertVisible('[data-region=now-playing-title]');
 });
+
+it('links the artist and album in a playlist track row to the library', function () {
+    $page = visit('/');
+
+    // Scrape a sidebar playlist link whose row text indicates at least one track.
+    $targetHref = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                const rows = [...document.querySelectorAll('[wire\\:key^="sidebar-pl-"]')];
+                if (rows.length > 0) {
+                    for (const el of rows) {
+                        if (!el.textContent.includes('0 songs')) {
+                            const link = el.querySelector('a[href]') ?? el;
+                            return link.getAttribute('href');
+                        }
+                    }
+                }
+                await sleep(150);
+            }
+            return null;
+        })()
+    JS);
+
+    expect($targetHref)->not->toBeNull('Expected at least one non-empty audio playlist in the sidebar (is the Plex server reachable?).');
+
+    // Reused: wait until the comfortable tracklist has rendered with link spans.
+    $waitForLinkRows = '
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 30000;
+            while (Date.now() < deadline) {
+                if (document.querySelector(\'[wire\\\\:click="retry"]\')) return false;
+                const row = document.querySelector(\'[wire\\\\:key^="track-"]\');
+                if (row && row.querySelectorAll(\'span.cursor-pointer\').length >= 2) return true;
+                await sleep(300);
+            }
+            return false;
+        })()
+    ';
+
+    // --- Album link: span index 1 in the first row -> /?artist=...&album=...
+    $page = visit($targetHref);
+    expect((bool) $page->script($waitForLinkRows))->toBeTrue('Expected comfortable track rows with artist+album link spans on the playlist page.');
+
+    $albumNav = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const row = document.querySelector('[wire\\:key^="track-"]');
+            const links = [...row.querySelectorAll('span.cursor-pointer')];
+            links[1].click();
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                if (location.pathname === '/' && location.search.startsWith('?artist=')) return location.search;
+                await sleep(100);
+            }
+            return location.pathname + location.search;
+        })()
+    JS);
+
+    expect($albumNav)->toContain('?artist=');
+    expect($albumNav)->toContain('&album=');
+
+    // --- Artist link: span index 0 -> /?artist=... with no &album=
+    $page = visit($targetHref);
+    expect((bool) $page->script($waitForLinkRows))->toBeTrue('Expected comfortable track rows with artist+album link spans on the playlist page (second visit).');
+
+    $artistNav = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const row = document.querySelector('[wire\\:key^="track-"]');
+            const links = [...row.querySelectorAll('span.cursor-pointer')];
+            links[0].click();
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                if (location.pathname === '/' && location.search.startsWith('?artist=')) return location.search;
+                await sleep(100);
+            }
+            return location.pathname + location.search;
+        })()
+    JS);
+
+    expect($artistNav)->toContain('?artist=');
+    expect($artistNav)->not->toContain('&album=');
+});
