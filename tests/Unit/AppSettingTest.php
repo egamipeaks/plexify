@@ -33,3 +33,27 @@ it('overwrites an existing density value', function () {
 
     expect(AppSetting::density())->toBe('comfortable');
 });
+
+it('defaults scrobbleEnabled to true', function () {
+    expect(AppSetting::scrobbleEnabled())->toBeTrue();
+});
+
+it('round-trips scrobbleEnabled', function () {
+    AppSetting::setScrobbleEnabled(false);
+    expect(AppSetting::scrobbleEnabled())->toBeFalse();
+
+    AppSetting::setScrobbleEnabled(true);
+    expect(AppSetting::scrobbleEnabled())->toBeTrue();
+});
+
+it('defaults albumHeaderCollapsed to false', function () {
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
+});
+
+it('round-trips albumHeaderCollapsed', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+    expect(AppSetting::albumHeaderCollapsed())->toBeTrue();
+
+    AppSetting::setAlbumHeaderCollapsed(false);
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
+});

@@ -37,4 +37,24 @@ class AppSetting
 
         Setting::set('density', $value);
     }
+
+    public static function scrobbleEnabled(): bool
+    {
+        return (bool) Setting::get('scrobble_enabled', true);
+    }
+
+    public static function setScrobbleEnabled(bool $value): void
+    {
+        Setting::set('scrobble_enabled', $value);
+    }
+
+    public static function albumHeaderCollapsed(): bool
+    {
+        return (bool) Setting::get('album_header_collapsed', false);
+    }
+
+    public static function setAlbumHeaderCollapsed(bool $value): void
+    {
+        Setting::set('album_header_collapsed', $value);
+    }
 }
