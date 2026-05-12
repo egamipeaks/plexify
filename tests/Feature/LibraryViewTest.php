@@ -365,3 +365,46 @@ it('persists the albums compact toggle', function () {
 
     expect(AppSetting::albumsCompact())->toBeTrue();
 });
+
+it('renders the compact tracklist layout when tracksCompact is on', function () {
+    AppSetting::setLibraryTracksCompact(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 169000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '715 - CRΣΣKS', artist: 'Bon Iver', album: '22, A Million', trackNumber: 4, durationMs: 178000, partId: 1, container: 'flac'),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 50px');
+});
+
+it('persists the library tracklist compact toggle', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 1, durationMs: 169000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect([
+            new Track(id: '9001', title: '715 - CRΣΣKS', artist: 'Bon Iver', album: '22, A Million', trackNumber: 4, durationMs: 178000, partId: 1, container: 'flac'),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->set('tracksCompact', true);
+
+    expect(AppSetting::libraryTracksCompact())->toBeTrue();
+});

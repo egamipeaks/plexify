@@ -26,11 +26,14 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public bool $albumsCompact = false;
 
+    public bool $tracksCompact = false;
+
     public function mount(PlexClient $plex): void
     {
         $this->headerCollapsed = \App\Support\AppSetting::albumHeaderCollapsed();
         $this->artistsCompact = \App\Support\AppSetting::artistsCompact();
         $this->albumsCompact = \App\Support\AppSetting::albumsCompact();
+        $this->tracksCompact = \App\Support\AppSetting::libraryTracksCompact();
         $this->loadArtists($plex);
     }
 
@@ -47,6 +50,11 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function updatedAlbumsCompact(bool $value): void
     {
         \App\Support\AppSetting::setAlbumsCompact($value);
+    }
+
+    public function updatedTracksCompact(bool $value): void
+    {
+        \App\Support\AppSetting::setLibraryTracksCompact($value);
     }
 
     public function selectArtist(string $id): void
@@ -422,61 +430,94 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div class="flex-1 min-h-0 flex flex-col px-2 pb-2 overflow-hidden" data-region="tracklist">
                 <div class="flex-1 min-h-0 flex flex-col relative bg-surface rounded-lg overflow-hidden">
                     <div class="absolute right-2 top-1.5 z-20 flex items-center bg-surface-2 rounded p-0.5">
-                        <button type="button" title="Comfortable" class="w-6 h-6 grid place-items-center rounded bg-surface-4 text-white">
+                        <button type="button" title="Comfortable" wire:click="$set('tracksCompact', false)"
+                                @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => ! $tracksCompact, 'text-text-2 hover:text-white' => $tracksCompact])>
                             <x-lucide-grid-2x2 class="w-[11px] h-[11px]" />
                         </button>
-                        <button type="button" title="Compact list" class="w-6 h-6 grid place-items-center rounded text-text-2 hover:text-white">
+                        <button type="button" title="Compact list" wire:click="$set('tracksCompact', true)"
+                                @class(['w-6 h-6 grid place-items-center rounded', 'bg-surface-4 text-white' => $tracksCompact, 'text-text-2 hover:text-white' => ! $tracksCompact])>
                             <x-lucide-menu class="w-[11px] h-[11px]" />
                         </button>
                     </div>
-                    <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
-                         style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
-                        <span></span>
-                        <span class="text-right">#</span>
-                        <span>Title</span>
-                        <span>Album</span>
-                        <span></span>
-                        <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
-                    </div>
+                    @if ($tracksCompact)
+                        <div class="grid items-center px-4 py-1.5 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
+                             style="grid-template-columns: 20px 1.4fr 1fr 50px;">
+                            <span class="text-right pr-1">#</span>
+                            <span>Title</span>
+                            <span>Artist</span>
+                            <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+                        </div>
+                    @else
+                        <div class="grid items-center px-4 py-2 text-[11px] uppercase tracking-wider text-text-2 border-b border-white/10 sticky top-0 bg-surface z-10 pr-20"
+                             style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                            <span></span>
+                            <span class="text-right">#</span>
+                            <span>Title</span>
+                            <span>Album</span>
+                            <span></span>
+                            <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
+                        </div>
+                    @endif
                     <div class="overflow-y-auto scroll flex-1 py-1" x-data="{}">
                         @foreach ($this->tracks as $track)
-                            <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
-                                    draggable="true"
-                                    ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
-                                    class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
-                                    style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
-                                <span class="text-text-3 group-hover:text-white grid place-items-center">
-                                    <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
-                                </span>
-                                <span class="tabular-nums text-text-2 text-right"
-                                      x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'; } }">
-                                    <template x-if="playing">
-                                        <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
-                                    </template>
-                                    <template x-if="!playing">
-                                        <span>{{ $track->trackNumber }}</span>
-                                    </template>
-                                </span>
-                                <div class="min-w-0 flex items-center gap-3">
-                                    @if ($this->selectedAlbum->thumb)
-                                        <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
-                                             class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
-                                    @else
-                                        <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
-                                            <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                            @if ($tracksCompact)
+                                <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                        draggable="true"
+                                        ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                        class="row group w-full grid items-center px-4 py-[3px] rounded text-[13px] text-left hover:bg-white/[0.07] transition-colors"
+                                        style="grid-template-columns: 20px 1.4fr 1fr 50px;">
+                                    <span class="tabular-nums text-text-2 text-right pr-1"
+                                          x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'; } }">
+                                        <template x-if="playing">
+                                            <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                        </template>
+                                        <template x-if="!playing">
+                                            <span>{{ $track->trackNumber }}</span>
+                                        </template>
+                                    </span>
+                                    <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
+                                    <div class="text-text-2 group-hover:text-white truncate">{{ $track->artist }}</div>
+                                    <div class="text-text-2 tabular-nums text-right text-[12px]">{{ \App\Support\Duration::format($track->durationMs) }}</div>
+                                </button>
+                            @else
+                                <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                        draggable="true"
+                                        ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                        class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
+                                        style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
+                                    <span class="text-text-3 group-hover:text-white grid place-items-center">
+                                        <x-lucide-grip-vertical class="w-[14px] h-[14px]" />
+                                    </span>
+                                    <span class="tabular-nums text-text-2 text-right"
+                                          x-data="{ get playing() { return $store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'; } }">
+                                        <template x-if="playing">
+                                            <span class="eq" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                                        </template>
+                                        <template x-if="!playing">
+                                            <span>{{ $track->trackNumber }}</span>
+                                        </template>
+                                    </span>
+                                    <div class="min-w-0 flex items-center gap-3">
+                                        @if ($this->selectedAlbum->thumb)
+                                            <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                                                 class="rounded-sm flex-none bg-surface-2 object-cover" style="width: 36px; height: 36px;" loading="lazy">
+                                        @else
+                                            <div class="rounded-sm relative overflow-hidden flex-none bg-surface-2 grid place-items-center" style="width: 36px; height: 36px;">
+                                                <x-lucide-disc class="w-3.5 h-3.5 text-text-3" />
+                                            </div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
+                                            <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                                         </div>
-                                    @endif
-                                    <div class="min-w-0">
-                                        <div class="truncate font-medium" :class="($store.player?.currentId === '{{ $track->id }}' && $store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}') ? 'text-accent' : 'text-white'">{{ $track->title }}</div>
-                                        <div class="truncate text-[12px] text-text-2 group-hover:text-white">{{ $track->artist }}</div>
                                     </div>
-                                </div>
-                                <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
-                                <span class="grid place-items-center text-text-2 hover:text-white">
-                                    <x-lucide-heart class="w-3.5 h-3.5" />
-                                </span>
-                                <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
-                            </button>
+                                    <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
+                                    <span class="grid place-items-center text-text-2 hover:text-white">
+                                        <x-lucide-heart class="w-3.5 h-3.5" />
+                                    </span>
+                                    <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
+                                </button>
+                            @endif
                         @endforeach
                     </div>
                 </div>
