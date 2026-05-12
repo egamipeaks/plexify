@@ -14,6 +14,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public ?string $errorMessage = null;
 
+    public bool $headerCollapsed = false;
+
     protected PlexClient $plex;
 
     public function boot(PlexClient $plex): void
@@ -24,6 +26,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function mount(string $playlist): void
     {
         $this->playlist = $playlist;
+        $this->headerCollapsed = \App\Support\AppSetting::albumHeaderCollapsed();
+    }
+
+    public function updatedHeaderCollapsed(bool $value): void
+    {
+        \App\Support\AppSetting::setAlbumHeaderCollapsed($value);
     }
 
     public function playTrack(string $trackId): void
@@ -142,8 +150,42 @@ new #[Layout('components.layouts.app')] class extends Component {
 @else
     @php($meta = $this->playlistMeta)
     {{-- Gradient header --}}
-    <div class="px-2 pt-2 pb-2 flex-none">
-        <div class="relative overflow-hidden rounded-lg" x-data="{}" data-playlist-header style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+    <div class="px-2 pt-2 pb-2 flex-none" x-data="{ collapsed: @entangle('headerCollapsed') }" data-playlist-header>
+        {{-- Collapsed 56px row --}}
+        <div x-show="collapsed" x-cloak data-playlist-header-collapsed
+             class="relative flex items-center gap-3 h-14 px-4 rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+            <div class="w-10 h-10 rounded flex-none bg-surface-2 grid place-items-center overflow-hidden relative">
+                <x-lucide-list-music class="w-5 h-5 text-text-3" />
+                @if ($meta->thumb && $this->thumbFor($meta->thumb))
+                    <img src="{{ $this->thumbFor($meta->thumb) }}" alt="{{ $meta->title }}"
+                         onerror="this.remove()"
+                         class="absolute inset-0 w-full h-full object-cover">
+                @endif
+            </div>
+            <div class="min-w-0 flex-1">
+                <div class="truncate text-[14px] font-bold text-white">{{ $meta->title }}</div>
+                <div class="truncate text-[11px] text-text-2">{{ $this->tracks->count() }} songs, {{ \App\Support\Duration::format($this->tracks->sum('durationMs')) }}</div>
+            </div>
+            <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $this->playlist }}'">
+                <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+            </template>
+            <button type="button" wire:click="playAll" class="w-8 h-8 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black flex-none">
+                <x-lucide-play class="w-4 h-4" style="fill: currentColor;" />
+            </button>
+            <button type="button" wire:click="shuffle" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                <x-lucide-shuffle class="w-4 h-4" />
+            </button>
+            <button type="button" @click="collapsed = false" title="Expand" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                <x-lucide-chevron-down class="w-4 h-4" />
+            </button>
+        </div>
+
+        {{-- Expanded header --}}
+        <div x-show="!collapsed" class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+            <button type="button" @click="collapsed = true" title="Collapse"
+                    class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                <x-lucide-chevron-up class="w-4 h-4" />
+            </button>
             <div class="flex items-end gap-6 p-6">
                 <div class="rounded relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 180px; height: 180px;">
                     <x-lucide-list-music class="w-12 h-12 text-text-3" />

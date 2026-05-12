@@ -4,8 +4,12 @@ use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
 
 function samplePlaylist(): Playlist
 {
@@ -131,4 +135,23 @@ it('shows a not-found panel when the id is not a known playlist', function () {
 
     Livewire::test('pages::playlist-detail', ['playlist' => 'nope'])
         ->assertSee('Playlist not found');
+});
+
+it('renders the collapsed playlist header when the setting is on', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('headerCollapsed', true)
+        ->assertSeeHtml('data-playlist-header-collapsed');
+});
+
+it('persists the playlist header collapsed toggle', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->set('headerCollapsed', false);
+
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
 });

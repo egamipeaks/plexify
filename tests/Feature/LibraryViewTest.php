@@ -5,7 +5,11 @@ use App\Services\Plex\Dto\Artist;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
 
 it('lists artists from PlexClient on mount', function () {
     $this->mock(PlexClient::class, function ($mock) {
@@ -272,4 +276,45 @@ it('closes the album header when closeAlbum is called', function () {
         ->call('closeAlbum')
         ->assertSet('selectedAlbumId', null)
         ->assertDontSeeHtml('wire:click="closeAlbum"');
+});
+
+it('renders the collapsed album header when the setting is on', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: 'For Emma', artist: 'Bon Iver', year: 2007, thumb: null, trackCount: 1, durationMs: 0, artistId: '100'),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->assertSet('headerCollapsed', true)
+        ->assertSeeHtml('data-album-header-collapsed');
+});
+
+it('persists the album header collapsed toggle', function () {
+    AppSetting::setAlbumHeaderCollapsed(true);
+
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: 'For Emma', artist: 'Bon Iver', year: 2007, thumb: null, trackCount: 1, durationMs: 0, artistId: '100'),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->with('1001')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::withQueryParams(['artist' => '100', 'album' => '1001'])
+        ->test('pages::library')
+        ->set('headerCollapsed', false);
+
+    expect(AppSetting::albumHeaderCollapsed())->toBeFalse();
 });

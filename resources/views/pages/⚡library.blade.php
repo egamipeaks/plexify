@@ -20,9 +20,17 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public ?string $errorMessage = null;
 
+    public bool $headerCollapsed = false;
+
     public function mount(PlexClient $plex): void
     {
+        $this->headerCollapsed = \App\Support\AppSetting::albumHeaderCollapsed();
         $this->loadArtists($plex);
+    }
+
+    public function updatedHeaderCollapsed(bool $value): void
+    {
+        \App\Support\AppSetting::setAlbumHeaderCollapsed($value);
     }
 
     public function selectArtist(string $id): void
@@ -274,12 +282,51 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         {{-- Album header --}}
         @if ($this->selectedAlbum)
-            <div class="px-2 pb-2 flex-none">
-                <div class="relative overflow-hidden rounded-lg" x-data="{}" data-album-header style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
-                    <button type="button" wire:click="closeAlbum" title="Close album"
-                            class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+            <div class="px-2 pb-2 flex-none" x-data="{ collapsed: @entangle('headerCollapsed') }" data-album-header>
+                {{-- Collapsed 56px row --}}
+                <div x-show="collapsed" x-cloak data-album-header-collapsed
+                     class="relative flex items-center gap-3 h-14 px-4 rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    @if ($this->selectedAlbum->thumb)
+                        <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
+                             class="w-10 h-10 rounded flex-none bg-surface-2 object-cover">
+                    @else
+                        <div class="w-10 h-10 rounded flex-none bg-surface-2 grid place-items-center">
+                            <x-lucide-disc class="w-5 h-5 text-text-3" />
+                        </div>
+                    @endif
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate text-[14px] font-bold text-white">{{ $this->selectedAlbum->title }}</div>
+                        <div class="truncate text-[11px] text-text-2">{{ collect(['Album', $this->selectedAlbum->artist, $this->selectedAlbum->year])->filter()->implode(' · ') }}</div>
+                    </div>
+                    <template x-if="$store.player?.contextType === 'album' && $store.player?.contextId === '{{ $this->selectedAlbumId }}'">
+                        <span class="eq flex-none" :class="{ 'is-paused': !$store.player.isPlaying }"><span></span><span></span><span></span></span>
+                    </template>
+                    <button type="button" wire:click="playAlbum" class="w-8 h-8 rounded-full bg-accent hover:bg-accent-hover grid place-items-center text-black flex-none">
+                        <x-lucide-play class="w-4 h-4" style="fill: currentColor;" />
+                    </button>
+                    <button type="button" wire:click="shuffleAlbum" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                        <x-lucide-shuffle class="w-4 h-4" />
+                    </button>
+                    <button type="button" @click="collapsed = false" title="Expand" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
+                        <x-lucide-chevron-down class="w-4 h-4" />
+                    </button>
+                    <button type="button" wire:click="closeAlbum" title="Close album" class="w-8 h-8 rounded-full grid place-items-center text-text-2 hover:text-white flex-none">
                         <x-lucide-x class="w-4 h-4" />
                     </button>
+                </div>
+
+                {{-- Expanded header --}}
+                <div x-show="!collapsed" class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                    <div class="absolute top-3 right-3 z-10 flex items-center gap-1">
+                        <button type="button" @click="collapsed = true" title="Collapse"
+                                class="w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                            <x-lucide-chevron-up class="w-4 h-4" />
+                        </button>
+                        <button type="button" wire:click="closeAlbum" title="Close album"
+                                class="w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
+                            <x-lucide-x class="w-4 h-4" />
+                        </button>
+                    </div>
                     <div class="px-6 py-5 flex items-center gap-5">
                         @if ($this->selectedAlbum->thumb)
                             <img src="{{ $this->thumbFor($this->selectedAlbum->thumb) }}" alt="{{ $this->selectedAlbum->title }}"
