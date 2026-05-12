@@ -154,10 +154,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         {{-- Collapsed 56px row --}}
         <div x-show="collapsed" x-cloak data-playlist-header-collapsed
              class="relative flex items-center gap-3 h-14 px-4 rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+            @php($collapsedThumb = $this->thumbFor($meta->thumb))
             <div class="w-10 h-10 rounded flex-none bg-surface-2 grid place-items-center overflow-hidden relative">
                 <x-lucide-list-music class="w-5 h-5 text-text-3" />
-                @if ($meta->thumb && $this->thumbFor($meta->thumb))
-                    <img src="{{ $this->thumbFor($meta->thumb) }}" alt="{{ $meta->title }}"
+                @if ($collapsedThumb)
+                    <img src="{{ $collapsedThumb }}" alt="{{ $meta->title }}"
                          onerror="this.remove()"
                          class="absolute inset-0 w-full h-full object-cover">
                 @endif
@@ -181,16 +182,17 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         {{-- Expanded header --}}
-        <div x-show="!collapsed" class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+        <div x-show="!collapsed" x-cloak class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
             <button type="button" @click="collapsed = true" title="Collapse"
                     class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
                 <x-lucide-chevron-up class="w-4 h-4" />
             </button>
             <div class="flex items-end gap-6 p-6">
+                @php($expandedThumb = $this->thumbFor($meta->thumb))
                 <div class="rounded relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 180px; height: 180px;">
                     <x-lucide-list-music class="w-12 h-12 text-text-3" />
-                    @if ($meta->thumb && $this->thumbFor($meta->thumb))
-                        <img src="{{ $this->thumbFor($meta->thumb) }}" alt="{{ $meta->title }}"
+                    @if ($expandedThumb)
+                        <img src="{{ $expandedThumb }}" alt="{{ $meta->title }}"
                              onerror="this.remove()"
                              class="absolute inset-0 w-full h-full object-cover">
                     @endif

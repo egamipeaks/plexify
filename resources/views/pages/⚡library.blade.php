@@ -316,7 +316,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
 
                 {{-- Expanded header --}}
-                <div x-show="!collapsed" class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                <div x-show="!collapsed" x-cloak class="relative overflow-hidden rounded-lg" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
                     <div class="absolute top-3 right-3 z-10 flex items-center gap-1">
                         <button type="button" @click="collapsed = true" title="Collapse"
                                 class="w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
