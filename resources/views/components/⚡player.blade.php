@@ -160,9 +160,14 @@ new class extends Component {
                 if (!Alpine.store('player')) {
                     Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
                 }
+
+                // Guard against double-registration (Livewire re-runs the script block on component updates).
+                const firstInit = !window.__plexifyPlayerInited;
+                window.__plexifyPlayerInited = true;
+
                 // Livewire $dispatch surfaces as a CustomEvent on window with the event name as-is;
                 // the payload is in event.detail.
-                window.addEventListener('queue-load', (e) => {
+                if (firstInit) window.addEventListener('queue-load', (e) => {
                     this.consecutiveErrors = 0;
                     this.originalQueue = e.detail.queue ?? [];
                     const startIndex = e.detail.index ?? 0;
@@ -180,6 +185,38 @@ new class extends Component {
                     }
                 });
                 this.$refs.audio.volume = this.volume;
+
+                if (firstInit) {
+                    const isTypingTarget = (el) => {
+                        if (!el) return false;
+                        const tag = el.tagName;
+                        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+                    };
+                    window.addEventListener('keydown', (e) => {
+                        // Focus search: Cmd/Ctrl+K, or "/" when not typing.
+                        if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            document.getElementById('topbar-search')?.focus();
+                            return;
+                        }
+                        if (e.key === '/' && !isTypingTarget(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                            e.preventDefault();
+                            document.getElementById('topbar-search')?.focus();
+                            return;
+                        }
+                        if (isTypingTarget(e.target)) return;
+                        if (e.metaKey || e.ctrlKey || e.altKey) return;
+                        if (e.key === ' ') {
+                            const tag = e.target?.tagName;
+                            if (tag === 'BUTTON' || (e.target && e.target.getAttribute && e.target.getAttribute('role') === 'button')) return;
+                            e.preventDefault();
+                            this.togglePlay();
+                            return;
+                        }
+                        if (e.key === 'ArrowRight') { this.next(); return; }
+                        if (e.key === 'ArrowLeft') { this.previous(); return; }
+                    });
+                }
             },
 
             loadAndPlay(i) {

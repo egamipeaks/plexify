@@ -30,6 +30,7 @@ new class extends Component {
         <div class="flex items-center gap-3 bg-surface-1 hover:bg-surface-2 transition-colors rounded-full h-11 px-4 ring-1 ring-transparent focus-within:ring-white/30">
             <x-lucide-search class="w-[18px] h-[18px] text-white" />
             <input type="text"
+                   id="topbar-search"
                    wire:model.live.debounce.300ms="query"
                    placeholder="What do you want to play?"
                    class="bg-transparent outline-none text-[14px] flex-1 placeholder:text-text-2">
