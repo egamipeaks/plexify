@@ -143,7 +143,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     @php($meta = $this->playlistMeta)
     {{-- Gradient header --}}
     <div class="px-2 pt-2 pb-2 flex-none">
-        <div class="relative overflow-hidden rounded-lg" x-data="{}" style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
+        <div class="relative overflow-hidden rounded-lg" x-data="{}" data-playlist-header style="background: linear-gradient(180deg, #4a3b6b 0%, #2a2438 60%, var(--color-surface) 100%);">
             <div class="flex items-end gap-6 p-6">
                 <div class="rounded relative overflow-hidden flex-none shadow-2xl bg-surface-2 grid place-items-center" style="width: 180px; height: 180px;">
                     <x-lucide-list-music class="w-12 h-12 text-text-3" />

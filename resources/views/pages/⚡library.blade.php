@@ -275,7 +275,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         {{-- Album header --}}
         @if ($this->selectedAlbum)
             <div class="px-2 pb-2 flex-none">
-                <div class="relative overflow-hidden rounded-lg" x-data="{}" style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
+                <div class="relative overflow-hidden rounded-lg" x-data="{}" data-album-header style="background: linear-gradient(180deg, rgba(42, 42, 42, 0.55) 0%, var(--color-surface) 100%);">
                     <button type="button" wire:click="closeAlbum" title="Close album"
                             class="absolute top-3 right-3 z-10 w-8 h-8 grid place-items-center rounded-full text-text-2 hover:text-white hover:bg-black/30 transition-colors">
                         <x-lucide-x class="w-4 h-4" />

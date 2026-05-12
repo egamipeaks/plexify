@@ -97,6 +97,44 @@ it('scrobble toggle persists the off value to the database', function () {
     expect($offActive)->toBeTrue('Expected "Off" button to remain active after navigating away and back.');
 });
 
+it('sets data-density on the body after selecting Compact on settings', function () {
+    // Start from a known state: comfortable.
+    Setting::set('density', 'comfortable');
+
+    $page = visit('/settings');
+
+    // Click the "Compact" density button via script to avoid strict-locator issues.
+    $page->script(<<<'JS'
+        Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Compact').click()
+    JS);
+
+    // Wait for the Livewire round-trip to complete.
+    $ready = (bool) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 6000;
+            while (Date.now() < deadline) {
+                const section = Array.from(document.querySelectorAll('section')).find(s => s.querySelector('h2') && s.querySelector('h2').textContent.trim() === 'Display');
+                if (section) {
+                    const active = section.querySelector('button.bg-surface-3');
+                    if (active && active.textContent.trim() === 'Compact') return true;
+                }
+                await sleep(100);
+            }
+            return false;
+        })()
+    JS);
+
+    expect($ready)->toBeTrue('Livewire round-trip did not complete within 6 seconds.');
+
+    // Navigate to the library and assert data-density on the body.
+    $libraryPage = visit('/');
+
+    $density = $libraryPage->script("document.body.getAttribute('data-density')");
+
+    expect($density)->toBe('compact');
+});
+
 it('resync metadata button shows a green confirmation message', function () {
     $page = visit('/settings');
 
