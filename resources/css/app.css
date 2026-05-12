@@ -55,3 +55,21 @@ html, body {
 .eq > span:nth-child(3) { animation-duration: 0.7s; animation-delay: -0.2s; }
 
 .eq.is-paused > span { animation-play-state: paused; }
+
+@layer base {
+    button,
+    [role="button"],
+    summary,
+    label[for],
+    select,
+    [wire\:click], [wire\:click\.prevent], [wire\:click\.stop],
+    [x-on\:click],
+    [\@click], [\@click\.prevent], [\@click\.stop] {
+        cursor: pointer;
+    }
+
+    :disabled,
+    [aria-disabled="true"] {
+        cursor: default;
+    }
+}
