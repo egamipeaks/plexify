@@ -79,4 +79,19 @@ it('toggles mute when the speaker button is clicked', function () use ($waitForP
 
     $muted = (string) $page->script("document.querySelector('[data-region=\"player\"] audio').muted ? '1' : '0'");
     expect($muted)->toBe('0');
+
+    $iconState = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const region = document.querySelector('[data-region="player"]');
+            const shown = el => el && getComputedStyle(el).display !== 'none';
+            const deadline = Date.now() + 2000;
+            while (Date.now() < deadline) {
+                if (shown(region.querySelector('[data-icon="unmuted"]')) && !shown(region.querySelector('[data-icon="muted"]'))) return '1';
+                await sleep(50);
+            }
+            return '0';
+        })()
+    JS);
+    expect($iconState)->toBe('1');
 });
