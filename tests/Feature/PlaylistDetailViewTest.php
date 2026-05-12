@@ -64,6 +64,20 @@ it('renders one row per track with the album column', function () {
         ->assertSeeHtml('plextune/track');
 });
 
+it('links the artist and album to the library from each comfortable playlist track row', function () {
+    mockPlexForPlaylist();
+
+    $artistUrl = route('library', ['artist' => '100']);
+    $albumUrl1 = route('library', ['artist' => '100', 'album' => '5001']);
+    $albumUrl2 = route('library', ['artist' => '100', 'album' => '5002']);
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', false)
+        ->assertSeeHtml("Livewire.navigate('".e($artistUrl)."')")
+        ->assertSeeHtml("Livewire.navigate('".e($albumUrl1)."')")
+        ->assertSeeHtml("Livewire.navigate('".e($albumUrl2)."')");
+});
+
 it('dispatches play-track for a clicked row', function () {
     mockPlexForPlaylist();
 
@@ -165,6 +179,16 @@ it('renders the compact playlist tracklist when tracksCompact is on', function (
         ->assertSeeHtml('grid-template-columns: 20px 1.4fr 1fr 1fr 50px');
 });
 
+it('links the artist and album to the library in the compact playlist tracklist', function () {
+    AppSetting::setPlaylistTracksCompact(true);
+    mockPlexForPlaylist();
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSet('tracksCompact', true)
+        ->assertSeeHtml("Livewire.navigate('".e(route('library', ['artist' => '100']))."')")
+        ->assertSeeHtml("Livewire.navigate('".e(route('library', ['artist' => '100', 'album' => '5001']))."')");
+});
+
 it('persists the playlist tracklist compact toggle', function () {
     mockPlexForPlaylist();
 
@@ -191,4 +215,21 @@ it('shows an empty-playlist state for a playlist with no tracks', function () {
 
     Livewire::test('pages::playlist-detail', ['playlist' => '9999'])
         ->assertSee('This playlist is empty');
+});
+
+it('renders the artist and album as plain text when a playlist track has no album/artist ids', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(collect([
+            new Track(id: '8003', title: 'Local Recording', artist: 'Field Tape', album: 'Untitled', trackNumber: 1, durationMs: 120000, partId: 770003, container: 'mp3', thumb: null, albumId: null, artistId: null),
+        ]));
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->assertSee('Local Recording')
+        ->assertSee('Field Tape')
+        ->assertSee('Untitled')
+        ->assertDontSee('?artist=');
 });
