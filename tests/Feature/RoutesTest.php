@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\PlexClient;
 use App\Support\AppSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,9 +14,31 @@ it('renders the library route', function () {
 });
 
 it('renders the search route', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('playlists')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+        $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('scrobbleUrl')->andReturn('');
+        $mock->shouldReceive('searchAll')->andReturn(SearchResults::empty());
+    });
+
     $this->get('/search')
         ->assertOk()
-        ->assertSee('Search');
+        ->assertSee('Search your library');
+});
+
+it('renders the search route with a query', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('playlists')->andReturn(collect());
+        $mock->shouldReceive('thumbUrl')->andReturnNull();
+        $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('scrobbleUrl')->andReturn('');
+        $mock->shouldReceive('searchAll')->with('foo')->andReturn(SearchResults::empty());
+    });
+
+    $this->get('/search?q=foo')
+        ->assertOk()
+        ->assertSee('data-region="search-overlay"', false);
 });
 
 it('renders the playlist detail route', function () {

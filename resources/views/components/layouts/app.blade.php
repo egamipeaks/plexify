@@ -27,8 +27,9 @@
             </div>
             <main class="flex-1 min-w-0 bg-surface rounded-lg flex flex-col overflow-hidden">
                 <livewire:topbar />
-                <div class="flex-1 min-h-0 overflow-hidden">
+                <div class="flex-1 min-h-0 overflow-hidden relative">
                     {{ $slot }}
+                    <livewire:search />
                 </div>
             </main>
         </div>
