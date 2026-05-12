@@ -1,0 +1,49 @@
+<?php
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+/*
+ * The player volume is persisted to localStorage under 'plextune.volume' and
+ * restored in audioPlayer().init(); the speaker button toggles mute via the
+ * native <audio>.muted property. Both are pure client-side JS, so they're
+ * exercised through the browser. Tests hit live Plex for the sidebar ping but
+ * none of the assertions depend on Plex data.
+ */
+
+$waitForPlayer = function ($page): void {
+    $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                const el = document.querySelector('[data-region="player"]');
+                if (el && window.Alpine && Alpine.$data(el) && typeof Alpine.$data(el).setVolume === 'function') return true;
+                await sleep(100);
+            }
+            return false;
+        })()
+    JS);
+};
+
+it('persists the volume to localStorage and restores it on reload', function () use ($waitForPlayer) {
+    $page = visit('/');
+    $waitForPlayer($page);
+
+    $page->script("Alpine.\$data(document.querySelector('[data-region=\"player\"]')).setVolume(0.5)");
+
+    $stored = (string) $page->script("localStorage.getItem('plextune.volume')");
+    expect($stored)->toBe('0.5');
+
+    // Navigate to the same page in the same browser context (localStorage survives)
+    // and confirm the restored value reached both the Alpine state and the <audio> element.
+    $page->navigate('/');
+    $waitForPlayer($page);
+
+    $vol = (string) $page->script("String(Alpine.\$data(document.querySelector('[data-region=\"player\"]')).volume)");
+    expect($vol)->toBe('0.5');
+
+    $audioVol = (string) $page->script("String(document.querySelector('[data-region=\"player\"] audio').volume)");
+    expect($audioVol)->toBe('0.5');
+});

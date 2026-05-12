@@ -140,6 +140,7 @@ new class extends Component {
             currentTime: 0,
             duration: 0,
             volume: 1,
+            muted: false,
 
             queue: [],         // playback order: [{ id, url, title, artist, artwork, albumId, artistId }]
             originalQueue: [],  // the unshuffled order, so toggling shuffle off restores it
@@ -184,6 +185,12 @@ new class extends Component {
                         this.loadAndPlay(startIndex);
                     }
                 });
+                let storedVolume = null;
+                try { storedVolume = localStorage.getItem('plextune.volume'); } catch (e) {}
+                const parsedVolume = parseFloat(storedVolume);
+                if (Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1) {
+                    this.volume = parsedVolume;
+                }
                 this.$refs.audio.volume = this.volume;
 
                 if (firstInit) {
@@ -378,7 +385,10 @@ new class extends Component {
 
             setVolume(value) {
                 this.volume = parseFloat(value);
+                this.muted = false;
+                this.$refs.audio.muted = false;
                 this.$refs.audio.volume = this.volume;
+                try { localStorage.setItem('plextune.volume', this.volume); } catch (e) {}
             },
 
             formatTime(seconds) {
