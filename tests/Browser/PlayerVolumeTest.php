@@ -57,13 +57,20 @@ it('toggles mute when the speaker button is clicked', function () use ($waitForP
     $muted = (string) $page->script("document.querySelector('[data-region=\"player\"] audio').muted ? '1' : '0'");
     expect($muted)->toBe('1');
 
+    // x-show is applied via an Alpine reactive effect that flushes on a
+    // microtask, so poll briefly rather than reading the display state in the
+    // same tick as the click.
     $iconState = (string) $page->script(<<<'JS'
-        (() => {
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
             const region = document.querySelector('[data-region="player"]');
-            const mutedIcon = region.querySelector('[data-icon="muted"]');
-            const unmutedIcon = region.querySelector('[data-icon="unmuted"]');
             const shown = el => el && getComputedStyle(el).display !== 'none';
-            return (shown(mutedIcon) && !shown(unmutedIcon)) ? '1' : '0';
+            const deadline = Date.now() + 2000;
+            while (Date.now() < deadline) {
+                if (shown(region.querySelector('[data-icon="muted"]')) && !shown(region.querySelector('[data-icon="unmuted"]'))) return '1';
+                await sleep(50);
+            }
+            return '0';
         })()
     JS);
     expect($iconState)->toBe('1');
