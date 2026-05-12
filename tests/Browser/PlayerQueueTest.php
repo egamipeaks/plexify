@@ -92,6 +92,10 @@ it('builds a queue from the album tracklist and plays the clicked track', functi
 
     $page->assertVisible('[data-region=now-playing-title]');
     expect(trim((string) $page->text('[data-region=now-playing-title]')))->toBe($decoded['title']);
+
+    // Media Session: after a track starts playing, metadata should be set (title is a string).
+    $metaTitleType = (string) $page->script("typeof (navigator.mediaSession.metadata?.title)");
+    expect($metaTitleType)->toBe('string', 'MediaMetadata should be set on the session after a track loads');
 });
 
 it('auto-advances to the next track when next() is called and stops at the end with repeat off', function () {

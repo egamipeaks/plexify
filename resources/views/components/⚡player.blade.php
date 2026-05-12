@@ -123,8 +123,8 @@ new class extends Component {
     <audio x-ref="audio"
            @timeupdate="currentTime = $event.target.currentTime"
            @loadedmetadata="duration = $event.target.duration"
-           @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true"
-           @pause="isPlaying = false; $store.player.isPlaying = false"
+           @play="isPlaying = true; consecutiveErrors = 0; $store.player.isPlaying = true; if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'"
+           @pause="isPlaying = false; $store.player.isPlaying = false; if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'"
            @ended="scrobbleCurrent(); next()"
            x-on:error="onTrackError()"></audio>
 </div>
@@ -187,6 +187,15 @@ new class extends Component {
                 this.$refs.audio.volume = this.volume;
 
                 if (firstInit) {
+                    if ('mediaSession' in navigator) {
+                        navigator.mediaSession.setActionHandler('play', () => { if (this.$refs.audio.paused) this.$refs.audio.play().catch(() => {}); });
+                        navigator.mediaSession.setActionHandler('pause', () => this.$refs.audio.pause());
+                        navigator.mediaSession.setActionHandler('previoustrack', () => this.previous());
+                        navigator.mediaSession.setActionHandler('nexttrack', () => this.next());
+                    }
+                }
+
+                if (firstInit) {
                     const isTypingTarget = (el) => {
                         if (!el) return false;
                         const tag = el.tagName;
@@ -227,6 +236,14 @@ new class extends Component {
                 this.currentTime = 0;
                 this.duration = 0;
                 Alpine.store('player').currentId = this.queue[i].id;
+                if ('mediaSession' in navigator) {
+                    const t = this.queue[i];
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: t.title || '',
+                        artist: t.artist || '',
+                        artwork: t.artwork ? [{ src: t.artwork }] : [],
+                    });
+                }
                 this.$refs.audio.src = this.queue[i].url;
                 this.$refs.audio.play().catch(() => {});
             },
