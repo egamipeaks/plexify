@@ -261,6 +261,29 @@ new class extends Component {
         }
     }
 
+    public function moveFolder(int $draggedFolderId, int $targetFolderId, string $position): void
+    {
+        if ($draggedFolderId === $targetFolderId) {
+            return;
+        }
+
+        $current = Folder::orderBy('position')->orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        if (! in_array((string) $draggedFolderId, $current, true) || ! in_array((string) $targetFolderId, $current, true)) {
+            return;
+        }
+
+        $newOrder = $this->insertRelative($current, (string) $draggedFolderId, (string) $targetFolderId, $position);
+        if ($newOrder === $current) {
+            return;
+        }
+
+        foreach ($newOrder as $i => $folderId) {
+            Folder::whereKey((int) $folderId)->update(['position' => $i]);
+        }
+
+        unset($this->folders);
+    }
+
     public function addTrackToPlaylist(string $playlistId, string $trackId): bool
     {
         try {

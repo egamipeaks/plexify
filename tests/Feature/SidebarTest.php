@@ -358,3 +358,35 @@ it('movePlaylist moving a playlist out of a folder into root materializes root a
         ->and(FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->pluck('plex_playlist_id')->all())->toBe(['p2'])
         ->and(FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->pluck('position')->all())->toBe([0]);
 });
+
+it('moveFolder reorders folders and renumbers them densely', function () {
+    mockSidebarPlex();
+    $f1 = Folder::factory()->create(['name' => 'A', 'position' => 0]);
+    $f2 = Folder::factory()->create(['name' => 'B', 'position' => 1]);
+    $f3 = Folder::factory()->create(['name' => 'C', 'position' => 2]);
+
+    Livewire::test('sidebar')->call('moveFolder', $f3->id, $f1->id, 'before');
+
+    expect(Folder::orderBy('position')->pluck('name')->all())->toBe(['C', 'A', 'B'])
+        ->and(Folder::orderBy('position')->pluck('position')->all())->toBe([0, 1, 2]);
+});
+
+it('moveFolder is a no-op when a folder is dropped on itself', function () {
+    mockSidebarPlex();
+    $f1 = Folder::factory()->create(['name' => 'A', 'position' => 0]);
+    $f2 = Folder::factory()->create(['name' => 'B', 'position' => 1]);
+
+    Livewire::test('sidebar')->call('moveFolder', $f1->id, $f1->id, 'after');
+
+    expect(Folder::orderBy('position')->pluck('name')->all())->toBe(['A', 'B']);
+});
+
+it('moveFolder is a no-op when the resulting order is unchanged', function () {
+    mockSidebarPlex();
+    $f1 = Folder::factory()->create(['name' => 'A', 'position' => 0]);
+    $f2 = Folder::factory()->create(['name' => 'B', 'position' => 1]);
+
+    Livewire::test('sidebar')->call('moveFolder', $f1->id, $f2->id, 'before');
+
+    expect(Folder::orderBy('position')->pluck('name')->all())->toBe(['A', 'B']);
+});
