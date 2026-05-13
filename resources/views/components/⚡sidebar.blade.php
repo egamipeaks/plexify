@@ -149,11 +149,9 @@ new class extends Component {
             return;
         }
 
-        $hadRow = FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->exists();
-        // sourceFolderId: int = it's in that folder, null = it's a root row, 'unplaced' = no row at all
-        $sourceFolderId = $hadRow
-            ? FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->value('folder_id')
-            : 'unplaced';
+        $sourceRow = FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->first(['folder_id']);
+        // int = it's in that folder, null = it's a root row, 'unplaced' = no row at all
+        $sourceFolderId = $sourceRow === null ? 'unplaced' : $sourceRow->folder_id;
 
         if ($targetFolderId === null) {
             $this->placeInRoot($draggedPlaylistId, $targetPlaylistId, $position, $allPlexIds, $sourceFolderId);
@@ -225,15 +223,16 @@ new class extends Component {
             ? FolderPlaylist::whereNull('folder_id')
             : FolderPlaylist::where('folder_id', $folderId);
 
-        $query->orderBy('position')->orderBy('id')->get()
-            ->values()
-            ->each(fn ($row, $i) => $row->position === $i ? null : $row->update(['position' => $i]));
+        foreach ($query->orderBy('position')->orderBy('id')->get()->values() as $i => $row) {
+            if ($row->position !== $i) {
+                $row->update(['position' => $i]);
+            }
+        }
     }
 
-    /** Implemented in a later task. @param int|string|null $sourceFolderId */
     protected function placeInFolder(string $draggedPlaylistId, int $targetFolderId, ?string $targetPlaylistId, string $position, int|string|null $sourceFolderId): void
     {
-        //
+        // TODO(next task): place the playlist inside a folder at the target position.
     }
 
     public function addTrackToPlaylist(string $playlistId, string $trackId): bool
