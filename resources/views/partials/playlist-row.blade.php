@@ -1,7 +1,10 @@
 {{--
     One playlist row for the sidebar (used both inside folders and at root).
-    Expects: $p (App\Services\Plex\Dto\Playlist), $renaming (bool), $thumbUrl (?string).
-    Renders inside the playlists card's x-data scope (uses dropTarget / flash / draggingTrack / openMenu).
+    Expects: $p (App\Services\Plex\Dto\Playlist), $folderId (?int — id of the folder this row is
+    inside, or null for root rows), $renaming (bool), $thumbUrl (?string).
+    Renders inside the playlists card's x-data scope (uses dropTarget / flash / draggingTrack /
+    draggingPlaylist / overId / overPos / openMenu). The row is both a playlist drag source and a
+    drop target for playlist reordering AND for adding a track/album to this playlist.
 --}}
 @php($isActive = request()->routeIs('playlist') && (string) request()->route('playlist') === $p->id)
 <div wire:key="sidebar-pl-{{ $p->id }}"
@@ -22,14 +25,20 @@
                    class="flex-1 min-w-0 bg-white/10 ring-1 ring-white/30 rounded px-1.5 py-0.5 text-[13px] font-medium text-white outline-none">
         </div>
     @else
+        @php($folderIdJs = $folderId === null ? 'null' : $folderId)
         <a href="{{ route('playlist', $p->id) }}" draggable="true"
            @click.prevent="Livewire.navigate('{{ route('playlist', $p->id) }}')"
-           @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/playlist', '{{ $p->id }}')"
+           @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/playlist', '{{ $p->id }}'); draggingPlaylist = true; draggedPlaylistId = '{{ $p->id }}'"
+           @dragend="draggingPlaylist = false; draggedPlaylistId = null; overId = null; dropTarget = null"
            @contextmenu="openMenu($event, 'playlist', '{{ $p->id }}')"
-           @dragover.prevent="if (draggingTrack) dropTarget = 'pl-{{ $p->id }}'"
-           @dragleave="dropTarget = null"
-           @drop="dropTrackOn('pl-{{ $p->id }}', '{{ $p->id }}', $event)"
-           :class="dropTarget === 'pl-{{ $p->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : ''"
+           @dragover.prevent="if (draggingPlaylist) rowDragOver($event, '{{ $p->id }}'); else if (draggingTrack) dropTarget = 'pl-{{ $p->id }}'"
+           @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) { dropTarget = null; if (overId === '{{ $p->id }}') overId = null; }"
+           @drop="onRowDrop($event, 'pl-{{ $p->id }}', '{{ $p->id }}', {{ $folderIdJs }})"
+           :class="{
+               'bg-accent/15 ring-1 ring-accent/40': dropTarget === 'pl-{{ $p->id }}',
+               'drop-before': overId === '{{ $p->id }}' && overPos === 'before',
+               'drop-after': overId === '{{ $p->id }}' && overPos === 'after',
+           }"
            @class([
                'w-full flex items-center gap-3 px-2 py-1.5 rounded-md transition-colors',
                'text-white bg-surface-2' => $isActive,

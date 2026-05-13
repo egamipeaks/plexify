@@ -428,12 +428,22 @@ new class extends Component {
     <div class="bg-surface rounded-lg flex-1 min-h-0 flex flex-col"
          x-data="{
             draggingTrack: false,
+            draggingPlaylist: false, draggedPlaylistId: null,
+            draggingFolder: false, draggedFolderId: null,
             menu: null,
             dropTarget: null,
+            overId: null, overPos: null,
             flash: {},
             init() {
-                this._ds = (e) => { try { if ([...(e.dataTransfer?.types ?? [])].includes('plextune/track')) this.draggingTrack = true; } catch (_) {} };
-                this._de = () => { this.draggingTrack = false; this.dropTarget = null; };
+                this._ds = (e) => {
+                    try {
+                        const types = [...(e.dataTransfer?.types ?? [])];
+                        if (types.includes('plextune/track')) this.draggingTrack = true;
+                        if (types.includes('plextune/playlist')) this.draggingPlaylist = true;
+                        if (types.includes('plextune/folder')) this.draggingFolder = true;
+                    } catch (_) {}
+                };
+                this._de = () => { this.draggingTrack = false; this.draggingPlaylist = false; this.draggingFolder = false; this.draggedPlaylistId = null; this.draggedFolderId = null; this.dropTarget = null; this.overId = null; };
                 window.addEventListener('dragstart', this._ds);
                 window.addEventListener('dragend', this._de);
             },
@@ -443,29 +453,61 @@ new class extends Component {
             },
             openMenu(e, kind, id) { e.preventDefault(); e.stopPropagation(); this.menu = { x: e.clientX, y: e.clientY, kind, id }; },
             flashRow(key, ok) { this.flash[key] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[key] = null; }, 700); },
-            async dropTrackOn(key, playlistId, e) {
-                e.preventDefault(); this.dropTarget = null;
+            rowDragOver(e, id) {
+                if (!this.draggingPlaylist || id === this.draggedPlaylistId) { this.overId = null; return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                this.overPos = (e.clientY - r.top) < r.height / 2 ? 'before' : 'after';
+                this.overId = id;
+            },
+            folderDragOver(e, id) {
+                if (!this.draggingFolder || id === this.draggedFolderId) { this.overId = null; return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                this.overPos = (e.clientY - r.top) < r.height / 2 ? 'before' : 'after';
+                this.overId = id;
+            },
+            onRowDrop(e, key, playlistId, folderId) {
+                e.preventDefault();
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                if (movedPl) {
+                    const dragged = this.draggedPlaylistId || movedPl, pos = this.overPos;
+                    this.overId = null; this.draggedPlaylistId = null; this.draggingPlaylist = false; this.dropTarget = null;
+                    if (!dragged || !pos || dragged === playlistId) return;
+                    $wire.movePlaylist(dragged, folderId, playlistId, pos);
+                    return;
+                }
+                this.dropTarget = null;
                 const trackId = e.dataTransfer.getData('plextune/track');
                 const albumId = e.dataTransfer.getData('plextune/album');
                 if (!trackId && !albumId) return;
-                try {
-                    const ok = trackId
-                        ? await $wire.addTrackToPlaylist(playlistId, trackId)
-                        : await $wire.addAlbumToPlaylist(playlistId, albumId);
-                    this.flashRow(key, ok);
-                } catch (_) { this.flashRow(key, false); }
+                (async () => {
+                    try {
+                        const ok = trackId ? await $wire.addTrackToPlaylist(playlistId, trackId) : await $wire.addAlbumToPlaylist(playlistId, albumId);
+                        this.flashRow(key, ok);
+                    } catch (_) { this.flashRow(key, false); }
+                })();
             },
-            async dropTrackOnNew(e) {
-                e.preventDefault(); this.dropTarget = null;
-                const trackId = e.dataTransfer.getData('plextune/track');
-                if (!trackId) return;
-                try { const ok = await $wire.createPlaylistFromTrack(trackId); this.flashRow('__new', ok); }
-                catch (_) { this.flashRow('__new', false); }
+            onFolderHeaderDrop(e, folderId) {
+                e.preventDefault();
+                const movedFolder = e.dataTransfer.getData('plextune/folder');
+                if (movedFolder) {
+                    const dragged = this.draggedFolderId || parseInt(movedFolder, 10), pos = this.overPos;
+                    this.overId = null; this.draggedFolderId = null; this.draggingFolder = false; this.dropTarget = null;
+                    if (!dragged || !pos || dragged === folderId) return;
+                    $wire.moveFolder(dragged, folderId, pos);
+                    return;
+                }
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                this.dropTarget = null;
+                if (movedPl) $wire.movePlaylist(this.draggedPlaylistId || movedPl, folderId, null, 'before');
             },
-            dropPlaylistOn(folderId, e) {
+            dropTrackOnNew(e) { e.preventDefault(); this.dropTarget = null; const trackId = e.dataTransfer.getData('plextune/track'); if (!trackId) return; (async () => { try { const ok = await $wire.createPlaylistFromTrack(trackId); this.flashRow('__new', ok); } catch (_) { this.flashRow('__new', false); } })(); },
+            dropOnOtherHeader(e, lastRootId) {
                 e.preventDefault(); this.dropTarget = null;
-                const playlistId = e.dataTransfer.getData('plextune/playlist');
-                if (playlistId) $wire.movePlaylistToFolder(playlistId, folderId);
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                if (!movedPl) return;
+                const dragged = this.draggedPlaylistId || movedPl;
+                if (lastRootId && dragged !== lastRootId) $wire.movePlaylist(dragged, null, lastRootId, 'after');
+                else if (!lastRootId) $wire.movePlaylist(dragged, null, null, 'before');
             },
          }"
          @keydown.escape.window="menu = null">
@@ -528,9 +570,9 @@ new class extends Component {
                     <div wire:key="folder-{{ $folder->id }}" class="flex flex-col">
                         <div wire:click="toggleFolder({{ $folder->id }})"
                              @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
-                             @dragover.prevent="dropTarget = 'folder-{{ $folder->id }}'"
-                             @dragleave="dropTarget = null"
-                             @drop="dropPlaylistOn({{ $folder->id }}, $event)"
+                             @dragover.prevent="if (draggingPlaylist) dropTarget = 'folder-{{ $folder->id }}'"
+                             @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) dropTarget = null"
+                             @drop="onFolderHeaderDrop($event, {{ $folder->id }})"
                              :class="dropTarget === 'folder-{{ $folder->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : 'hover:bg-surface-2'"
                              class="group w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer">
                             <x-lucide-chevron-right @class(['w-3 h-3 flex-none text-text-2 transition-transform', 'rotate-90' => $bodyOpen]) />
@@ -553,7 +595,7 @@ new class extends Component {
                         @if ($bodyOpen)
                             <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5">
                                 @forelse ($filter === '' ? $items : $visibleItems as $p)
-                                    @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                                    @include('partials.playlist-row', ['p' => $p, 'folderId' => $folder->id, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
                                 @empty
                                     <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
                                 @endforelse
@@ -565,16 +607,16 @@ new class extends Component {
 
             {{-- "Other" header (only when folders exist and there are unfiled playlists visible) --}}
             @if ($this->folders->isNotEmpty() && $visibleRoot->isNotEmpty())
-                <div @dragover.prevent="dropTarget = '__root'"
-                     @dragleave="dropTarget = null"
-                     @drop="dropPlaylistOn(null, $event)"
+                <div @dragover.prevent="if (draggingPlaylist) dropTarget = '__root'"
+                     @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) dropTarget = null"
+                     @drop="dropOnOtherHeader($event, '{{ $visibleRoot->last()->id }}')"
                      :class="dropTarget === '__root' ? 'bg-accent/10 ring-1 ring-accent/30 rounded' : ''"
                      class="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-text-3 font-bold">Other</div>
             @endif
 
             {{-- Root playlists --}}
             @forelse ($visibleRoot as $p)
-                @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                @include('partials.playlist-row', ['p' => $p, 'folderId' => null, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
             @empty
                 @if ($this->folders->isEmpty() && $allPlaylists->isEmpty())
                     <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
