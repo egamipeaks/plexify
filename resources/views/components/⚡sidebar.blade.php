@@ -569,12 +569,19 @@ new class extends Component {
                 @endphp
                 @if ($filter === '' || $visibleItems->isNotEmpty())
                     <div wire:key="folder-{{ $folder->id }}" class="flex flex-col">
-                        <div wire:click="toggleFolder({{ $folder->id }})"
+                        <div wire:click="toggleFolder({{ $folder->id }})" draggable="true"
+                             @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/folder', '{{ $folder->id }}'); draggingFolder = true; draggedFolderId = {{ $folder->id }}"
+                             @dragend="draggingFolder = false; draggedFolderId = null; overId = null; dropTarget = null"
                              @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
-                             @dragover.prevent="if (draggingPlaylist) dropTarget = 'folder-{{ $folder->id }}'"
-                             @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) dropTarget = null"
+                             @dragover.prevent="if (draggingFolder) folderDragOver($event, {{ $folder->id }}); else if (draggingPlaylist) dropTarget = 'folder-{{ $folder->id }}'"
+                             @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) { dropTarget = null; if (overId === {{ $folder->id }}) overId = null; }"
                              @drop="onFolderHeaderDrop($event, {{ $folder->id }})"
-                             :class="dropTarget === 'folder-{{ $folder->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : 'hover:bg-surface-2'"
+                             :class="{
+                                 'bg-accent/15 ring-1 ring-accent/40': dropTarget === 'folder-{{ $folder->id }}',
+                                 'drop-before': overId === {{ $folder->id }} && overPos === 'before',
+                                 'drop-after': overId === {{ $folder->id }} && overPos === 'after',
+                                 'hover:bg-surface-2': dropTarget !== 'folder-{{ $folder->id }}' && overId !== {{ $folder->id }},
+                             }"
                              class="group w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer">
                             <x-lucide-chevron-right @class(['w-3 h-3 flex-none text-text-2 transition-transform', 'rotate-90' => $bodyOpen]) />
                             <x-lucide-folder class="w-4 h-4 text-text-2 flex-none" />
