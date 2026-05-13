@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Folder;
+use App\Models\FolderPlaylist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -17,9 +18,11 @@ uses(RefreshDatabase::class);
  */
 
 afterEach(function () {
-    // Belt-and-suspenders cleanup: RefreshDatabase wraps each test in a transaction,
-    // but this makes the intent explicit and guards against future trait changes.
-    Folder::query()->delete(); // cascades folder_playlists
+    // RefreshDatabase wraps each test in a transaction, but make the intent explicit
+    // and guard against future trait changes. (folder_id is nullOnDelete, not cascade,
+    // so deleting folders alone would leave orphaned root-placement rows.)
+    FolderPlaylist::query()->delete();
+    Folder::query()->delete();
 });
 
 it('creates a folder from the sidebar and it survives a reload', function () {

@@ -78,15 +78,16 @@ it('renames a folder and ignores a blank name', function () {
     expect($folder->fresh()->name)->toBe('Moods');
 });
 
-it('deletes a folder and its pivot rows', function () {
-    mockSidebarPlex();
+it('deletes a folder, leaving its playlists at root', function () {
+    mockSidebarPlex([playlist('p1', 'One')]);
     $folder = Folder::factory()->create();
-    $folder->folderPlaylists()->create(['plex_playlist_id' => 'p1', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p1', 'position' => 0]);
 
     Livewire::test('sidebar')->call('deleteFolder', $folder->id);
 
     expect(Folder::count())->toBe(0)
-        ->and(FolderPlaylist::count())->toBe(0);
+        ->and(FolderPlaylist::count())->toBe(1)
+        ->and(FolderPlaylist::first()->folder_id)->toBeNull();
 });
 
 it('toggles a folder open and closed', function () {

@@ -15,13 +15,15 @@ it('returns folder playlists ordered by position', function () {
     expect($folder->folderPlaylists->pluck('plex_playlist_id')->all())->toBe(['a', 'b']);
 });
 
-it('cascades deletes to its folder playlists', function () {
+it('moves its folder playlists to root when the folder is deleted', function () {
     $folder = Folder::factory()->create();
-    $folder->folderPlaylists()->create(['plex_playlist_id' => 'x', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p1', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p2', 'position' => 1]);
 
     $folder->delete();
 
-    expect(FolderPlaylist::count())->toBe(0);
+    expect(FolderPlaylist::count())->toBe(2)
+        ->and(FolderPlaylist::pluck('folder_id')->all())->toBe([null, null]);
 });
 
 it('defaults a new folder to expanded with position zero', function () {
