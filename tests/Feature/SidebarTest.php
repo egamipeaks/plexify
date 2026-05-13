@@ -260,3 +260,11 @@ it('links the Recently Added and Recently Played nav items to their routes', fun
         ->assertSeeHtml('href="'.route('recentlyAdded').'"')
         ->assertSeeHtml('href="'.route('recentlyPlayed').'"');
 });
+
+it('orders root playlists by their saved position, then unplaced ones in Plex order', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two'), playlist('p3', 'Three'), playlist('p4', 'Four')]);
+    // Pin p3 to the top of root; p1/p2/p4 stay unplaced (Plex order).
+    FolderPlaylist::create(['folder_id' => null, 'plex_playlist_id' => 'p3', 'position' => 0]);
+
+    Livewire::test('sidebar')->assertSeeInOrder(['Three', 'One', 'Two', 'Four']);
+});

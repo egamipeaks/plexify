@@ -42,6 +42,37 @@ new class extends Component {
         return Folder::with('folderPlaylists')->orderBy('position')->orderBy('id')->get();
     }
 
+    /** @return Collection<int, FolderPlaylist> */
+    #[Computed]
+    public function rootPlacements(): Collection
+    {
+        return FolderPlaylist::whereNull('folder_id')->orderBy('position')->orderBy('id')->get();
+    }
+
+    /**
+     * The ordered plex playlist ids for the root container: placed playlists by saved
+     * position, then unplaced playlists in Plex order. $allPlexIds is the full ordered
+     * list of plex ids from PlexClient::playlists(); $filedIds are ids that live in a folder.
+     *
+     * @param  list<string>  $allPlexIds
+     * @param  list<string>  $filedIds
+     * @return list<string>
+     */
+    protected function rootOrderedPlexIds(array $allPlexIds, array $filedIds): array
+    {
+        $rootIds = array_values(array_diff($allPlexIds, $filedIds));
+
+        $placedOrder = $this->rootPlacements
+            ->pluck('plex_playlist_id')
+            ->filter(fn ($id) => in_array($id, $rootIds, true))
+            ->values()
+            ->all();
+
+        $unplaced = array_values(array_diff($rootIds, $placedOrder));
+
+        return [...$placedOrder, ...$unplaced];
+    }
+
     public function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
@@ -330,7 +361,8 @@ new class extends Component {
                 $filter = trim($this->filter);
                 $matches = fn ($title) => $filter === '' || str_contains(mb_strtolower((string) $title), mb_strtolower($filter));
                 $filed = $this->folders->flatMap(fn ($f) => $f->folderPlaylists->pluck('plex_playlist_id'))->all();
-                $rootPlaylists = $allPlaylists->reject(fn ($p) => in_array($p->id, $filed, true))->values();
+                $rootPlaylists = collect($this->rootOrderedPlexIds($allPlaylists->pluck('id')->all(), $filed))
+                    ->map(fn ($id) => $byId->get($id))->filter()->values();
                 $visibleRoot = $rootPlaylists->filter(fn ($p) => $matches($p->title))->values();
             @endphp
 
