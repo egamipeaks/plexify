@@ -357,13 +357,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
                                     @dragend="draggedId = null; overId = null"
                                     @dragover.prevent="onDragOver($event, '{{ $track->playlistItemId }}')"
-                                    @dragleave="if (overId === '{{ $track->playlistItemId }}') overId = null"
+                                    @dragleave="if (!$event.currentTarget.contains($event.relatedTarget) && overId === '{{ $track->playlistItemId }}') overId = null"
                                     @drop.prevent="onDrop('{{ $track->playlistItemId }}')"
                                     :class="{
                                         'drop-before': overId === '{{ $track->playlistItemId }}' && overPos === 'before',
                                         'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
-                                        'bg-emerald-400/10 ring-1 ring-emerald-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'ok',
-                                        'bg-red-400/10 ring-1 ring-red-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'err',
+                                        'bg-emerald-400/10 ring-1 ring-emerald-400': flash['{{ $track->playlistItemId }}'] === 'ok',
+                                        'bg-red-400/10 ring-1 ring-red-400': flash['{{ $track->playlistItemId }}'] === 'err',
                                     }"
                                     class="row group w-full grid items-center px-4 py-[3px] rounded text-[13px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 20px 1.4fr 1fr 1fr 50px;">
@@ -397,13 +397,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
                                     @dragend="draggedId = null; overId = null"
                                     @dragover.prevent="onDragOver($event, '{{ $track->playlistItemId }}')"
-                                    @dragleave="if (overId === '{{ $track->playlistItemId }}') overId = null"
+                                    @dragleave="if (!$event.currentTarget.contains($event.relatedTarget) && overId === '{{ $track->playlistItemId }}') overId = null"
                                     @drop.prevent="onDrop('{{ $track->playlistItemId }}')"
                                     :class="{
                                         'drop-before': overId === '{{ $track->playlistItemId }}' && overPos === 'before',
                                         'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
-                                        'bg-emerald-400/10 ring-1 ring-emerald-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'ok',
-                                        'bg-red-400/10 ring-1 ring-red-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'err',
+                                        'bg-emerald-400/10 ring-1 ring-emerald-400': flash['{{ $track->playlistItemId }}'] === 'ok',
+                                        'bg-red-400/10 ring-1 ring-red-400': flash['{{ $track->playlistItemId }}'] === 'err',
                                     }"
                                     class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
