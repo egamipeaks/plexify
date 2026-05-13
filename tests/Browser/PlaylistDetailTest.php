@@ -193,3 +193,85 @@ it('links the artist and album in a playlist track row to the library', function
     expect($artistNav)->toContain('?artist=');
     expect($artistNav)->not->toContain('&album=');
 });
+
+it('reorders a track in a playlist and restores the original order', function () {
+    $page = visit('/');
+
+    $targetHref = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 8000;
+            while (Date.now() < deadline) {
+                const rows = [...document.querySelectorAll('[wire\\:key^="sidebar-pl-"]')];
+                if (rows.length > 0) {
+                    for (const el of rows) {
+                        const t = el.textContent;
+                        if (!t.includes('0 songs') && !t.includes('1 songs')) {
+                            const link = el.querySelector('a[href]') ?? el;
+                            return link.getAttribute('href');
+                        }
+                    }
+                }
+                await sleep(150);
+            }
+            return null;
+        })()
+    JS);
+
+    expect($targetHref)->not->toBeNull('Expected an audio playlist with at least 2 tracks in the sidebar (is the Plex server reachable?).');
+
+    $page = visit($targetHref);
+
+    expect((bool) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 30000;
+            while (Date.now() < deadline) {
+                if (document.querySelector('[wire\\:click="retry"]')) return false;
+                const region = document.querySelector('[data-region="tracklist"]');
+                if (region && region.querySelectorAll('[wire\\:key^="track-"]').length >= 2) return true;
+                await sleep(300);
+            }
+            return false;
+        })()
+    JS))->toBeTrue('Expected at least 2 track rows on the playlist page.');
+
+    $result = $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const keys = () => [...document.querySelectorAll('[data-region="tracklist"] [wire\\:key^="track-"]')].map(el => el.getAttribute('wire:key'));
+            const rows = () => [...document.querySelectorAll('[data-region="tracklist"] [wire\\:key^="track-"]')];
+            const itemId = el => {
+                const a = el.getAttribute('x-on:dragstart') || el.getAttribute('@dragstart') || el.getAttribute('data-x-on-dragstart') || '';
+                const m = a.match(/plextune\/playlist-item',\s*'([^']+)'/);
+                return m ? m[1] : null;
+            };
+
+            const before = keys();
+            let r = rows();
+            const dragged = itemId(r[1]);
+            const target = itemId(r[0]);
+            if (!dragged || !target) return { ok: false, reason: 'could not read playlist-item ids from row attributes' };
+
+            const compEl = document.querySelector('[data-region="tracklist"]').closest('[wire\\:id]');
+            const compId = compEl ? compEl.getAttribute('wire:id') : null;
+            const comp = compId ? window.Livewire.find(compId) : null;
+            if (!comp || typeof comp.call !== 'function') return { ok: false, reason: 'no playlist-detail Livewire component found' };
+
+            await comp.call('moveTrack', dragged, target, 'before');
+            for (let i = 0; i < 60 && keys()[0] === before[0]; i++) await sleep(150);
+            const swapped = keys();
+
+            // restore: the dragged item is now first; move it back to after the row that follows it
+            await comp.call('moveTrack', dragged, itemId(rows()[1]), 'after');
+            for (let i = 0; i < 60 && keys()[0] !== before[0]; i++) await sleep(150);
+            const restored = keys();
+
+            return { ok: true, before, swapped, restored };
+        })()
+    JS);
+
+    expect($result['ok'])->toBeTrue($result['reason'] ?? 'reorder script failed');
+    expect($result['swapped'][0])->toBe($result['before'][1]); // old row 2 is now first
+    expect($result['restored'])->toBe($result['before']);       // original order restored
+});
