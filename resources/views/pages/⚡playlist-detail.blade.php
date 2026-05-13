@@ -78,6 +78,49 @@ new #[Layout('components.layouts.app')] class extends Component {
         );
     }
 
+    public function moveTrack(string $draggedItemId, string $targetItemId, string $position): bool
+    {
+        if ($draggedItemId === $targetItemId) {
+            return true;
+        }
+
+        $tracks = $this->tracks->values();
+        $draggedIndex = $tracks->search(fn ($t) => $t->playlistItemId === $draggedItemId);
+        $targetIndex = $tracks->search(fn ($t) => $t->playlistItemId === $targetItemId);
+
+        if ($draggedIndex === false || $targetIndex === false) {
+            return false;
+        }
+
+        if ($position === 'before' && $draggedIndex === $targetIndex - 1) {
+            return true;
+        }
+
+        if ($position === 'after' && $draggedIndex === $targetIndex + 1) {
+            return true;
+        }
+
+        $afterId = $position === 'after'
+            ? $targetItemId
+            : ($targetIndex === 0 ? null : $tracks[$targetIndex - 1]->playlistItemId);
+
+        if ($afterId === $draggedItemId) {
+            return true;
+        }
+
+        try {
+            $this->plex->moveTrack($this->playlist, $draggedItemId, $afterId);
+        } catch (PlexException $e) {
+            $this->dispatch('notify', type: 'error', message: "Couldn't reorder the playlist. ".$e->getMessage());
+
+            return false;
+        }
+
+        unset($this->tracks);
+
+        return true;
+    }
+
     public function retry(): void
     {
         $this->errorMessage = null;

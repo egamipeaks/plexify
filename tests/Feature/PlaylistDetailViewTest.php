@@ -27,8 +27,8 @@ function samplePlaylist(): Playlist
 function samplePlaylistTracks(): Collection
 {
     return collect([
-        new Track(id: '8001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 6, durationMs: 337000, partId: 770001, container: 'flac', thumb: '/t/8001', albumId: '5001', artistId: '100'),
-        new Track(id: '8002', title: 'Skinny Love', artist: 'Bon Iver', album: 'For Emma, Forever Ago', trackNumber: 3, durationMs: 238000, partId: 770002, container: 'flac', thumb: '/t/8002', albumId: '5002', artistId: '100'),
+        new Track(id: '8001', title: 'Holocene', artist: 'Bon Iver', album: 'Bon Iver, Bon Iver', trackNumber: 6, durationMs: 337000, partId: 770001, container: 'flac', thumb: '/t/8001', albumId: '5001', artistId: '100', playlistItemId: 'i1'),
+        new Track(id: '8002', title: 'Skinny Love', artist: 'Bon Iver', album: 'For Emma, Forever Ago', trackNumber: 3, durationMs: 238000, partId: 770002, container: 'flac', thumb: '/t/8002', albumId: '5002', artistId: '100', playlistItemId: 'i2'),
     ]);
 }
 
@@ -232,4 +232,97 @@ it('renders the artist and album as plain text when a playlist track has no albu
         ->assertSee('Field Tape')
         ->assertSee('Untitled')
         ->assertDontSee('?artist=');
+});
+
+it('moveTrack moving item 2 before item 1 calls Plex with after=null and returns true', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->once()->with('4242', 'i2', null);
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'i2', 'i1', 'before')
+        ->assertReturned(true);
+});
+
+it('moveTrack moving item 1 after item 2 calls Plex with after=i2 and returns true', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->once()->with('4242', 'i1', 'i2');
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'i1', 'i2', 'after')
+        ->assertReturned(true);
+});
+
+it('moveTrack on the same item is a no-op that returns true', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->never();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'i1', 'i1', 'before')
+        ->assertReturned(true);
+});
+
+it('moveTrack to the position it already occupies is a no-op that returns true', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->never();
+    });
+
+    // item 1 dropped "before" item 2 — it's already immediately before item 2.
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'i1', 'i2', 'before')
+        ->assertReturned(true);
+});
+
+it('moveTrack with an unknown dragged id returns false without calling Plex', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->never();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'nope', 'i1', 'before')
+        ->assertReturned(false);
+});
+
+it('moveTrack surfaces a Plex outage as a notify toast and returns false', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('moveTrack')->once()->andThrow(new PlexUnreachableException('down'));
+    });
+
+    // Moving i2 before i1 requires a Plex call (i2 is currently after i1).
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('moveTrack', 'i2', 'i1', 'before')
+        ->assertReturned(false)
+        ->assertDispatched('notify', type: 'error');
 });
