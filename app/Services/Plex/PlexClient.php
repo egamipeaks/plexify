@@ -406,6 +406,24 @@ class PlexClient
         $this->cache->forget("playlist:{$playlistId}:items");
     }
 
+    public function moveTrack(string $playlistId, string $playlistItemId, ?string $afterPlaylistItemId): void
+    {
+        $path = "/playlists/{$playlistId}/items/{$playlistItemId}/move";
+        if ($afterPlaylistItemId !== null && $afterPlaylistItemId !== '') {
+            $path .= '?'.http_build_query(['after' => $afterPlaylistItemId]);
+        }
+
+        try {
+            $response = $this->server()->put($path);
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Reordering playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "PUT playlists/{$playlistId}/items/{$playlistItemId}/move");
+
+        $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
     private function putPlaylistItem(string $playlistId, string $uri): void
     {
         try {
