@@ -315,3 +315,22 @@ it('reads the smart flag on Playlist::fromPlex', function () {
         'title' => 'Missing field',
     ])->smart)->toBeFalse();
 });
+
+it('maps playlistItemID -> playlistItemId on a Track', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '8001',
+        'title' => 'Holocene',
+        'playlistItemID' => 4242,
+        'Media' => [['Part' => [['id' => 1, 'container' => 'flac']]]],
+    ]);
+
+    expect($track->playlistItemId)->toBe('4242');
+});
+
+it('leaves Track playlistItemId null when the row has no playlistItemID', function () {
+    expect(Track::fromPlex([
+        'ratingKey' => '8001',
+        'title' => 'Holocene',
+        'Media' => [['Part' => [['id' => 1, 'container' => 'flac']]]],
+    ])->playlistItemId)->toBeNull();
+});
