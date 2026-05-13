@@ -268,3 +268,40 @@ it('orders root playlists by their saved position, then unplaced ones in Plex or
 
     Livewire::test('sidebar')->assertSeeInOrder(['Three', 'One', 'Two', 'Four']);
 });
+
+it('movePlaylist reorders root playlists, materializing a row for each', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two'), playlist('p3', 'Three'), playlist('p4', 'Four')]);
+
+    // Drop p4 immediately before p1 -> order becomes p4, p1, p2, p3
+    Livewire::test('sidebar')->call('movePlaylist', 'p4', null, 'p1', 'before');
+
+    $rows = FolderPlaylist::orderBy('position')->get();
+    expect($rows)->toHaveCount(4)
+        ->and($rows->pluck('folder_id')->unique()->all())->toBe([null])
+        ->and($rows->pluck('plex_playlist_id')->all())->toBe(['p4', 'p1', 'p2', 'p3'])
+        ->and($rows->pluck('position')->all())->toBe([0, 1, 2, 3]);
+});
+
+it('movePlaylist places a playlist at the front of root when targetPlaylistId is null', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two')]);
+
+    Livewire::test('sidebar')->call('movePlaylist', 'p2', null, null, 'before');
+
+    expect(FolderPlaylist::orderBy('position')->pluck('plex_playlist_id')->all())->toBe(['p2', 'p1']);
+});
+
+it('movePlaylist is a no-op when the playlist is dropped on itself', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two')]);
+
+    Livewire::test('sidebar')->call('movePlaylist', 'p1', null, 'p1', 'before');
+
+    expect(FolderPlaylist::count())->toBe(0);
+});
+
+it('movePlaylist is a no-op when the resulting root order is unchanged', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two')]);
+    // p1 is already (Plex order) immediately before p2; "p1 before p2" changes nothing.
+    Livewire::test('sidebar')->call('movePlaylist', 'p1', null, 'p2', 'before');
+
+    expect(FolderPlaylist::count())->toBe(0);
+});

@@ -135,6 +135,107 @@ new class extends Component {
         unset($this->folders);
     }
 
+    public function movePlaylist(string $draggedPlaylistId, ?int $targetFolderId, ?string $targetPlaylistId, string $position): void
+    {
+        if ($draggedPlaylistId === $targetPlaylistId) {
+            return;
+        }
+
+        $allPlexIds = $this->playlists->pluck('id')->all();
+        if (! in_array($draggedPlaylistId, $allPlexIds, true)) {
+            return;
+        }
+        if ($targetPlaylistId !== null && ! in_array($targetPlaylistId, $allPlexIds, true)) {
+            return;
+        }
+
+        $hadRow = FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->exists();
+        // sourceFolderId: int = it's in that folder, null = it's a root row, 'unplaced' = no row at all
+        $sourceFolderId = $hadRow
+            ? FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->value('folder_id')
+            : 'unplaced';
+
+        if ($targetFolderId === null) {
+            $this->placeInRoot($draggedPlaylistId, $targetPlaylistId, $position, $allPlexIds, $sourceFolderId);
+        } else {
+            $this->placeInFolder($draggedPlaylistId, $targetFolderId, $targetPlaylistId, $position, $sourceFolderId);
+        }
+
+        unset($this->folders, $this->rootPlacements);
+    }
+
+    /**
+     * @param  list<string>  $allPlexIds
+     * @param  int|string|null  $sourceFolderId  int = a folder, null = a root row, 'unplaced' = no row
+     */
+    protected function placeInRoot(string $draggedPlaylistId, ?string $targetPlaylistId, string $position, array $allPlexIds, int|string|null $sourceFolderId): void
+    {
+        $filed = $this->folders->flatMap(fn ($f) => $f->folderPlaylists->pluck('plex_playlist_id'))->all();
+        $filed = array_values(array_diff($filed, [$draggedPlaylistId]));
+
+        $current = $this->rootOrderedPlexIds($allPlexIds, $filed);
+        $newOrder = $this->insertRelative($current, $draggedPlaylistId, $targetPlaylistId, $position);
+
+        if (! is_int($sourceFolderId) && $newOrder === $current) {
+            return; // already a root row (or unplaced) and order unchanged
+        }
+
+        foreach ($newOrder as $i => $plexId) {
+            FolderPlaylist::updateOrCreate(
+                ['plex_playlist_id' => $plexId],
+                ['folder_id' => null, 'position' => $i],
+            );
+        }
+
+        if (is_int($sourceFolderId)) {
+            // It came out of a folder; that folder lost a member — re-densify it.
+            $this->renumberContainer($sourceFolderId);
+        }
+    }
+
+    /**
+     * Insert $id into $list immediately before/after $relativeTo (null $relativeTo => front).
+     * Removes $id first if already present. $relativeTo not found => append.
+     *
+     * @param  list<string>  $list
+     * @return list<string>
+     */
+    protected function insertRelative(array $list, string $id, ?string $relativeTo, string $position): array
+    {
+        $list = array_values(array_diff($list, [$id]));
+
+        if ($relativeTo === null) {
+            return [$id, ...$list];
+        }
+
+        $idx = array_search($relativeTo, $list, true);
+        if ($idx === false) {
+            return [...$list, $id];
+        }
+
+        $at = $position === 'after' ? $idx + 1 : $idx;
+
+        return [...array_slice($list, 0, $at), $id, ...array_slice($list, $at)];
+    }
+
+    /** Re-densify a container's folder_playlists rows to positions 0..N. $folderId === null = the root container. */
+    protected function renumberContainer(?int $folderId): void
+    {
+        $query = $folderId === null
+            ? FolderPlaylist::whereNull('folder_id')
+            : FolderPlaylist::where('folder_id', $folderId);
+
+        $query->orderBy('position')->orderBy('id')->get()
+            ->values()
+            ->each(fn ($row, $i) => $row->position === $i ? null : $row->update(['position' => $i]));
+    }
+
+    /** Implemented in a later task. @param int|string|null $sourceFolderId */
+    protected function placeInFolder(string $draggedPlaylistId, int $targetFolderId, ?string $targetPlaylistId, string $position, int|string|null $sourceFolderId): void
+    {
+        //
+    }
+
     public function addTrackToPlaylist(string $playlistId, string $trackId): bool
     {
         try {
