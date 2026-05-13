@@ -16,6 +16,7 @@ readonly class Track
         public ?string $thumb = null,
         public ?string $albumId = null,
         public ?string $artistId = null,
+        public ?string $playlistItemId = null,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -34,6 +35,7 @@ readonly class Track
             thumb: $row['thumb'] ?? $row['parentThumb'] ?? null,
             albumId: isset($row['parentRatingKey']) ? (string) $row['parentRatingKey'] : null,
             artistId: isset($row['grandparentRatingKey']) ? (string) $row['grandparentRatingKey'] : null,
+            playlistItemId: isset($row['playlistItemID']) ? (string) $row['playlistItemID'] : null,
         );
     }
 }

@@ -4,6 +4,7 @@
     "Metadata": [
       {
         "ratingKey": "8001",
+        "playlistItemID": 9001,
         "title": "Holocene",
         "grandparentTitle": "Bon Iver",
         "parentTitle": "Bon Iver, Bon Iver",
@@ -16,6 +17,7 @@
       },
       {
         "ratingKey": "8002",
+        "playlistItemID": 9002,
         "title": "Skinny Love",
         "grandparentTitle": "Bon Iver",
         "parentTitle": "For Emma, Forever Ago",

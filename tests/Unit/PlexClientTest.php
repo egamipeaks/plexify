@@ -785,3 +785,38 @@ it('maps a 500 on recentlyPlayedTracks to PlexUnreachableException', function ()
 
     expect(fn () => app(PlexClient::class)->recentlyPlayedTracks(50))->toThrow(PlexUnreachableException::class);
 });
+
+it('moves a playlist item after another item via PUT .../move?after=', function () {
+    fakePlexWriteEndpoints();
+    Cache::put('plex:playlist:4242:items', 'stale', 300);
+
+    app(PlexClient::class)->moveTrack('4242', '9002', '9001');
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/playlists/4242/items/9002/move?')
+        && str_contains($request->url(), 'after=9001'));
+
+    expect(Cache::has('plex:playlist:4242:items'))->toBeFalse();
+});
+
+it('moves a playlist item to the front via PUT .../move with no after param', function () {
+    fakePlexWriteEndpoints();
+    Cache::put('plex:playlist:4242:items', 'stale', 300);
+
+    app(PlexClient::class)->moveTrack('4242', '9002', null);
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/playlists/4242/items/9002/move')
+        && ! str_contains($request->url(), 'after='));
+
+    expect(Cache::has('plex:playlist:4242:items'))->toBeFalse();
+});
+
+it('maps a 500 from the move endpoint to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists/4242/items/9002/move*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->moveTrack('4242', '9002', '9001'))->toThrow(PlexUnreachableException::class);
+});
