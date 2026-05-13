@@ -230,9 +230,35 @@ new class extends Component {
         }
     }
 
+    /** @param int|string|null $sourceFolderId  int = a folder, null = a root row, 'unplaced' = no row */
     protected function placeInFolder(string $draggedPlaylistId, int $targetFolderId, ?string $targetPlaylistId, string $position, int|string|null $sourceFolderId): void
     {
-        // TODO(next task): place the playlist inside a folder at the target position.
+        if (! Folder::whereKey($targetFolderId)->exists()) {
+            return;
+        }
+
+        $current = FolderPlaylist::where('folder_id', $targetFolderId)->orderBy('position')->orderBy('id')->pluck('plex_playlist_id')->all();
+        $newOrder = $this->insertRelative($current, $draggedPlaylistId, $targetPlaylistId, $position);
+
+        if ($sourceFolderId === $targetFolderId && $newOrder === $current) {
+            return;
+        }
+
+        foreach ($newOrder as $i => $plexId) {
+            FolderPlaylist::updateOrCreate(
+                ['plex_playlist_id' => $plexId],
+                ['folder_id' => $targetFolderId, 'position' => $i],
+            );
+        }
+
+        if (is_int($sourceFolderId) && $sourceFolderId !== $targetFolderId) {
+            $this->renumberContainer($sourceFolderId);
+        }
+
+        if ($sourceFolderId === null) {
+            // It had a root row whose folder_id just changed — re-densify remaining root rows.
+            $this->renumberContainer(null);
+        }
     }
 
     public function addTrackToPlaylist(string $playlistId, string $trackId): bool

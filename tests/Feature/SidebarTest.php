@@ -305,3 +305,56 @@ it('movePlaylist is a no-op when the resulting root order is unchanged', functio
 
     expect(FolderPlaylist::count())->toBe(0);
 });
+
+it('movePlaylist drops a playlist into a folder at the top, bumping existing members', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two')]);
+    $folder = Folder::factory()->create();
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p2', 'position' => 0]);
+
+    Livewire::test('sidebar')->call('movePlaylist', 'p1', $folder->id, null, 'before');
+
+    $rows = FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->get();
+    expect($rows->pluck('plex_playlist_id')->all())->toBe(['p1', 'p2'])
+        ->and($rows->pluck('position')->all())->toBe([0, 1]);
+});
+
+it('movePlaylist drops a playlist after a specific member of a folder', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two'), playlist('p3', 'Three')]);
+    $folder = Folder::factory()->create();
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p1', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p2', 'position' => 1]);
+
+    Livewire::test('sidebar')->call('movePlaylist', 'p3', $folder->id, 'p1', 'after');
+
+    expect(FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->pluck('plex_playlist_id')->all())
+        ->toBe(['p1', 'p3', 'p2']);
+});
+
+it('movePlaylist moving a playlist between folders renumbers the source folder', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two'), playlist('p3', 'Three')]);
+    $a = Folder::factory()->create();
+    $b = Folder::factory()->create();
+    FolderPlaylist::create(['folder_id' => $a->id, 'plex_playlist_id' => 'p1', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $a->id, 'plex_playlist_id' => 'p2', 'position' => 1]);
+    FolderPlaylist::create(['folder_id' => $a->id, 'plex_playlist_id' => 'p3', 'position' => 2]);
+
+    Livewire::test('sidebar')->call('movePlaylist', 'p2', $b->id, null, 'before');
+
+    expect(FolderPlaylist::where('folder_id', $a->id)->orderBy('position')->pluck('plex_playlist_id')->all())->toBe(['p1', 'p3'])
+        ->and(FolderPlaylist::where('folder_id', $a->id)->orderBy('position')->pluck('position')->all())->toBe([0, 1])
+        ->and(FolderPlaylist::where('folder_id', $b->id)->pluck('plex_playlist_id')->all())->toBe(['p2']);
+});
+
+it('movePlaylist moving a playlist out of a folder into root materializes root and renumbers the folder', function () {
+    mockSidebarPlex([playlist('p1', 'One'), playlist('p2', 'Two'), playlist('p3', 'Three')]);
+    $folder = Folder::factory()->create();
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p2', 'position' => 0]);
+    FolderPlaylist::create(['folder_id' => $folder->id, 'plex_playlist_id' => 'p3', 'position' => 1]);
+
+    // Root currently contains only p1 (p2/p3 are in the folder). Drop p3 after p1 in root.
+    Livewire::test('sidebar')->call('movePlaylist', 'p3', null, 'p1', 'after');
+
+    expect(FolderPlaylist::whereNull('folder_id')->orderBy('position')->pluck('plex_playlist_id')->all())->toBe(['p1', 'p3'])
+        ->and(FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->pluck('plex_playlist_id')->all())->toBe(['p2'])
+        ->and(FolderPlaylist::where('folder_id', $folder->id)->orderBy('position')->pluck('position')->all())->toBe([0]);
+});
