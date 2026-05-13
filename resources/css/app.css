@@ -72,4 +72,7 @@ html, body {
     [aria-disabled="true"] {
         cursor: default;
     }
+
+    .drop-before { box-shadow: inset 0 2px 0 var(--color-accent); }
+    .drop-after  { box-shadow: inset 0 -2px 0 var(--color-accent); }
 }

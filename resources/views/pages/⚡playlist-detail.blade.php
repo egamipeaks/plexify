@@ -330,12 +330,41 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <span class="text-right"><x-lucide-clock class="w-[14px] h-[14px] inline" /></span>
                     </div>
                 @endif
-                <div class="overflow-y-auto scroll flex-1 py-1" x-data="{}">
+                <div class="overflow-y-auto scroll flex-1 py-1" x-data="{
+                    draggedId: null,
+                    overId: null,
+                    overPos: null,
+                    flash: {},
+                    flashRow(id, ok) { this.flash[id] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[id] = null }, 700) },
+                    onDragOver(e, id) {
+                        if (!this.draggedId || id === this.draggedId) { this.overId = null; return }
+                        const r = e.currentTarget.getBoundingClientRect();
+                        this.overPos = (e.clientY - r.top) < r.height / 2 ? 'before' : 'after';
+                        this.overId = id;
+                    },
+                    async onDrop(id) {
+                        const dragged = this.draggedId, pos = this.overPos;
+                        this.overId = null; this.draggedId = null;
+                        if (!dragged || !id || id === dragged || !pos) return;
+                        try { const ok = await $wire.moveTrack(dragged, id, pos); this.flashRow(dragged, ok) }
+                        catch (_) { this.flashRow(dragged, false) }
+                    },
+                }">
                     @foreach ($this->tracks as $i => $track)
                         @if ($tracksCompact)
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
                                     draggable="true"
-                                    ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                    @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
+                                    @dragend="draggedId = null; overId = null"
+                                    @dragover.prevent="onDragOver($event, '{{ $track->playlistItemId }}')"
+                                    @dragleave="if (overId === '{{ $track->playlistItemId }}') overId = null"
+                                    @drop.prevent="onDrop('{{ $track->playlistItemId }}')"
+                                    :class="{
+                                        'drop-before': overId === '{{ $track->playlistItemId }}' && overPos === 'before',
+                                        'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
+                                        'bg-emerald-400/10 ring-1 ring-emerald-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'ok',
+                                        'bg-red-400/10 ring-1 ring-red-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'err',
+                                    }"
                                     class="row group w-full grid items-center px-4 py-[3px] rounded text-[13px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 20px 1.4fr 1fr 1fr 50px;">
                                 <span class="tabular-nums text-text-2 text-right pr-1"
@@ -365,7 +394,17 @@ new #[Layout('components.layouts.app')] class extends Component {
                         @else
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
                                     draggable="true"
-                                    ondragstart="event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('plextune/track', '{{ $track->id }}')"
+                                    @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
+                                    @dragend="draggedId = null; overId = null"
+                                    @dragover.prevent="onDragOver($event, '{{ $track->playlistItemId }}')"
+                                    @dragleave="if (overId === '{{ $track->playlistItemId }}') overId = null"
+                                    @drop.prevent="onDrop('{{ $track->playlistItemId }}')"
+                                    :class="{
+                                        'drop-before': overId === '{{ $track->playlistItemId }}' && overPos === 'before',
+                                        'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
+                                        'bg-emerald-400/10 ring-1 ring-emerald-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'ok',
+                                        'bg-red-400/10 ring-1 ring-red-400 ring-inset': flash['{{ $track->playlistItemId }}'] === 'err',
+                                    }"
                                     class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
                                 <span class="text-text-3 group-hover:text-white grid place-items-center">
