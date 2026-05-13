@@ -42,6 +42,37 @@ new class extends Component {
         return Folder::with('folderPlaylists')->orderBy('position')->orderBy('id')->get();
     }
 
+    /** @return Collection<int, FolderPlaylist> */
+    #[Computed]
+    public function rootPlacements(): Collection
+    {
+        return FolderPlaylist::whereNull('folder_id')->orderBy('position')->orderBy('id')->get();
+    }
+
+    /**
+     * The ordered plex playlist ids for the root container: placed playlists by saved
+     * position, then unplaced playlists in Plex order. $allPlexIds is the full ordered
+     * list of plex ids from PlexClient::playlists(); $filedIds are ids that live in a folder.
+     *
+     * @param  list<string>  $allPlexIds
+     * @param  list<string>  $filedIds
+     * @return list<string>
+     */
+    protected function rootOrderedPlexIds(array $allPlexIds, array $filedIds): array
+    {
+        $rootIds = array_values(array_diff($allPlexIds, $filedIds));
+
+        $placedOrder = $this->rootPlacements
+            ->pluck('plex_playlist_id')
+            ->filter(fn ($id) => in_array($id, $rootIds, true))
+            ->values()
+            ->all();
+
+        $unplaced = array_values(array_diff($rootIds, $placedOrder));
+
+        return [...$placedOrder, ...$unplaced];
+    }
+
     public function thumbFor(?string $thumb): ?string
     {
         return $this->plex->thumbUrl($thumb);
@@ -99,6 +130,155 @@ new class extends Component {
                 'plex_playlist_id' => $playlistId,
                 'position' => (int) FolderPlaylist::where('folder_id', $folderId)->max('position') + 1,
             ]);
+        }
+
+        unset($this->folders, $this->rootPlacements);
+    }
+
+    public function movePlaylist(string $draggedPlaylistId, ?int $targetFolderId, ?string $targetPlaylistId, string $position): void
+    {
+        if ($draggedPlaylistId === $targetPlaylistId) {
+            return;
+        }
+
+        $allPlexIds = $this->playlists->pluck('id')->all();
+        if (! in_array($draggedPlaylistId, $allPlexIds, true)) {
+            return;
+        }
+        if ($targetPlaylistId !== null && ! in_array($targetPlaylistId, $allPlexIds, true)) {
+            return;
+        }
+
+        $sourceRow = FolderPlaylist::where('plex_playlist_id', $draggedPlaylistId)->first(['folder_id']);
+        // int = it's in that folder, null = it's a root row, 'unplaced' = no row at all
+        $sourceFolderId = $sourceRow === null ? 'unplaced' : $sourceRow->folder_id;
+
+        if ($targetFolderId === null) {
+            $this->placeInRoot($draggedPlaylistId, $targetPlaylistId, $position, $allPlexIds, $sourceFolderId);
+        } else {
+            $this->placeInFolder($draggedPlaylistId, $targetFolderId, $targetPlaylistId, $position, $sourceFolderId);
+        }
+
+        unset($this->folders, $this->rootPlacements);
+    }
+
+    /**
+     * @param  list<string>  $allPlexIds
+     * @param  int|string|null  $sourceFolderId  int = a folder, null = a root row, 'unplaced' = no row
+     */
+    protected function placeInRoot(string $draggedPlaylistId, ?string $targetPlaylistId, string $position, array $allPlexIds, int|string|null $sourceFolderId): void
+    {
+        $filed = $this->folders->flatMap(fn ($f) => $f->folderPlaylists->pluck('plex_playlist_id'))->all();
+        $filed = array_values(array_diff($filed, [$draggedPlaylistId]));
+
+        $current = $this->rootOrderedPlexIds($allPlexIds, $filed);
+        $newOrder = $this->insertRelative($current, $draggedPlaylistId, $targetPlaylistId, $position);
+
+        if (! is_int($sourceFolderId) && $newOrder === $current) {
+            return; // already a root row (or unplaced) and order unchanged
+        }
+
+        foreach ($newOrder as $i => $plexId) {
+            FolderPlaylist::updateOrCreate(
+                ['plex_playlist_id' => $plexId],
+                ['folder_id' => null, 'position' => $i],
+            );
+        }
+
+        if (is_int($sourceFolderId)) {
+            // It came out of a folder; that folder lost a member — re-densify it.
+            $this->renumberContainer($sourceFolderId);
+        }
+    }
+
+    /**
+     * Insert $id into $list immediately before/after $relativeTo (null $relativeTo => front).
+     * Removes $id first if already present. $relativeTo not found => append.
+     *
+     * @param  list<string>  $list
+     * @return list<string>
+     */
+    protected function insertRelative(array $list, string $id, ?string $relativeTo, string $position): array
+    {
+        $list = array_values(array_diff($list, [$id]));
+
+        if ($relativeTo === null) {
+            return [$id, ...$list];
+        }
+
+        $idx = array_search($relativeTo, $list, true);
+        if ($idx === false) {
+            return [...$list, $id];
+        }
+
+        $at = $position === 'after' ? $idx + 1 : $idx;
+
+        return [...array_slice($list, 0, $at), $id, ...array_slice($list, $at)];
+    }
+
+    /** Re-densify a container's folder_playlists rows to positions 0..N. $folderId === null = the root container. */
+    protected function renumberContainer(?int $folderId): void
+    {
+        $query = $folderId === null
+            ? FolderPlaylist::whereNull('folder_id')
+            : FolderPlaylist::where('folder_id', $folderId);
+
+        foreach ($query->orderBy('position')->orderBy('id')->get()->values() as $i => $row) {
+            if ($row->position !== $i) {
+                $row->update(['position' => $i]);
+            }
+        }
+    }
+
+    /** @param int|string|null $sourceFolderId  int = a folder, null = a root row, 'unplaced' = no row */
+    protected function placeInFolder(string $draggedPlaylistId, int $targetFolderId, ?string $targetPlaylistId, string $position, int|string|null $sourceFolderId): void
+    {
+        if (! Folder::whereKey($targetFolderId)->exists()) {
+            return;
+        }
+
+        $current = FolderPlaylist::where('folder_id', $targetFolderId)->orderBy('position')->orderBy('id')->pluck('plex_playlist_id')->all();
+        $newOrder = $this->insertRelative($current, $draggedPlaylistId, $targetPlaylistId, $position);
+
+        if ($sourceFolderId === $targetFolderId && $newOrder === $current) {
+            return;
+        }
+
+        foreach ($newOrder as $i => $plexId) {
+            FolderPlaylist::updateOrCreate(
+                ['plex_playlist_id' => $plexId],
+                ['folder_id' => $targetFolderId, 'position' => $i],
+            );
+        }
+
+        if (is_int($sourceFolderId) && $sourceFolderId !== $targetFolderId) {
+            $this->renumberContainer($sourceFolderId);
+        }
+
+        if ($sourceFolderId === null) {
+            // It had a root row whose folder_id just changed — re-densify remaining root rows.
+            $this->renumberContainer(null);
+        }
+    }
+
+    public function moveFolder(int $draggedFolderId, int $targetFolderId, string $position): void
+    {
+        if ($draggedFolderId === $targetFolderId) {
+            return;
+        }
+
+        $current = Folder::orderBy('position')->orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        if (! in_array((string) $draggedFolderId, $current, true) || ! in_array((string) $targetFolderId, $current, true)) {
+            return;
+        }
+
+        $newOrder = $this->insertRelative($current, (string) $draggedFolderId, (string) $targetFolderId, $position);
+        if ($newOrder === $current) {
+            return;
+        }
+
+        foreach ($newOrder as $i => $folderId) {
+            Folder::whereKey((int) $folderId)->update(['position' => $i]);
         }
 
         unset($this->folders);
@@ -182,7 +362,7 @@ new class extends Component {
         }
 
         FolderPlaylist::where('plex_playlist_id', $playlistId)->delete();
-        unset($this->playlists, $this->folders);
+        unset($this->playlists, $this->folders, $this->rootPlacements);
     }
 
     public function playPlaylist(string $playlistId): void
@@ -248,12 +428,22 @@ new class extends Component {
     <div class="bg-surface rounded-lg flex-1 min-h-0 flex flex-col"
          x-data="{
             draggingTrack: false,
+            draggingPlaylist: false, draggedPlaylistId: null,
+            draggingFolder: false, draggedFolderId: null,
             menu: null,
             dropTarget: null,
+            overId: null, overPos: null,
             flash: {},
             init() {
-                this._ds = (e) => { try { if ([...(e.dataTransfer?.types ?? [])].includes('plextune/track')) this.draggingTrack = true; } catch (_) {} };
-                this._de = () => { this.draggingTrack = false; this.dropTarget = null; };
+                this._ds = (e) => {
+                    try {
+                        const types = [...(e.dataTransfer?.types ?? [])];
+                        if (types.includes('plextune/track')) this.draggingTrack = true;
+                        if (types.includes('plextune/playlist')) this.draggingPlaylist = true;
+                        if (types.includes('plextune/folder')) this.draggingFolder = true;
+                    } catch (_) {}
+                };
+                this._de = () => { this.draggingTrack = false; this.draggingPlaylist = false; this.draggingFolder = false; this.draggedPlaylistId = null; this.draggedFolderId = null; this.dropTarget = null; this.overId = null; };
                 window.addEventListener('dragstart', this._ds);
                 window.addEventListener('dragend', this._de);
             },
@@ -263,29 +453,62 @@ new class extends Component {
             },
             openMenu(e, kind, id) { e.preventDefault(); e.stopPropagation(); this.menu = { x: e.clientX, y: e.clientY, kind, id }; },
             flashRow(key, ok) { this.flash[key] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[key] = null; }, 700); },
-            async dropTrackOn(key, playlistId, e) {
-                e.preventDefault(); this.dropTarget = null;
+            rowDragOver(e, id) {
+                if (!this.draggingPlaylist || id === this.draggedPlaylistId) { this.overId = null; return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                this.overPos = (e.clientY - r.top) < r.height / 2 ? 'before' : 'after';
+                this.overId = id;
+            },
+            folderDragOver(e, id) {
+                if (!this.draggingFolder || id === this.draggedFolderId) { this.overId = null; return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                this.overPos = (e.clientY - r.top) < r.height / 2 ? 'before' : 'after';
+                this.overId = id;
+            },
+            onRowDrop(e, key, playlistId, folderId) {
+                e.preventDefault();
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                if (movedPl) {
+                    const dragged = this.draggedPlaylistId || movedPl, pos = this.overPos;
+                    this.overId = null; this.draggedPlaylistId = null; this.draggingPlaylist = false; this.dropTarget = null;
+                    if (!dragged || !pos || dragged === playlistId) return;
+                    $wire.movePlaylist(dragged, folderId, playlistId, pos);
+                    return;
+                }
+                this.dropTarget = null;
                 const trackId = e.dataTransfer.getData('plextune/track');
                 const albumId = e.dataTransfer.getData('plextune/album');
                 if (!trackId && !albumId) return;
-                try {
-                    const ok = trackId
-                        ? await $wire.addTrackToPlaylist(playlistId, trackId)
-                        : await $wire.addAlbumToPlaylist(playlistId, albumId);
-                    this.flashRow(key, ok);
-                } catch (_) { this.flashRow(key, false); }
+                (async () => {
+                    try {
+                        const ok = trackId ? await $wire.addTrackToPlaylist(playlistId, trackId) : await $wire.addAlbumToPlaylist(playlistId, albumId);
+                        this.flashRow(key, ok);
+                    } catch (_) { this.flashRow(key, false); }
+                })();
             },
-            async dropTrackOnNew(e) {
-                e.preventDefault(); this.dropTarget = null;
-                const trackId = e.dataTransfer.getData('plextune/track');
-                if (!trackId) return;
-                try { const ok = await $wire.createPlaylistFromTrack(trackId); this.flashRow('__new', ok); }
-                catch (_) { this.flashRow('__new', false); }
+            onFolderHeaderDrop(e, folderId) {
+                e.preventDefault();
+                const movedFolder = e.dataTransfer.getData('plextune/folder');
+                if (movedFolder) {
+                    const dragged = this.draggedFolderId || parseInt(movedFolder, 10), pos = this.overPos;
+                    this.overId = null; this.draggedFolderId = null; this.draggingFolder = false; this.dropTarget = null;
+                    if (!dragged || !pos || dragged === folderId) return;
+                    $wire.moveFolder(dragged, folderId, pos);
+                    return;
+                }
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                const dragged = this.draggedPlaylistId || movedPl;
+                this.draggingPlaylist = false; this.draggedPlaylistId = null; this.dropTarget = null;
+                if (dragged) $wire.movePlaylist(dragged, folderId, null, 'before');
             },
-            dropPlaylistOn(folderId, e) {
+            dropTrackOnNew(e) { e.preventDefault(); this.dropTarget = null; const trackId = e.dataTransfer.getData('plextune/track'); if (!trackId) return; (async () => { try { const ok = await $wire.createPlaylistFromTrack(trackId); this.flashRow('__new', ok); } catch (_) { this.flashRow('__new', false); } })(); },
+            dropOnOtherHeader(e, lastRootId) {
                 e.preventDefault(); this.dropTarget = null;
-                const playlistId = e.dataTransfer.getData('plextune/playlist');
-                if (playlistId) $wire.movePlaylistToFolder(playlistId, folderId);
+                const movedPl = e.dataTransfer.getData('plextune/playlist');
+                if (!movedPl) return;
+                const dragged = this.draggedPlaylistId || movedPl;
+                if (lastRootId && dragged !== lastRootId) $wire.movePlaylist(dragged, null, lastRootId, 'after');
+                else if (!lastRootId) $wire.movePlaylist(dragged, null, null, 'before');
             },
          }"
          @keydown.escape.window="menu = null">
@@ -330,7 +553,8 @@ new class extends Component {
                 $filter = trim($this->filter);
                 $matches = fn ($title) => $filter === '' || str_contains(mb_strtolower((string) $title), mb_strtolower($filter));
                 $filed = $this->folders->flatMap(fn ($f) => $f->folderPlaylists->pluck('plex_playlist_id'))->all();
-                $rootPlaylists = $allPlaylists->reject(fn ($p) => in_array($p->id, $filed, true))->values();
+                $rootPlaylists = collect($this->rootOrderedPlexIds($allPlaylists->pluck('id')->all(), $filed))
+                    ->map(fn ($id) => $byId->get($id))->filter()->values();
                 $visibleRoot = $rootPlaylists->filter(fn ($p) => $matches($p->title))->values();
             @endphp
 
@@ -345,12 +569,19 @@ new class extends Component {
                 @endphp
                 @if ($filter === '' || $visibleItems->isNotEmpty())
                     <div wire:key="folder-{{ $folder->id }}" class="flex flex-col">
-                        <div wire:click="toggleFolder({{ $folder->id }})"
+                        <div wire:click="toggleFolder({{ $folder->id }})" draggable="true"
+                             @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/folder', '{{ $folder->id }}'); draggingFolder = true; draggedFolderId = {{ $folder->id }}"
+                             @dragend="draggingFolder = false; draggedFolderId = null; overId = null; dropTarget = null"
                              @contextmenu="openMenu($event, 'folder', {{ $folder->id }})"
-                             @dragover.prevent="dropTarget = 'folder-{{ $folder->id }}'"
-                             @dragleave="dropTarget = null"
-                             @drop="dropPlaylistOn({{ $folder->id }}, $event)"
-                             :class="dropTarget === 'folder-{{ $folder->id }}' ? 'bg-accent/15 ring-1 ring-accent/40' : 'hover:bg-surface-2'"
+                             @dragover.prevent="if (draggingFolder) folderDragOver($event, {{ $folder->id }}); else if (draggingPlaylist) dropTarget = 'folder-{{ $folder->id }}'"
+                             @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) { dropTarget = null; if (overId === {{ $folder->id }}) overId = null; }"
+                             @drop="onFolderHeaderDrop($event, {{ $folder->id }})"
+                             :class="{
+                                 'bg-accent/15 ring-1 ring-accent/40': dropTarget === 'folder-{{ $folder->id }}',
+                                 'drop-before': overId === {{ $folder->id }} && overPos === 'before',
+                                 'drop-after': overId === {{ $folder->id }} && overPos === 'after',
+                                 'hover:bg-surface-2': dropTarget !== 'folder-{{ $folder->id }}' && overId !== {{ $folder->id }},
+                             }"
                              class="group w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer">
                             <x-lucide-chevron-right @class(['w-3 h-3 flex-none text-text-2 transition-transform', 'rotate-90' => $bodyOpen]) />
                             <x-lucide-folder class="w-4 h-4 text-text-2 flex-none" />
@@ -372,7 +603,7 @@ new class extends Component {
                         @if ($bodyOpen)
                             <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5">
                                 @forelse ($filter === '' ? $items : $visibleItems as $p)
-                                    @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                                    @include('partials.playlist-row', ['p' => $p, 'folderId' => $folder->id, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
                                 @empty
                                     <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
                                 @endforelse
@@ -384,16 +615,16 @@ new class extends Component {
 
             {{-- "Other" header (only when folders exist and there are unfiled playlists visible) --}}
             @if ($this->folders->isNotEmpty() && $visibleRoot->isNotEmpty())
-                <div @dragover.prevent="dropTarget = '__root'"
-                     @dragleave="dropTarget = null"
-                     @drop="dropPlaylistOn(null, $event)"
+                <div @dragover.prevent="if (draggingPlaylist) dropTarget = '__root'"
+                     @dragleave="if (!$event.currentTarget.contains($event.relatedTarget)) dropTarget = null"
+                     @drop="dropOnOtherHeader($event, '{{ $visibleRoot->last()->id }}')"
                      :class="dropTarget === '__root' ? 'bg-accent/10 ring-1 ring-accent/30 rounded' : ''"
                      class="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-text-3 font-bold">Other</div>
             @endif
 
             {{-- Root playlists --}}
             @forelse ($visibleRoot as $p)
-                @include('partials.playlist-row', ['p' => $p, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                @include('partials.playlist-row', ['p' => $p, 'folderId' => null, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
             @empty
                 @if ($this->folders->isEmpty() && $allPlaylists->isEmpty())
                     <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
