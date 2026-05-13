@@ -132,7 +132,7 @@ new class extends Component {
             ]);
         }
 
-        unset($this->folders);
+        unset($this->folders, $this->rootPlacements);
     }
 
     public function movePlaylist(string $draggedPlaylistId, ?int $targetFolderId, ?string $targetPlaylistId, string $position): void
@@ -362,7 +362,7 @@ new class extends Component {
         }
 
         FolderPlaylist::where('plex_playlist_id', $playlistId)->delete();
-        unset($this->playlists, $this->folders);
+        unset($this->playlists, $this->folders, $this->rootPlacements);
     }
 
     public function playPlaylist(string $playlistId): void
