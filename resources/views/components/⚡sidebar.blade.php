@@ -497,8 +497,9 @@ new class extends Component {
                     return;
                 }
                 const movedPl = e.dataTransfer.getData('plextune/playlist');
-                this.dropTarget = null;
-                if (movedPl) $wire.movePlaylist(this.draggedPlaylistId || movedPl, folderId, null, 'before');
+                const dragged = this.draggedPlaylistId || movedPl;
+                this.draggingPlaylist = false; this.draggedPlaylistId = null; this.dropTarget = null;
+                if (dragged) $wire.movePlaylist(dragged, folderId, null, 'before');
             },
             dropTrackOnNew(e) { e.preventDefault(); this.dropTarget = null; const trackId = e.dataTransfer.getData('plextune/track'); if (!trackId) return; (async () => { try { const ok = await $wire.createPlaylistFromTrack(trackId); this.flashRow('__new', ok); } catch (_) { this.flashRow('__new', false); } })(); },
             dropOnOtherHeader(e, lastRootId) {
