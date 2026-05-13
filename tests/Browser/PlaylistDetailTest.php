@@ -206,7 +206,7 @@ it('reorders a track in a playlist and restores the original order', function ()
                 if (rows.length > 0) {
                     for (const el of rows) {
                         const t = el.textContent;
-                        if (!t.includes('0 songs') && !t.includes('1 songs')) {
+                        if (!t.includes('0 songs') && !t.includes('1 song')) {
                             const link = el.querySelector('a[href]') ?? el;
                             return link.getAttribute('href');
                         }
@@ -236,6 +236,7 @@ it('reorders a track in a playlist and restores the original order', function ()
         })()
     JS))->toBeTrue('Expected at least 2 track rows on the playlist page.');
 
+    // We reorder the playlist twice (move row 2 above row 1, then move it back) so the live Plex playlist is left unchanged. If the test is killed between the two moves the playlist stays reordered — same live-server caveat as the play tests above.
     $result = $page->script(<<<'JS'
         (async () => {
             const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -267,11 +268,11 @@ it('reorders a track in a playlist and restores the original order', function ()
             for (let i = 0; i < 60 && keys()[0] !== before[0]; i++) await sleep(150);
             const restored = keys();
 
-            return { ok: true, before, swapped, restored };
+            return { ok: true, reason: '', before, swapped, restored };
         })()
     JS);
 
     expect($result['ok'])->toBeTrue($result['reason'] ?? 'reorder script failed');
-    expect($result['swapped'][0])->toBe($result['before'][1]); // old row 2 is now first
-    expect($result['restored'])->toBe($result['before']);       // original order restored
+    expect($result['swapped'][0])->toBe($result['before'][1], 'Row 2 should be first after moving it before row 1.');
+    expect($result['restored'])->toBe($result['before'], 'Original track order should be restored after the inverse move.');
 });
