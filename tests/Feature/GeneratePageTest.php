@@ -287,3 +287,44 @@ it('dispatches a notify toast when the proposal has no tracks', function () {
 
     expect(AiPlaylistProposal::where('conversation_id', 'conv-acc-3')->first()->status)->toBe('pending');
 });
+
+it('discards the latest proposal', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    AiPlaylistProposal::create([
+        'conversation_id' => 'conv-d1',
+        'name' => 'X',
+        'payload' => ['tracks' => []],
+        'status' => 'pending',
+    ]);
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'conv-d1')
+        ->call('discardProposal');
+
+    expect(AiPlaylistProposal::where('conversation_id', 'conv-d1')->first()->status)->toBe('discarded');
+});
+
+it('resets conversation state on startNew', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'conv-n1')
+        ->set('messages', [['role' => 'user', 'content' => 'hi']])
+        ->set('input', 'partial')
+        ->call('startNew')
+        ->assertSet('conversationId', null)
+        ->assertSet('messages', [])
+        ->assertSet('input', '');
+});
+
+it('renders a New conversation button only when messages exist', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    $component = Livewire::test('pages::generate');
+    $component->assertDontSee('New conversation');
+
+    $component->set('messages', [['role' => 'user', 'content' => 'hello']])
+        ->assertSee('New conversation')
+        ->assertSeeHtml('wire:click="startNew"');
+});

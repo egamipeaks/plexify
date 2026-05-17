@@ -78,7 +78,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function discardProposal(): void
     {
-        // Implemented in T22.
+        if ($this->conversationId !== null) {
+            app(ProposalStore::class)->markDiscarded($this->conversationId);
+        }
+    }
+
+    public function startNew(): void
+    {
+        $this->conversationId = null;
+        $this->messages = [];
+        $this->input = '';
     }
 
     public function send(): void
@@ -115,7 +124,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="h-full overflow-y-auto p-6">
     <div class="mx-auto max-w-3xl">
-        <h1 class="mb-6 text-2xl font-bold text-text-1">Generate a playlist</h1>
+        <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-text-1">Generate a playlist</h1>
+            @if ($aiConfigured && ! empty($messages))
+                <button type="button" wire:click="startNew" class="text-sm text-text-2 hover:text-text-1">New conversation</button>
+            @endif
+        </div>
 
         @if (! $aiConfigured)
             <div class="rounded-lg bg-surface-1 p-6 text-text-2">
