@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "blade-ui-kit/blade-icons": "^1.10",
+        "laravel/ai": "^0.6.8",
         "laravel/framework": "^13.7",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.0",
