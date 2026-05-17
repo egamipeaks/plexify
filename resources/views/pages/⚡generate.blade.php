@@ -150,9 +150,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     <x-generate-message :role="$msg['role']" :content="$msg['content']" />
                 @endforeach
 
-                @if ($thinking)
-                    <div class="italic text-text-3">Thinking...</div>
-                @endif
+                <div wire:loading wire:target="send" class="flex items-center gap-2 text-text-3" data-testid="thinking">
+                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.25"/>
+                        <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <span class="italic">Searching your library...</span>
+                </div>
             </div>
 
             @if ($p = $this->proposal())
@@ -163,9 +167,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <form wire:submit="send" class="sticky bottom-0 bg-base pt-4">
                 <div class="flex gap-2">
-                    <textarea wire:model="input" rows="2" placeholder="Describe the playlist you want..."
-                              class="flex-1 rounded-lg bg-surface-1 p-3 text-text-1"></textarea>
-                    <button type="submit" class="rounded-lg bg-accent px-4 py-2 font-semibold text-black hover:bg-accent-hover">Send</button>
+                    <textarea wire:model="input" wire:loading.attr="disabled" wire:target="send" rows="2" placeholder="Describe the playlist you want..."
+                              class="flex-1 rounded-lg bg-surface-1 p-3 text-text-1 disabled:opacity-50"></textarea>
+                    <button type="submit" wire:loading.attr="disabled" wire:target="send" class="rounded-lg bg-accent px-4 py-2 font-semibold text-black hover:bg-accent-hover disabled:opacity-50">
+                        <span wire:loading.remove wire:target="send">Send</span>
+                        <span wire:loading wire:target="send">Working...</span>
+                    </button>
                 </div>
             </form>
         @endif
