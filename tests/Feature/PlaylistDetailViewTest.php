@@ -326,3 +326,49 @@ it('moveTrack surfaces a Plex outage as a notify toast and returns false', funct
         ->assertReturned(false)
         ->assertDispatched('notify', type: 'error');
 });
+
+it('removeTrack calls PlexClient::removeTrackFromPlaylist and returns true', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('removeTrackFromPlaylist')->once()->with('4242', 'i2');
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('removeTrack', 'i2')
+        ->assertReturned(true);
+});
+
+it('removeTrack with an unknown item returns false without calling Plex', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('removeTrackFromPlaylist')->never();
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('removeTrack', 'nope')
+        ->assertReturned(false);
+});
+
+it('removeTrack surfaces a Plex outage as a notify toast and returns false', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->makePartial();
+        $mock->shouldReceive('playlists')->andReturn(collect([samplePlaylist()]));
+        $mock->shouldReceive('playlistTracks')->with('4242')->andReturn(samplePlaylistTracks());
+        $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
+        $mock->shouldReceive('streamUrl')->andReturnUsing(fn ($t) => "https://server/{$t->partId}");
+        $mock->shouldReceive('removeTrackFromPlaylist')->once()->andThrow(new PlexUnreachableException('down'));
+    });
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '4242'])
+        ->call('removeTrack', 'i2')
+        ->assertReturned(false)
+        ->assertDispatched('notify', type: 'error');
+});

@@ -121,6 +121,27 @@ new #[Layout('components.layouts.app')] class extends Component {
         return true;
     }
 
+    public function removeTrack(string $playlistItemId): bool
+    {
+        $exists = $this->tracks->contains(fn ($t) => $t->playlistItemId === $playlistItemId);
+
+        if (! $exists) {
+            return false;
+        }
+
+        try {
+            $this->plex->removeTrackFromPlaylist($this->playlist, $playlistItemId);
+        } catch (PlexException $e) {
+            $this->dispatch('notify', type: 'error', message: "Couldn't remove the track. ".$e->getMessage());
+
+            return false;
+        }
+
+        unset($this->tracks);
+
+        return true;
+    }
+
     public function retry(): void
     {
         $this->errorMessage = null;
@@ -335,6 +356,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     overId: null,
                     overPos: null,
                     flash: {},
+                    selectedId: null,
+                    menu: null,
                     flashRow(id, ok) { this.flash[id] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[id] = null }, 700) },
                     onDragOver(e, id) {
                         if (!this.draggedId || id === this.draggedId) { this.overId = null; return }
@@ -349,10 +372,27 @@ new #[Layout('components.layouts.app')] class extends Component {
                         try { const ok = await $wire.moveTrack(dragged, id, pos); this.flashRow(dragged, ok) }
                         catch (_) { this.flashRow(dragged, false) }
                     },
-                }">
+                    openMenu(e, id) { e.preventDefault(); this.selectedId = id; this.menu = { x: e.clientX, y: e.clientY, itemId: id } },
+                    closeMenu() { this.menu = null },
+                    async removeSelected() {
+                        const id = this.menu ? this.menu.itemId : this.selectedId;
+                        this.closeMenu();
+                        if (!id) return;
+                        try { const ok = await $wire.removeTrack(id); this.flashRow(id, ok); if (ok && this.selectedId === id) this.selectedId = null }
+                        catch (_) { this.flashRow(id, false) }
+                    },
+                    onKey(e) {
+                        if (!this.selectedId) return;
+                        const t = e.target;
+                        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+                        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.removeSelected() }
+                    },
+                }" @keydown.window="onKey($event)" @click.outside="selectedId = null; closeMenu()">
                     @foreach ($this->tracks as $i => $track)
                         @if ($tracksCompact)
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                    @click="selectedId = '{{ $track->playlistItemId }}'"
+                                    @contextmenu="openMenu($event, '{{ $track->playlistItemId }}')"
                                     draggable="true"
                                     @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
                                     @dragend="draggedId = null; overId = null"
@@ -364,6 +404,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
                                         'bg-emerald-400/10 ring-1 ring-emerald-400': flash['{{ $track->playlistItemId }}'] === 'ok',
                                         'bg-red-400/10 ring-1 ring-red-400': flash['{{ $track->playlistItemId }}'] === 'err',
+                                        'bg-white/[0.04] ring-1 ring-accent/60': selectedId === '{{ $track->playlistItemId }}' && !flash['{{ $track->playlistItemId }}'],
                                     }"
                                     class="row group w-full grid items-center px-4 py-[3px] rounded text-[13px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 20px 1.4fr 1fr 1fr 50px;">
@@ -393,6 +434,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </button>
                         @else
                             <button type="button" wire:key="track-{{ $track->id }}" wire:click="playTrack('{{ $track->id }}')"
+                                    @click="selectedId = '{{ $track->playlistItemId }}'"
+                                    @contextmenu="openMenu($event, '{{ $track->playlistItemId }}')"
                                     draggable="true"
                                     @dragstart="$event.dataTransfer.effectAllowed='copy'; $event.dataTransfer.setData('plextune/track', '{{ $track->id }}'); $event.dataTransfer.setData('plextune/playlist-item', '{{ $track->playlistItemId }}'); draggedId = '{{ $track->playlistItemId }}'"
                                     @dragend="draggedId = null; overId = null"
@@ -404,6 +447,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         'drop-after': overId === '{{ $track->playlistItemId }}' && overPos === 'after',
                                         'bg-emerald-400/10 ring-1 ring-emerald-400': flash['{{ $track->playlistItemId }}'] === 'ok',
                                         'bg-red-400/10 ring-1 ring-red-400': flash['{{ $track->playlistItemId }}'] === 'err',
+                                        'bg-white/[0.04] ring-1 ring-accent/60': selectedId === '{{ $track->playlistItemId }}' && !flash['{{ $track->playlistItemId }}'],
                                     }"
                                     class="row group w-full grid items-center px-4 py-2 rounded text-[14px] text-left hover:bg-white/[0.07] transition-colors"
                                     style="grid-template-columns: 40px 36px 1.6fr 1fr 16px 60px;">
@@ -451,6 +495,19 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </button>
                         @endif
                     @endforeach
+
+                    <template x-if="menu">
+                        <div class="fixed z-50 min-w-[200px] rounded-md border border-white/10 bg-surface-2 py-1 text-[13px] text-text-1 shadow-xl"
+                             :style="{ left: menu.x + 'px', top: menu.y + 'px' }"
+                             @click.outside="closeMenu()"
+                             @keydown.escape.window="closeMenu()"
+                             x-cloak>
+                            <button type="button" @click="removeSelected()"
+                                    class="block w-full px-3 py-1.5 text-left hover:bg-white/10">
+                                Remove from playlist
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>

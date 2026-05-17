@@ -545,6 +545,19 @@ class PlexClient
         $this->cache->forget("playlist:{$playlistId}:items");
     }
 
+    public function removeTrackFromPlaylist(string $playlistId, string $playlistItemId): void
+    {
+        try {
+            $response = $this->server()->delete("/playlists/{$playlistId}/items/{$playlistItemId}");
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Removing track from playlist failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "DELETE playlists/{$playlistId}/items/{$playlistItemId}");
+
+        $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
     public function moveTrack(string $playlistId, string $playlistItemId, ?string $afterPlaylistItemId): void
     {
         $path = "/playlists/{$playlistId}/items/{$playlistItemId}/move";
