@@ -151,6 +151,30 @@ class PlexClient
         });
     }
 
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function genres(): array
+    {
+        return $this->taxonomy('genre');
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function styles(): array
+    {
+        return $this->taxonomy('style');
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function moods(): array
+    {
+        return $this->taxonomy('mood');
+    }
+
     public function recentlyAddedAlbums(?int $limit = null): Collection
     {
         $limit = $limit ?? (int) config('services.plex.recently_added_limit', 50);
@@ -434,6 +458,30 @@ class PlexClient
         $this->ensureOk($response, "PUT playlists/{$playlistId}/items/{$playlistItemId}/move");
 
         $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    private function taxonomy(string $kind): array
+    {
+        return $this->cache->remember("taxonomy:{$kind}", PlexCache::TTL_TAXONOMY, function () use ($kind) {
+            $section = $this->musicSectionId();
+            $response = $this->server()->get("/library/sections/{$section}/{$kind}");
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException("Plex taxonomy endpoint /library/sections/{$section}/{$kind} not found.");
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException("Plex {$kind} fetch returned {$response->status()}");
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Directory', []))
+                ->map(fn (array $row) => ['id' => (string) $row['key'], 'name' => $row['title']])
+                ->values()
+                ->all();
+        });
     }
 
     private function putPlaylistItem(string $playlistId, string $uri): void

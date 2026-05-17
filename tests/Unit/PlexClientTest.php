@@ -823,3 +823,67 @@ it('maps a 500 from the move endpoint to PlexUnreachableException', function () 
 
     expect(fn () => app(PlexClient::class)->moveTrack('4242', '9002', '9001'))->toThrow(PlexUnreachableException::class);
 });
+
+it('fetches genres for the music section', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/genre*' => Http::response([
+            'MediaContainer' => ['Directory' => [
+                ['key' => '101', 'title' => 'Pop/Rock'],
+                ['key' => '102', 'title' => 'Electronic'],
+            ]],
+        ], 200),
+    ]);
+
+    $genres = app(PlexClient::class)->genres();
+
+    expect($genres)->toBe([
+        ['id' => '101', 'name' => 'Pop/Rock'],
+        ['id' => '102', 'name' => 'Electronic'],
+    ]);
+});
+
+it('fetches styles for the music section', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/style*' => Http::response([
+            'MediaContainer' => ['Directory' => [['key' => '201', 'title' => 'New Wave']]],
+        ], 200),
+    ]);
+
+    expect(app(PlexClient::class)->styles())->toBe([
+        ['id' => '201', 'name' => 'New Wave'],
+    ]);
+});
+
+it('fetches moods for the music section', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/mood*' => Http::response([
+            'MediaContainer' => ['Directory' => [['key' => '301', 'title' => 'Melancholy']]],
+        ], 200),
+    ]);
+
+    expect(app(PlexClient::class)->moods())->toBe([
+        ['id' => '301', 'name' => 'Melancholy'],
+    ]);
+});
+
+it('caches the taxonomy results', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/genre*' => Http::response([
+            'MediaContainer' => ['Directory' => [['key' => '1', 'title' => 'X']]],
+        ], 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $client->genres();
+    $client->genres();
+
+    Http::assertSentCount(3); // resources + sections + genre, no second genre call
+});

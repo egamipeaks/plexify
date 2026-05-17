@@ -19,6 +19,8 @@ class PlexCache
 
     public const TTL_PLAYLISTS = 300;           // 5 minutes
 
+    public const TTL_TAXONOMY = 86400;          // 24h — taxonomy rarely changes
+
     private const PREFIX = 'plex:';
 
     private const INDEX_KEY = 'plex:_index';
