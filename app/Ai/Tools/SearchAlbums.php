@@ -21,7 +21,7 @@ class SearchAlbums implements Tool
     {
         return [
             'query' => $schema->string()->required(),
-            'limit' => $schema->integer()->min(1)->max(50),
+            'limit' => $schema->integer()->min(1)->max(50)->nullable()->required(),
         ];
     }
 

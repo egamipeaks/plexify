@@ -4,6 +4,7 @@ use App\Ai\Agents\PlaylistGeneratorAgent;
 use App\Ai\Support\ProposalStore;
 use App\Models\AiPlaylistProposal;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\ConversationStore;
 use Livewire\Attributes\Layout;
@@ -115,6 +116,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->messages[] = ['role' => 'assistant', 'content' => $response->text];
         } catch (\Throwable $e) {
+            Log::error('AI playlist generator send failed', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
+                'conversation_id' => $this->conversationId,
+                'trace' => $e->getTraceAsString(),
+            ]);
             $this->dispatch('notify', type: 'error', message: 'AI request failed: '.$e->getMessage());
         } finally {
             $this->thinking = false;

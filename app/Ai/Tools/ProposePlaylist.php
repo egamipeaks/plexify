@@ -26,9 +26,9 @@ class ProposePlaylist implements Tool
     {
         return [
             'name' => $schema->string()->required(),
-            'description' => $schema->string(),
+            'description' => $schema->string()->nullable()->required(),
             'trackRatingKeys' => $schema->array()->items($schema->string())->required(),
-            'rationalePerTrack' => $schema->object(),
+            'rationalePerTrack' => $schema->object()->nullable()->required(),
         ];
     }
 

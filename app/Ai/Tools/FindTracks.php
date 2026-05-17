@@ -20,13 +20,13 @@ class FindTracks implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'styleIds' => $schema->array()->items($schema->string()),
-            'moodIds' => $schema->array()->items($schema->string()),
-            'genreIds' => $schema->array()->items($schema->string()),
-            'artistIds' => $schema->array()->items($schema->string()),
-            'yearFrom' => $schema->integer(),
-            'yearTo' => $schema->integer(),
-            'limit' => $schema->integer()->min(1)->max(200),
+            'styleIds' => $schema->array()->items($schema->string())->nullable()->required(),
+            'moodIds' => $schema->array()->items($schema->string())->nullable()->required(),
+            'genreIds' => $schema->array()->items($schema->string())->nullable()->required(),
+            'artistIds' => $schema->array()->items($schema->string())->nullable()->required(),
+            'yearFrom' => $schema->integer()->nullable()->required(),
+            'yearTo' => $schema->integer()->nullable()->required(),
+            'limit' => $schema->integer()->min(1)->max(200)->nullable()->required(),
         ];
     }
 
