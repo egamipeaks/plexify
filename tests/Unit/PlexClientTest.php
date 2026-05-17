@@ -940,3 +940,17 @@ it('throws PlexUnreachableException on findTracks failure', function () {
     expect(fn () => app(PlexClient::class)->findTracks(['styleIds' => ['1']]))
         ->toThrow(PlexUnreachableException::class);
 });
+
+it('fetches popular tracks for an artist', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/58563/popular*' => Http::response(file_get_contents(fixturePath('tracks_for_album.json')), 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->popularTracksForArtist('58563');
+
+    expect($tracks)->toBeInstanceOf(Collection::class)
+        ->and($tracks)->not->toBeEmpty()
+        ->and($tracks->first())->toBeInstanceOf(Track::class);
+});

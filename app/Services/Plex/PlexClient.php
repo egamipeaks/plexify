@@ -152,6 +152,28 @@ class PlexClient
     }
 
     /**
+     * @return Collection<int, Track>
+     */
+    public function popularTracksForArtist(string $artistId): Collection
+    {
+        return $this->cache->remember("artist:{$artistId}:popular", PlexCache::TTL_PLAYLISTS, function () use ($artistId) {
+            $response = $this->server()->get("/library/metadata/{$artistId}/popular");
+
+            if ($response->status() === 404) {
+                throw new PlexNotFoundException("Popular tracks not found for artist {$artistId}.");
+            }
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('popularTracksForArtist returned '.$response->status());
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Track::fromPlex($row))
+                ->values();
+        });
+    }
+
+    /**
      * @return list<array{id: string, name: string}>
      */
     public function genres(): array
