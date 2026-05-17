@@ -151,16 +151,25 @@ class PlexClient
         });
     }
 
-    public function recentlyAddedAlbums(int $limit = 50): Collection
+    public function recentlyAddedAlbums(?int $limit = null): Collection
     {
+        $limit = $limit ?? (int) config('services.plex.recently_added_limit', 50);
+
         return $this->cache->remember("recently_added:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
             $sectionId = $this->musicSectionId();
 
+            // Plex's /recentlyAdded endpoint is hard-capped server-side (default 25, "Maximum number
+            // of items in the Recently Added section"). The /all endpoint with sort=addedAt:desc
+            // is what Plex Web uses for the full Recently Added view and honors container size.
             $response = $this->server()
-                ->withHeader('X-Plex-Container-Size', (string) $limit)
-                ->get("/library/sections/{$sectionId}/recentlyAdded", ['type' => 9]);
+                ->get("/library/sections/{$sectionId}/all", [
+                    'type' => 9,
+                    'sort' => 'addedAt:desc',
+                    'X-Plex-Container-Start' => 0,
+                    'X-Plex-Container-Size' => $limit,
+                ]);
 
-            $this->ensureOk($response, "library/sections/{$sectionId}/recentlyAdded");
+            $this->ensureOk($response, "library/sections/{$sectionId}/all");
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Album::fromPlex($row))
@@ -168,17 +177,20 @@ class PlexClient
         });
     }
 
-    public function recentlyPlayedTracks(int $limit = 50): Collection
+    public function recentlyPlayedTracks(?int $limit = null): Collection
     {
+        $limit = $limit ?? (int) config('services.plex.recently_played_limit', 50);
+
         return $this->cache->remember("recently_played:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
             $sectionId = $this->musicSectionId();
 
             // Ask for 4x so we can slice past any unplayed rows Plex's :desc sort allowed through.
             $response = $this->server()
-                ->withHeader('X-Plex-Container-Size', (string) ($limit * 4))
                 ->get("/library/sections/{$sectionId}/all", [
                     'type' => 10,
                     'sort' => 'lastViewedAt:desc',
+                    'X-Plex-Container-Start' => 0,
+                    'X-Plex-Container-Size' => $limit * 4,
                 ]);
 
             $this->ensureOk($response, "library/sections/{$sectionId}/all");

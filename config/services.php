@@ -38,6 +38,8 @@ return [
     'plex' => [
         'token' => env('PLEX_TOKEN'),
         'base_url' => env('PLEX_BASE_URL'),
+        'recently_added_limit' => (int) env('PLEXIFY_RECENTLY_ADDED_LIMIT', 50),
+        'recently_played_limit' => (int) env('PLEXIFY_RECENTLY_PLAYED_LIMIT', 50),
     ],
 
 ];
