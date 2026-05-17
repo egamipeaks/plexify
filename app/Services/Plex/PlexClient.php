@@ -174,6 +174,26 @@ class PlexClient
     }
 
     /**
+     * @return Collection<int, array{id: string, name: string}>
+     */
+    public function similarArtists(string $artistId): Collection
+    {
+        $response = $this->server()->get("/library/metadata/{$artistId}");
+
+        if ($response->status() === 404) {
+            throw new PlexNotFoundException("Artist {$artistId} not found.");
+        }
+
+        if (! $response->successful()) {
+            throw new PlexUnreachableException('similarArtists returned '.$response->status());
+        }
+
+        return collect(data_get($response->json(), 'MediaContainer.Metadata.0.Similar', []))
+            ->map(fn (array $row) => ['id' => (string) $row['id'], 'name' => $row['tag']])
+            ->values();
+    }
+
+    /**
      * @return list<array{id: string, name: string}>
      */
     public function genres(): array

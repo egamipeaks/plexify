@@ -954,3 +954,40 @@ it('fetches popular tracks for an artist', function () {
         ->and($tracks)->not->toBeEmpty()
         ->and($tracks->first())->toBeInstanceOf(Track::class);
 });
+
+it('returns similar artists from artist metadata', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/58563' => Http::response([
+            'MediaContainer' => ['Metadata' => [[
+                'ratingKey' => '58563',
+                'title' => 'Magnetic Fields',
+                'Similar' => [
+                    ['id' => 1, 'tag' => 'Stephin Merritt'],
+                    ['id' => 2, 'tag' => 'The Gothic Archies'],
+                ],
+            ]]],
+        ], 200),
+    ]);
+
+    $similar = app(PlexClient::class)->similarArtists('58563');
+
+    expect($similar)->toBeInstanceOf(Collection::class)
+        ->and($similar->all())->toBe([
+            ['id' => '1', 'name' => 'Stephin Merritt'],
+            ['id' => '2', 'name' => 'The Gothic Archies'],
+        ]);
+});
+
+it('returns an empty collection when artist has no Similar array', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/999' => Http::response([
+            'MediaContainer' => ['Metadata' => [['ratingKey' => '999', 'title' => 'Obscure']]],
+        ], 200),
+    ]);
+
+    expect(app(PlexClient::class)->similarArtists('999'))->toBeEmpty();
+});
