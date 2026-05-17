@@ -71,7 +71,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $store->markAccepted($this->conversationId, $plexPlaylistId);
 
-            $this->dispatch('playlist-created', id: $plexPlaylistId);
+            $this->redirect(route('playlist', ['playlist' => $plexPlaylistId]), navigate: true);
         } catch (\Throwable $e) {
             $this->dispatch('notify', type: 'error', message: 'Could not save playlist: '.$e->getMessage());
         }

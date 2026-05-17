@@ -236,7 +236,7 @@ it('creates a Plex playlist on accept and marks proposal accepted', function () 
     Livewire::test('pages::generate')
         ->set('conversationId', 'conv-acc-1')
         ->call('acceptProposal')
-        ->assertDispatched('playlist-created');
+        ->assertRedirect(route('playlist', ['playlist' => 'new-pl-id']));
 
     $row = AiPlaylistProposal::where('conversation_id', 'conv-acc-1')->first();
     expect($row->status)->toBe('accepted')
