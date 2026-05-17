@@ -393,6 +393,16 @@ new class extends Component {
 <aside class="flex flex-col gap-2 h-full min-h-0">
     {{-- Top nav card --}}
     <div class="bg-surface rounded-lg p-2 flex flex-col gap-1">
+        <a href="{{ route('generate') }}" wire:navigate
+           @class([
+               'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
+               'text-white bg-surface-2' => request()->routeIs('generate'),
+               'text-text-2 hover:text-white' => ! request()->routeIs('generate'),
+           ])>
+            <x-lucide-sparkles class="w-5 h-5" />
+            <span class="flex-1 text-left">Generate</span>
+        </a>
+
         <a href="{{ route('library') }}" wire:navigate
            @class([
                'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',

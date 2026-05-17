@@ -237,16 +237,17 @@ it('shows the New folder button and the per-folder toggle control', function () 
         ->assertSee('Filter playlists'); // the filter input placeholder
 });
 
-it('shows three top-level nav items: Library / Recently Added / Recently Played', function () {
+it('shows four top-level nav items: Generate / Library / Recently Added / Recently Played', function () {
     mockSidebarPlex();
 
     $html = Livewire::test('sidebar')->html();
     $topNav = explode('Your Playlists', $html, 2)[0];
 
     preg_match_all('/<a [^>]*wire:navigate/i', $topNav, $matches);
-    expect($matches[0])->toHaveCount(3);
+    expect($matches[0])->toHaveCount(4);
 
-    expect($topNav)->toContain('Your Library')
+    expect($topNav)->toContain('Generate')
+        ->and($topNav)->toContain('Your Library')
         ->and($topNav)->toContain('Recently Added')
         ->and($topNav)->toContain('Recently Played')
         ->and($topNav)->not->toContain('Home')
@@ -389,4 +390,12 @@ it('moveFolder is a no-op when the resulting order is unchanged', function () {
     Livewire::test('sidebar')->call('moveFolder', $f1->id, $f2->id, 'before');
 
     expect(Folder::orderBy('position')->pluck('name')->all())->toBe(['A', 'B']);
+});
+
+it('has a Generate link above Your Library in the sidebar nav', function () {
+    mockSidebarPlex();
+
+    Livewire::test('sidebar')
+        ->assertSeeHtml('href="'.route('generate').'"')
+        ->assertSeeInOrder(['Generate', 'Your Library']);
 });
