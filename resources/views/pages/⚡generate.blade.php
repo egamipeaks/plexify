@@ -40,7 +40,40 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function acceptProposal(): void
     {
-        // Implemented in T21.
+        if ($this->conversationId === null) {
+            return;
+        }
+
+        $store = app(ProposalStore::class);
+        $proposal = $store->latest($this->conversationId);
+
+        if (! $proposal || $proposal->status !== 'pending') {
+            return;
+        }
+
+        $tracks = $proposal->payload['tracks'] ?? [];
+
+        if (empty($tracks)) {
+            $this->dispatch('notify', type: 'error', message: 'Proposal has no tracks.');
+
+            return;
+        }
+
+        try {
+            $plex = app(\App\Services\Plex\PlexClient::class);
+
+            $plexPlaylistId = $plex->createPlaylist($proposal->name, $tracks[0]['ratingKey']);
+
+            foreach (array_slice($tracks, 1) as $track) {
+                $plex->addTrackToPlaylist($plexPlaylistId, $track['ratingKey']);
+            }
+
+            $store->markAccepted($this->conversationId, $plexPlaylistId);
+
+            $this->dispatch('playlist-created', id: $plexPlaylistId);
+        } catch (\Throwable $e) {
+            $this->dispatch('notify', type: 'error', message: 'Could not save playlist: '.$e->getMessage());
+        }
     }
 
     public function discardProposal(): void

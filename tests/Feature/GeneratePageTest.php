@@ -4,6 +4,7 @@ use App\Ai\Agents\PlaylistGeneratorAgent;
 use App\Models\AiPlaylistProposal;
 use App\Models\User;
 use App\Services\Plex\Dto\SearchResults;
+use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -202,4 +203,87 @@ it('does not render a card when the latest proposal is accepted or discarded', f
     Livewire::test('pages::generate')
         ->set('conversationId', 'manual-conv')
         ->assertDontSee('Old proposal');
+});
+
+it('creates a Plex playlist on accept and marks proposal accepted', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    AiPlaylistProposal::create([
+        'conversation_id' => 'conv-acc-1',
+        'name' => 'NW Essentials',
+        'description' => null,
+        'payload' => ['tracks' => [
+            ['ratingKey' => '1', 'title' => 'A', 'artist' => 'X', 'album' => 'Q', 'durationMs' => 200000, 'reason' => null],
+            ['ratingKey' => '2', 'title' => 'B', 'artist' => 'Y', 'album' => 'R', 'durationMs' => 220000, 'reason' => null],
+            ['ratingKey' => '3', 'title' => 'C', 'artist' => 'Z', 'album' => 'S', 'durationMs' => 240000, 'reason' => null],
+        ]],
+        'status' => 'pending',
+    ]);
+
+    // Override the layout's PlexClient mock (set in beforeEach) with one that
+    // also expects createPlaylist/addTrackToPlaylist calls.
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => true, 'connection' => '', 'machineIdentifier' => 'x']);
+    $plex->shouldReceive('playlists')->andReturn(collect());
+    $plex->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ?? '');
+    $plex->shouldReceive('searchAll')->andReturn(SearchResults::empty());
+    $plex->shouldReceive('scrobbleUrl')->andReturn('');
+    $plex->shouldReceive('createPlaylist')->once()->with('NW Essentials', '1')->andReturn('new-pl-id');
+    $plex->shouldReceive('addTrackToPlaylist')->once()->with('new-pl-id', '2');
+    $plex->shouldReceive('addTrackToPlaylist')->once()->with('new-pl-id', '3');
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'conv-acc-1')
+        ->call('acceptProposal')
+        ->assertDispatched('playlist-created');
+
+    $row = AiPlaylistProposal::where('conversation_id', 'conv-acc-1')->first();
+    expect($row->status)->toBe('accepted')
+        ->and($row->plex_playlist_id)->toBe('new-pl-id');
+});
+
+it('dispatches a notify toast and leaves proposal pending when Plex errors during accept', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    AiPlaylistProposal::create([
+        'conversation_id' => 'conv-acc-2',
+        'name' => 'X',
+        'payload' => ['tracks' => [['ratingKey' => '1', 'title' => 'A', 'artist' => '', 'album' => '', 'durationMs' => 0, 'reason' => null]]],
+        'status' => 'pending',
+    ]);
+
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => true, 'connection' => '', 'machineIdentifier' => 'x']);
+    $plex->shouldReceive('playlists')->andReturn(collect());
+    $plex->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ?? '');
+    $plex->shouldReceive('searchAll')->andReturn(SearchResults::empty());
+    $plex->shouldReceive('scrobbleUrl')->andReturn('');
+    $plex->shouldReceive('createPlaylist')->andThrow(new PlexUnreachableException('Plex 503'));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'conv-acc-2')
+        ->call('acceptProposal')
+        ->assertDispatched('notify');
+
+    expect(AiPlaylistProposal::where('conversation_id', 'conv-acc-2')->first()->status)->toBe('pending');
+});
+
+it('dispatches a notify toast when the proposal has no tracks', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    AiPlaylistProposal::create([
+        'conversation_id' => 'conv-acc-3',
+        'name' => 'Empty',
+        'payload' => ['tracks' => []],
+        'status' => 'pending',
+    ]);
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'conv-acc-3')
+        ->call('acceptProposal')
+        ->assertDispatched('notify');
+
+    expect(AiPlaylistProposal::where('conversation_id', 'conv-acc-3')->first()->status)->toBe('pending');
 });
