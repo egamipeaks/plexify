@@ -222,7 +222,7 @@ class PlexClient
      *
      * @param  array{
      *   styleIds?: list<string>, moodIds?: list<string>, genreIds?: list<string>,
-     *   artistIds?: list<string>, yearFrom?: int, yearTo?: int,
+     *   artistIds?: list<string>, decade?: int, year?: int,
      *   ratingKeys?: list<string>, limit?: int
      * }  $filters
      * @return Collection<int, Track>
@@ -235,18 +235,30 @@ class PlexClient
         } else {
             $query = ['type' => 10, 'X-Plex-Container-Size' => $filters['limit'] ?? 50];
 
-            foreach (['styleIds' => 'style', 'moodIds' => 'mood', 'genreIds' => 'genre', 'artistIds' => 'artist'] as $inputKey => $plexParam) {
+            // In Plex, style/mood/genre attach to artists/albums, not tracks. To find
+            // TRACKS matching these tags, the param name must be prefixed with the
+            // owning entity. Mood can also attach directly to tracks (narrowest match).
+            $tagParamMap = [
+                'styleIds' => 'artist.style',
+                'moodIds' => 'track.mood',
+                'genreIds' => 'artist.genre',
+                'artistIds' => 'artist',
+            ];
+
+            foreach ($tagParamMap as $inputKey => $plexParam) {
                 if (! empty($filters[$inputKey])) {
                     $query[$plexParam] = implode(',', $filters[$inputKey]);
                 }
             }
 
-            if (isset($filters['yearFrom'])) {
-                $query['year>='] = $filters['yearFrom'];
+            // Plex ignores year>= / year<= on type=10; only album.year (exact) and
+            // album.decade (1980, 1990, ...) actually filter.
+            if (isset($filters['year'])) {
+                $query['album.year'] = $filters['year'];
             }
 
-            if (isset($filters['yearTo'])) {
-                $query['year<='] = $filters['yearTo'];
+            if (isset($filters['decade'])) {
+                $query['album.decade'] = $filters['decade'];
             }
 
             $section = $this->musicSectionId();

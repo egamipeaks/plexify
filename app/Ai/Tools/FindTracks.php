@@ -14,7 +14,7 @@ class FindTracks implements Tool
 
     public function description(): Stringable|string
     {
-        return 'Find tracks in the user\'s library by tag ids and/or year range. Returns a JSON array of up to "limit" tracks (default 50, max 200). Combine styleIds/moodIds/genreIds for AND semantics. Always use ids returned by listTaxonomy, never bare names.';
+        return 'Find tracks in the user\'s library by tag ids and/or year. Returns a JSON array of up to "limit" tracks (default 50, max 200). Combine styleIds/moodIds/genreIds for AND semantics. Always use ids returned by listTaxonomy, never bare names. For an era pass decade (e.g. 1980 for 80s); for a specific year pass year. Plex does not support a year range, so widen by decade or call this tool per-year.';
     }
 
     public function schema(JsonSchema $schema): array
@@ -24,8 +24,8 @@ class FindTracks implements Tool
             'moodIds' => $schema->array()->items($schema->string())->nullable()->required(),
             'genreIds' => $schema->array()->items($schema->string())->nullable()->required(),
             'artistIds' => $schema->array()->items($schema->string())->nullable()->required(),
-            'yearFrom' => $schema->integer()->nullable()->required(),
-            'yearTo' => $schema->integer()->nullable()->required(),
+            'year' => $schema->integer()->nullable()->required(),
+            'decade' => $schema->integer()->nullable()->required(),
             'limit' => $schema->integer()->min(1)->max(200)->nullable()->required(),
         ];
     }
@@ -42,7 +42,7 @@ class FindTracks implements Tool
             }
         }
 
-        foreach (['yearFrom', 'yearTo'] as $intKey) {
+        foreach (['year', 'decade'] as $intKey) {
             $value = $request[$intKey] ?? null;
 
             if ($value !== null) {

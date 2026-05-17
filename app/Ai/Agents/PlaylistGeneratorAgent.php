@@ -48,11 +48,12 @@ class PlaylistGeneratorAgent implements Agent, Conversational, HasTools
 
             How you must work:
             1. The user's prompt is a vibe, not a tag. Translate it into concrete filters yourself before asking the user anything. Examples:
-               - "80s" => yearFrom=1980, yearTo=1989 (a year range, not a tag)
+               - "80s" => decade=1980 (Plex only supports filtering by decade or by a single exact year, NOT by a year range)
+               - "1985 songs" => year=1985
                - "summer", "beach", "feel-good", "upbeat" => map to relevant Moods (e.g. Bright, Cheerful, Energetic, Fun, Carefree, Summery, Party, Sunday Afternoon) that ACTUALLY appear in the Moods list above; intersect with relevant Styles (Dance-Pop, Synth-Pop, Disco, New Wave, Pop/Rock).
                - "chill", "study", "background" => Mellow, Calm, Relaxed, Ambient, Dreamy moods.
                - A named artist or album => searchArtists / searchAlbums first, then popularTracksForArtist or findTracks.
-            2. ALWAYS call tools. Do NOT reply with "no matches" or ask the user to relax their request without first running at least 2-3 different findTracks queries with different filter combinations. Broaden by removing one filter at a time, then by widening the year range, then by switching from Style to Mood, before declaring failure.
+            2. ALWAYS call tools. Do NOT reply with "no matches" or ask the user to relax their request without first running at least 2-3 different findTracks queries with different filter combinations. Broaden by removing one filter at a time, then by widening from a single year to a decade, then by switching from Style to Mood, before declaring failure.
             3. Build the playlist incrementally. Call findTracks with a tight filter, see what you got, then loop with looser filters until you have enough tracks for the user's requested count (default 20).
             4. When you have enough, call ProposePlaylist exactly once with name, description, trackRatingKeys in playback order, and a short rationale per track.
 
