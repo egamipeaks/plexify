@@ -1,6 +1,8 @@
 <?php
 
 use App\Ai\Agents\PlaylistGeneratorAgent;
+use App\Ai\Support\ProposalStore;
+use App\Models\AiPlaylistProposal;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\ConversationStore;
@@ -23,6 +25,27 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(): void
     {
         $this->aiConfigured = ! empty(getenv('OPENAI_API_KEY'));
+    }
+
+    public function proposal(): ?AiPlaylistProposal
+    {
+        if ($this->conversationId === null) {
+            return null;
+        }
+
+        $latest = app(ProposalStore::class)->latest($this->conversationId);
+
+        return $latest && $latest->status === 'pending' ? $latest : null;
+    }
+
+    public function acceptProposal(): void
+    {
+        // Implemented in T21.
+    }
+
+    public function discardProposal(): void
+    {
+        // Implemented in T22.
     }
 
     public function send(): void
@@ -76,6 +99,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     <div class="italic text-text-3">Thinking...</div>
                 @endif
             </div>
+
+            @if ($p = $this->proposal())
+                <div class="mb-6">
+                    <x-generate-proposal-card :proposal="$p" />
+                </div>
+            @endif
 
             <form wire:submit="send" class="sticky bottom-0 bg-base pt-4">
                 <div class="flex gap-2">

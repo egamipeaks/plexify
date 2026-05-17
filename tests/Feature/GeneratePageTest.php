@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Agents\PlaylistGeneratorAgent;
+use App\Models\AiPlaylistProposal;
 use App\Models\User;
 use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\PlexClient;
@@ -133,4 +134,72 @@ it('ignores empty/whitespace sends', function () {
         ->set('input', '   ')
         ->call('send')
         ->assertSet('messages', []);
+});
+
+it('renders the latest pending proposal as a card after a send', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    app()->bind(PlaylistGeneratorAgent::class, function () {
+        return new class
+        {
+            public string $convId = '';
+
+            public function forUser($user): self
+            {
+                return $this;
+            }
+
+            public function continue(string $conversationId, object $as): self
+            {
+                $this->convId = $conversationId;
+
+                return $this;
+            }
+
+            public function prompt(string $text): object
+            {
+                // Simulate the ProposePlaylist tool firing during the prompt by
+                // inserting a row directly. The page reads the latest pending row
+                // via ProposalStore.
+                AiPlaylistProposal::create([
+                    'conversation_id' => $this->convId,
+                    'name' => 'New Wave Essentials',
+                    'description' => 'Twenty stone-cold classics',
+                    'payload' => ['tracks' => [
+                        ['ratingKey' => '1', 'title' => 'Just Like Heaven', 'artist' => 'The Cure', 'album' => 'Kiss Me', 'durationMs' => 220000, 'reason' => 'classic'],
+                        ['ratingKey' => '2', 'title' => 'Bizarre Love Triangle', 'artist' => 'New Order', 'album' => 'Substance', 'durationMs' => 280000, 'reason' => null],
+                    ]],
+                    'status' => 'pending',
+                ]);
+
+                return (object) ['text' => 'Here is your playlist.', 'conversationId' => $this->convId];
+            }
+        };
+    });
+
+    Livewire::test('pages::generate')
+        ->set('input', 'go')
+        ->call('send')
+        ->assertSee('New Wave Essentials')
+        ->assertSee('Twenty stone-cold classics')
+        ->assertSee('Just Like Heaven')
+        ->assertSee('Bizarre Love Triangle')
+        ->assertSee('classic')                                  // per-track reason
+        ->assertSeeHtml('wire:click="acceptProposal"')
+        ->assertSeeHtml('wire:click="discardProposal"');
+});
+
+it('does not render a card when the latest proposal is accepted or discarded', function () {
+    putenv('OPENAI_API_KEY=sk-test');
+
+    AiPlaylistProposal::create([
+        'conversation_id' => 'manual-conv',
+        'name' => 'Old proposal',
+        'payload' => ['tracks' => []],
+        'status' => 'accepted',
+    ]);
+
+    Livewire::test('pages::generate')
+        ->set('conversationId', 'manual-conv')
+        ->assertDontSee('Old proposal');
 });
