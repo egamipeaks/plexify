@@ -7,6 +7,7 @@ use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -886,4 +887,56 @@ it('caches the taxonomy results', function () {
     $client->genres();
 
     Http::assertSentCount(3); // resources + sections + genre, no second genre call
+});
+
+it('finds tracks filtered by style and mood and year range', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response(file_get_contents(fixturePath('tracks_for_album.json')), 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->findTracks([
+        'styleIds' => ['201', '202'],
+        'moodIds' => ['301'],
+        'yearFrom' => 1980,
+        'yearTo' => 1989,
+        'limit' => 50,
+    ]);
+
+    expect($tracks)->toBeInstanceOf(Collection::class)
+        ->and($tracks->first())->toBeInstanceOf(Track::class);
+
+    Http::assertSent(function ($request) {
+        $url = $request->url();
+
+        return str_contains($url, 'type=10')
+            && str_contains($url, 'style=201%2C202') // comma-joined, urlencoded
+            && str_contains($url, 'mood=301')
+            && str_contains($url, 'X-Plex-Container-Size=50');
+    });
+});
+
+it('looks up tracks by ratingKey list (bypasses section filter)', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/metadata/12345,67890' => Http::response(file_get_contents(fixturePath('tracks_for_album.json')), 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->findTracks(['ratingKeys' => ['12345', '67890']]);
+
+    expect($tracks)->toBeInstanceOf(Collection::class)
+        ->and($tracks)->not->toBeEmpty();
+});
+
+it('throws PlexUnreachableException on findTracks failure', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response('', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->findTracks(['styleIds' => ['1']]))
+        ->toThrow(PlexUnreachableException::class);
 });

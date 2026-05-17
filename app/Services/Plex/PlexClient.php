@@ -175,6 +175,55 @@ class PlexClient
         return $this->taxonomy('mood');
     }
 
+    /**
+     * Find tracks by tag filters or a ratingKey list.
+     *
+     * @param  array{
+     *   styleIds?: list<string>, moodIds?: list<string>, genreIds?: list<string>,
+     *   artistIds?: list<string>, yearFrom?: int, yearTo?: int,
+     *   ratingKeys?: list<string>, limit?: int
+     * }  $filters
+     * @return Collection<int, Track>
+     */
+    public function findTracks(array $filters): Collection
+    {
+        if (! empty($filters['ratingKeys'])) {
+            $ids = implode(',', $filters['ratingKeys']);
+            $response = $this->server()->get("/library/metadata/{$ids}");
+        } else {
+            $query = ['type' => 10, 'X-Plex-Container-Size' => $filters['limit'] ?? 50];
+
+            foreach (['styleIds' => 'style', 'moodIds' => 'mood', 'genreIds' => 'genre', 'artistIds' => 'artist'] as $inputKey => $plexParam) {
+                if (! empty($filters[$inputKey])) {
+                    $query[$plexParam] = implode(',', $filters[$inputKey]);
+                }
+            }
+
+            if (isset($filters['yearFrom'])) {
+                $query['year>='] = $filters['yearFrom'];
+            }
+
+            if (isset($filters['yearTo'])) {
+                $query['year<='] = $filters['yearTo'];
+            }
+
+            $section = $this->musicSectionId();
+            $response = $this->server()->get("/library/sections/{$section}/all", $query);
+        }
+
+        if ($response->status() === 404) {
+            throw new PlexNotFoundException('findTracks endpoint returned 404');
+        }
+
+        if (! $response->successful()) {
+            throw new PlexUnreachableException('findTracks returned '.$response->status());
+        }
+
+        return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+            ->map(fn (array $row) => Track::fromPlex($row))
+            ->values();
+    }
+
     public function recentlyAddedAlbums(?int $limit = null): Collection
     {
         $limit = $limit ?? (int) config('services.plex.recently_added_limit', 50);
