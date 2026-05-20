@@ -207,7 +207,12 @@ new class extends Component {
                     const isTypingTarget = (el) => {
                         if (!el) return false;
                         const tag = el.tagName;
-                        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+                        if (tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true;
+                        if (tag !== 'INPUT') return false;
+                        // Only text-entry inputs swallow Space as a character;
+                        // sliders, checkboxes, etc. do not, so Space stays a shortcut there.
+                        const nonText = ['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file', 'image'];
+                        return !nonText.includes((el.type || 'text').toLowerCase());
                     };
                     window.addEventListener('keydown', (e) => {
                         // Focus search: Cmd/Ctrl+K, or "/" when not typing.
@@ -224,8 +229,6 @@ new class extends Component {
                         if (isTypingTarget(e.target)) return;
                         if (e.metaKey || e.ctrlKey || e.altKey) return;
                         if (e.key === ' ') {
-                            const tag = e.target?.tagName;
-                            if (tag === 'BUTTON' || (e.target && e.target.getAttribute && e.target.getAttribute('role') === 'button')) return;
                             e.preventDefault();
                             this.togglePlay();
                             return;

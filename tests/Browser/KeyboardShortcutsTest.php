@@ -107,6 +107,101 @@ it('toggles play/pause on Space when not typing', function () {
     expect($decoded['toggleCallCount'])->toBe(1, 'Space should call togglePlay exactly once');
 });
 
+it('toggles play/pause on Space even when a button has focus', function () {
+    $page = visit('/');
+
+    // Wait for the player to be ready (Alpine initialized).
+    $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                const el = document.querySelector('[data-region="player"]');
+                if (el && window.Alpine && Alpine.$data(el) && Alpine.$data(el).togglePlay) break;
+                await sleep(100);
+            }
+        })()
+    JS);
+
+    // Clicking a track row leaves focus on a <button>; Space must still toggle
+    // play/pause rather than re-activating the focused button.
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const p = Alpine.$data(document.querySelector('[data-region="player"]'));
+            if (!p) return 'NO_PLAYER';
+
+            let toggleCallCount = 0;
+            const originalToggle = p.togglePlay.bind(p);
+            p.togglePlay = () => { toggleCallCount++; };
+
+            // Focus a real button so e.target is a BUTTON element.
+            const button = document.querySelector('button');
+            if (!button) return 'NO_BUTTON';
+            button.focus();
+            await sleep(50);
+
+            button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+            await sleep(200);
+
+            p.togglePlay = originalToggle;
+
+            return JSON.stringify({ toggleCallCount });
+        })()
+    JS);
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected result object, got: {$result}");
+    expect($decoded['toggleCallCount'])->toBe(1, 'Space should call togglePlay once even when a button is focused');
+});
+
+it('toggles play/pause on Space even when a range slider has focus', function () {
+    $page = visit('/');
+
+    // Wait for the player to be ready (Alpine initialized).
+    $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                const el = document.querySelector('[data-region="player"]');
+                if (el && window.Alpine && Alpine.$data(el) && Alpine.$data(el).togglePlay) break;
+                await sleep(100);
+            }
+        })()
+    JS);
+
+    // Dragging the progress bar leaves focus on an <input type="range">; Space
+    // must still toggle play/pause since a slider does not accept text.
+    $result = (string) $page->script(<<<'JS'
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const p = Alpine.$data(document.querySelector('[data-region="player"]'));
+            if (!p) return 'NO_PLAYER';
+
+            let toggleCallCount = 0;
+            const originalToggle = p.togglePlay.bind(p);
+            p.togglePlay = () => { toggleCallCount++; };
+
+            const slider = document.querySelector('[data-region="player"] input[type="range"]');
+            if (!slider) return 'NO_SLIDER';
+            slider.focus();
+            await sleep(50);
+
+            slider.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+            await sleep(200);
+
+            p.togglePlay = originalToggle;
+
+            return JSON.stringify({ toggleCallCount });
+        })()
+    JS);
+
+    $decoded = json_decode($result, true);
+    expect($decoded)->toBeArray("Expected result object, got: {$result}");
+    expect($decoded['toggleCallCount'])->toBe(1, 'Space should call togglePlay once even when a range slider is focused');
+});
+
 it('ignores Space and does not call togglePlay when focus is in the search input', function () {
     $page = visit('/');
 
