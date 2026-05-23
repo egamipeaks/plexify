@@ -237,16 +237,17 @@ it('shows the New folder button and the per-folder toggle control', function () 
         ->assertSee('Filter playlists'); // the filter input placeholder
 });
 
-it('shows four top-level nav items: Generate / Library / Recently Added / Recently Played', function () {
+it('shows five top-level nav items: Generate / Favorites / Library / Recently Added / Recently Played', function () {
     mockSidebarPlex();
 
     $html = Livewire::test('sidebar')->html();
     $topNav = explode('Your Playlists', $html, 2)[0];
 
     preg_match_all('/<a [^>]*wire:navigate/i', $topNav, $matches);
-    expect($matches[0])->toHaveCount(4);
+    expect($matches[0])->toHaveCount(5);
 
     expect($topNav)->toContain('Generate')
+        ->and($topNav)->toContain('Favorites')
         ->and($topNav)->toContain('Your Library')
         ->and($topNav)->toContain('Recently Added')
         ->and($topNav)->toContain('Recently Played')
@@ -398,4 +399,12 @@ it('has a Generate link above Your Library in the sidebar nav', function () {
     Livewire::test('sidebar')
         ->assertSeeHtml('href="'.route('generate').'"')
         ->assertSeeInOrder(['Generate', 'Your Library']);
+});
+
+it('shows a Favorites link in the sidebar top nav', function () {
+    mockSidebarPlex();
+
+    Livewire::test('sidebar')
+        ->assertSee('Favorites')
+        ->assertSeeHtml('href="'.route('favorites').'"');
 });

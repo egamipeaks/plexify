@@ -403,6 +403,16 @@ new class extends Component {
             <span class="flex-1 text-left">Generate</span>
         </a>
 
+        <a href="{{ route('favorites') }}" wire:navigate
+           @class([
+               'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
+               'text-white bg-surface-2' => request()->routeIs('favorites'),
+               'text-text-2 hover:text-white' => ! request()->routeIs('favorites'),
+           ])>
+            <x-lucide-heart class="w-5 h-5" />
+            <span class="flex-1 text-left">Favorites</span>
+        </a>
+
         <a href="{{ route('library') }}" wire:navigate
            @class([
                'w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-[14px] font-bold transition-colors',
