@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Concerns\TogglesFavorite;
 use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexException;
@@ -10,6 +11,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    use TogglesFavorite;
     public string $playlist = '';
 
     public ?string $errorMessage = null;
@@ -488,9 +490,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 @else
                                     <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
                                 @endif
-                                <span class="grid place-items-center text-text-2 hover:text-white">
-                                    <x-lucide-heart class="w-3.5 h-3.5" />
-                                </span>
+                                <x-heart-button :rating-key="$track->id" :rating="$track->userRating" size="sm" />
                                 <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
                             </button>
                         @endif

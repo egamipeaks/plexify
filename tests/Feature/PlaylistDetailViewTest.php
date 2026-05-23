@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Plex\Dto\Playlist;
+use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
@@ -371,4 +372,19 @@ it('removeTrack surfaces a Plex outage as a notify toast and returns false', fun
         ->call('removeTrack', 'i2')
         ->assertReturned(false)
         ->assertDispatched('notify', type: 'error');
+});
+
+it('calls PlexClient::rateTrack via toggleHeart on the playlist-detail page', function () {
+    $mock = Mockery::mock(PlexClient::class);
+    $mock->shouldReceive('ping')->andReturn(['name' => 'T', 'reachable' => true, 'connection' => 'direct', 'machineIdentifier' => 'M']);
+    $mock->shouldReceive('playlists')->andReturn(collect());
+    $mock->shouldReceive('searchAll')->andReturn(SearchResults::empty());
+    $mock->shouldReceive('thumbUrl')->andReturn(null);
+    $mock->shouldReceive('playlistTracks')->andReturn(collect());
+    $mock->shouldReceive('rateTrack')->with('77', 0)->once();
+    app()->instance(PlexClient::class, $mock);
+
+    Livewire::test('pages::playlist-detail', ['playlist' => '1'])
+        ->call('toggleHeart', '77', 0)
+        ->assertHasNoErrors();
 });
