@@ -1055,3 +1055,63 @@ it('maps a 500 from /:/rating to PlexUnreachableException', function () {
     expect(fn () => app(PlexClient::class)->rateTrack('12345', 10))
         ->toThrow(PlexUnreachableException::class);
 });
+
+it('lists favorite tracks (userRating=10) sorted by lastRatedAt desc, cached', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response([
+            'MediaContainer' => [
+                'Metadata' => [
+                    [
+                        'ratingKey' => '11', 'title' => 'B', 'grandparentTitle' => 'Artist',
+                        'parentTitle' => 'Album', 'index' => 1, 'duration' => 1000,
+                        'userRating' => 10, 'lastRatedAt' => 1716500000,
+                        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+                    ],
+                    [
+                        'ratingKey' => '12', 'title' => 'A', 'grandparentTitle' => 'Artist',
+                        'parentTitle' => 'Album', 'index' => 2, 'duration' => 2000,
+                        'userRating' => 10, 'lastRatedAt' => 1716400000,
+                        'Media' => [['Part' => [['id' => 2, 'container' => 'mp3']]]],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->favoriteTracks(1000);
+
+    expect($tracks)->toBeInstanceOf(Collection::class);
+    expect($tracks)->toHaveCount(2);
+    expect($tracks->first()->title)->toBe('B');
+    expect($tracks->first()->userRating)->toBe(10);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'type=10')
+        && str_contains($request->url(), 'userRating=10')
+        && str_contains($request->url(), 'sort='.urlencode('lastRatedAt:desc'))
+        && str_contains($request->url(), 'X-Plex-Container-Size=1000'));
+
+    expect(Cache::has('plex:favorites:1000'))->toBeTrue();
+});
+
+it('returns an empty collection when favorites query is 404', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response('not found', 404),
+    ]);
+
+    expect(app(PlexClient::class)->favoriteTracks(1000))->toHaveCount(0);
+});
+
+it('maps a 500 from the favorites query to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->favoriteTracks(1000))
+        ->toThrow(PlexUnreachableException::class);
+});

@@ -331,6 +331,34 @@ class PlexClient
         });
     }
 
+    /**
+     * @return Collection<int, Track>
+     */
+    public function favoriteTracks(int $limit = 1000): Collection
+    {
+        return $this->cache->remember("favorites:{$limit}", PlexCache::TTL_FAVORITES, function () use ($limit) {
+            $sectionId = $this->musicSectionId();
+
+            $response = $this->server()->get("/library/sections/{$sectionId}/all", [
+                'type' => 10,
+                'userRating' => 10,
+                'sort' => 'lastRatedAt:desc',
+                'X-Plex-Container-Start' => 0,
+                'X-Plex-Container-Size' => $limit,
+            ]);
+
+            if ($response->status() === 404) {
+                return collect();
+            }
+
+            $this->ensureOk($response, "library/sections/{$sectionId}/all (favorites)");
+
+            return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
+                ->map(fn (array $row) => Track::fromPlex($row))
+                ->values();
+        });
+    }
+
     public function machineIdentifier(): string
     {
         return $this->cache->remember('machine_identifier', PlexCache::TTL_RESOURCES, function () {
