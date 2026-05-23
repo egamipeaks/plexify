@@ -91,3 +91,16 @@ it('renders the recently played route', function () {
         ->assertOk()
         ->assertSee('Recently Played');
 });
+
+it('resolves /favorites to the favorites page', function () {
+    test()->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('ping')->andReturn(['name' => 'T', 'reachable' => true, 'connection' => 'direct', 'machineIdentifier' => 'M']);
+        $mock->shouldReceive('playlists')->andReturn(collect());
+        $mock->shouldReceive('searchAll')->andReturn(SearchResults::empty());
+        $mock->shouldReceive('thumbUrl')->andReturn(null);
+        $mock->shouldReceive('favoriteTracks')->andReturn(collect());
+        $mock->shouldReceive('scrobbleUrl')->andReturn('http://x/scrobble?key=__KEY__');
+    });
+
+    $this->get('/favorites')->assertOk();
+});
