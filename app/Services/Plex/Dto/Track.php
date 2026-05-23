@@ -17,6 +17,8 @@ readonly class Track
         public ?string $albumId = null,
         public ?string $artistId = null,
         public ?string $playlistItemId = null,
+        public int $userRating = 0,
+        public ?string $lastRatedAt = null,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -36,6 +38,8 @@ readonly class Track
             albumId: isset($row['parentRatingKey']) ? (string) $row['parentRatingKey'] : null,
             artistId: isset($row['grandparentRatingKey']) ? (string) $row['grandparentRatingKey'] : null,
             playlistItemId: isset($row['playlistItemID']) ? (string) $row['playlistItemID'] : null,
+            userRating: (int) ($row['userRating'] ?? 0),
+            lastRatedAt: isset($row['lastRatedAt']) ? (string) $row['lastRatedAt'] : null,
         );
     }
 }

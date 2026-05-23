@@ -334,3 +334,35 @@ it('leaves Track playlistItemId null when the row has no playlistItemID', functi
         'Media' => [['Part' => [['id' => 1, 'container' => 'flac']]]],
     ])->playlistItemId)->toBeNull();
 });
+
+it('parses userRating and lastRatedAt on a Track', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '1',
+        'title' => 'Song',
+        'grandparentTitle' => 'Artist',
+        'parentTitle' => 'Album',
+        'index' => 1,
+        'duration' => 1000,
+        'userRating' => 10,
+        'lastRatedAt' => 1716480000,
+        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+    ]);
+
+    expect($track->userRating)->toBe(10);
+    expect($track->lastRatedAt)->toBe('1716480000');
+});
+
+it('defaults userRating to 0 and lastRatedAt to null when absent', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '2',
+        'title' => 'Song',
+        'grandparentTitle' => 'Artist',
+        'parentTitle' => 'Album',
+        'index' => 1,
+        'duration' => 1000,
+        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+    ]);
+
+    expect($track->userRating)->toBe(0);
+    expect($track->lastRatedAt)->toBeNull();
+});
