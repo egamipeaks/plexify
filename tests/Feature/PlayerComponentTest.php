@@ -56,3 +56,14 @@ it('relays play-track to queue-load including playback context', function () {
         ->dispatch('play-track', queue: $queue, index: 0, shuffle: false, contextType: 'album', contextId: '99')
         ->assertDispatched('queue-load', queue: $queue, index: 0, shuffle: false, contextType: 'album', contextId: '99');
 });
+
+it('uses the TogglesFavorite trait on the player', function () {
+    $mock = Mockery::mock(PlexClient::class);
+    $mock->shouldReceive('scrobbleUrl')->andReturn('http://example.test/scrobble?key=__KEY__');
+    $mock->shouldReceive('rateTrack')->with('123', 10)->once();
+    app()->instance(PlexClient::class, $mock);
+
+    Livewire::test('player')
+        ->call('toggleHeart', '123', 10)
+        ->assertHasNoErrors();
+});

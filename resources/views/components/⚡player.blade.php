@@ -4,8 +4,11 @@ use Livewire\Component;
 use Livewire\Attributes\On;
 use App\Services\Plex\PlexClient;
 use App\Support\AppSetting;
+use App\Livewire\Concerns\TogglesFavorite;
 
 new class extends Component {
+    use TogglesFavorite;
+
     public bool $scrobbleEnabled = true;
 
     public string $scrobbleUrlTemplate = '';
@@ -48,9 +51,25 @@ new class extends Component {
             <div data-region="now-playing-artist" class="truncate text-[11px] text-text-2 hover:underline cursor-pointer"
                  @click="goToArtist()" x-text="current ? current.artist : ''"></div>
         </div>
-        <button type="button" class="text-accent hover:scale-110 transition-transform">
-            <x-lucide-heart class="w-4 h-4" />
-        </button>
+        <template x-if="current">
+            <button type="button"
+                    data-control="heart"
+                    @click.stop="
+                        if (!current) return;
+                        const ratingKey = current.id;
+                        const cur = $store.favorites.isHearted(ratingKey, 0) ? 10 : 0;
+                        const next = cur === 10 ? 0 : 10;
+                        $store.favorites.set(ratingKey, next);
+                        $wire.toggleHeart(ratingKey, next).then(ok => { if (!ok) $store.favorites.set(ratingKey, cur); });
+                    "
+                    :class="current && $store.favorites.isHearted(current.id, 0) ? 'text-accent' : 'text-text-2 hover:text-white'"
+                    :aria-label="current && $store.favorites.isHearted(current.id, 0) ? 'Remove from favorites' : 'Add to favorites'"
+                    class="transition-transform hover:scale-110">
+                <span :class="current && $store.favorites.isHearted(current.id, 0) ? 'w-4 h-4 fill-current' : 'w-4 h-4'">
+                    <x-lucide-heart class="w-full h-full" />
+                </span>
+            </button>
+        </template>
     </div>
 
     {{-- Transport --}}
