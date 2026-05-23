@@ -520,6 +520,7 @@ function fakePlexWriteEndpoints(): void
         'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/playlists*' => Http::response(
             ['MediaContainer' => ['Metadata' => [['ratingKey' => '7777']]]], 200,
         ),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/:/rating*' => Http::response('', 200),
     ]);
 }
 
@@ -1011,4 +1012,46 @@ it('returns an empty collection when artist has no Similar array', function () {
     ]);
 
     expect(app(PlexClient::class)->similarArtists('999'))->toBeEmpty();
+});
+
+it('rates a track 5 stars via PUT /:/rating?rating=10', function () {
+    fakePlexWriteEndpoints();
+    Cache::put('plex:favorites:1000', 'stale', 300);
+    Cache::put('plex:_index', ['plex:favorites:1000'], 300);
+
+    app(PlexClient::class)->rateTrack('12345', 10);
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/:/rating?')
+        && str_contains($request->url(), 'key=12345')
+        && str_contains($request->url(), 'rating=10')
+        && str_contains($request->url(), 'identifier=com.plexapp.plugins.library'));
+
+    expect(Cache::has('plex:favorites:1000'))->toBeFalse();
+});
+
+it('clears a rating via PUT /:/rating?rating=0', function () {
+    fakePlexWriteEndpoints();
+
+    app(PlexClient::class)->rateTrack('12345', 0);
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), 'rating=0'));
+});
+
+it('rejects invalid rating values on rateTrack', function () {
+    fakePlexWriteEndpoints();
+
+    expect(fn () => app(PlexClient::class)->rateTrack('1', 5))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+it('maps a 500 from /:/rating to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/:/rating*' => Http::response('boom', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->rateTrack('12345', 10))
+        ->toThrow(PlexUnreachableException::class);
 });

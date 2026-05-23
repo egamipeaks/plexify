@@ -14,6 +14,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class PlexClient
@@ -558,6 +559,29 @@ class PlexClient
         $this->cache->forget("playlist:{$playlistId}:items");
     }
 
+    public function rateTrack(string $ratingKey, int $rating): void
+    {
+        if (! in_array($rating, [0, 10], true)) {
+            throw new \InvalidArgumentException("rateTrack only supports 0 or 10, got {$rating}.");
+        }
+
+        $query = http_build_query([
+            'key' => $ratingKey,
+            'identifier' => 'com.plexapp.plugins.library',
+            'rating' => $rating,
+        ]);
+
+        try {
+            $response = $this->server()->put('/:/rating?'.$query);
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Rating track failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "PUT /:/rating key={$ratingKey}");
+
+        $this->forgetFavoritesCache();
+    }
+
     public function moveTrack(string $playlistId, string $playlistItemId, ?string $afterPlaylistItemId): void
     {
         $path = "/playlists/{$playlistId}/items/{$playlistItemId}/move";
@@ -612,6 +636,16 @@ class PlexClient
 
         $this->cache->forget('playlists');
         $this->cache->forget("playlist:{$playlistId}:items");
+    }
+
+    private function forgetFavoritesCache(): void
+    {
+        foreach (Cache::get('plex:_index', []) as $namespaced) {
+            if (str_starts_with($namespaced, 'plex:favorites:')) {
+                $bare = substr($namespaced, strlen('plex:'));
+                $this->cache->forget($bare);
+            }
+        }
     }
 
     private function libraryItemUri(string $ratingKey): string
