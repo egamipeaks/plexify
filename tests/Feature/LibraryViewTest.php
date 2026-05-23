@@ -408,3 +408,43 @@ it('persists the library tracklist compact toggle', function () {
 
     expect(AppSetting::libraryTracksCompact())->toBeTrue();
 });
+
+it('renders the heart-button component in the album tracklist', function () {
+    $hearted = new Track(
+        id: '99', title: 'A', artist: 'Artist', album: 'Album',
+        trackNumber: 1, durationMs: 1000, partId: 1, container: 'mp3',
+        userRating: 10,
+    );
+    $cold = new Track(
+        id: '100', title: 'B', artist: 'Artist', album: 'Album',
+        trackNumber: 2, durationMs: 1000, partId: 2, container: 'mp3',
+        userRating: 0,
+    );
+
+    $this->mock(PlexClient::class, function ($mock) use ($hearted, $cold) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: 'A1', name: 'Artist', thumb: null, albumCount: 1),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->andReturn(collect([
+            new Album(id: 'AL1', title: 'Album', artist: 'Artist', year: 2020, thumb: null, trackCount: 2, durationMs: 2000),
+        ]));
+        $mock->shouldReceive('tracksForAlbum')->andReturn(collect([$hearted, $cold]));
+        $mock->shouldReceive('thumbUrl')->andReturn(null);
+    });
+
+    Livewire::withQueryParams(['artist' => 'A1', 'album' => 'AL1'])
+        ->test('pages::library')
+        ->assertSeeHtml('data-rating-key="99"')
+        ->assertSeeHtml('data-rating-key="100"');
+});
+
+it('calls PlexClient::rateTrack via toggleHeart on the library page', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect());
+        $mock->shouldReceive('rateTrack')->with('77', 10)->once();
+    });
+
+    Livewire::test('pages::library')
+        ->call('toggleHeart', '77', 10)
+        ->assertHasNoErrors();
+});

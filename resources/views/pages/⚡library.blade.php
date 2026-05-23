@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Concerns\TogglesFavorite;
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
 use App\Services\Plex\Dto\Track;
@@ -12,6 +13,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    use TogglesFavorite;
     #[Url(as: 'artist', except: null)]
     public ?string $selectedArtistId = null;
 
@@ -516,9 +518,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         </div>
                                     </div>
                                     <div class="text-text-2 group-hover:text-white truncate">{{ $track->album }}</div>
-                                    <span class="grid place-items-center text-text-2 hover:text-white">
-                                        <x-lucide-heart class="w-3.5 h-3.5" />
-                                    </span>
+                                    <x-heart-button :rating-key="$track->id" :rating="$track->userRating" size="sm" />
                                     <div class="text-text-2 tabular-nums text-right">{{ \App\Support\Duration::format($track->durationMs) }}</div>
                                 </button>
                             @endif
