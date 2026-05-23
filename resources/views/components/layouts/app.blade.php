@@ -14,6 +14,22 @@
         document.addEventListener('alpine:init', () => {
             window.Alpine.store('player', { currentId: null, isPlaying: false, contextType: null, contextId: null });
 
+            window.Alpine.store('favorites', {
+                overrides: {},
+                isHearted(ratingKey, serverRating) {
+                    if (this.overrides[ratingKey] !== undefined) {
+                        return this.overrides[ratingKey] === 10;
+                    }
+                    return serverRating === 10;
+                },
+                set(ratingKey, rating) {
+                    this.overrides[ratingKey] = rating;
+                },
+                clear(ratingKey) {
+                    delete this.overrides[ratingKey];
+                },
+            });
+
             window.Alpine.data('topbarSearch', (initialTerm) => ({
                 term: initialTerm || '',
             }));
