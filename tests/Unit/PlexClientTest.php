@@ -781,6 +781,72 @@ it('builds a scrobble url for a rating key', function () {
         ->toContain('X-Plex-Token=test-token');
 });
 
+it('dedupes recently played tracks across albums by title+artist, keeping the first occurrence', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response([
+            'MediaContainer' => [
+                'Metadata' => [
+                    [
+                        'ratingKey' => '63963', 'title' => 'Life of Surprises', 'grandparentTitle' => 'Prefab Sprout',
+                        'parentTitle' => 'A Life of Surprises', 'parentRatingKey' => '63952', 'grandparentRatingKey' => '900',
+                        'index' => 1, 'duration' => 240000, 'lastViewedAt' => 1716500000,
+                        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+                    ],
+                    [
+                        'ratingKey' => '63144', 'title' => 'Life of Surprises', 'grandparentTitle' => 'Prefab Sprout',
+                        'parentTitle' => 'Protest Songs', 'parentRatingKey' => '63142', 'grandparentRatingKey' => '900',
+                        'index' => 5, 'duration' => 240000, 'lastViewedAt' => 1716400000,
+                        'Media' => [['Part' => [['id' => 2, 'container' => 'mp3']]]],
+                    ],
+                    [
+                        'ratingKey' => '70003', 'title' => 'Cars and Girls', 'grandparentTitle' => 'Prefab Sprout',
+                        'parentTitle' => 'From Langley Park to Memphis', 'parentRatingKey' => '51911', 'grandparentRatingKey' => '900',
+                        'index' => 1, 'duration' => 230000, 'lastViewedAt' => 1716300000,
+                        'Media' => [['Part' => [['id' => 3, 'container' => 'mp3']]]],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->recentlyPlayedTracks(50);
+
+    expect($tracks)->toHaveCount(2)
+        ->and($tracks->pluck('id')->all())->toBe(['63963', '70003']);
+});
+
+it('dedupes favorite tracks across albums by title+artist, keeping the first occurrence', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::response([
+            'MediaContainer' => [
+                'Metadata' => [
+                    [
+                        'ratingKey' => '63963', 'title' => 'Life of Surprises', 'grandparentTitle' => 'Prefab Sprout',
+                        'parentTitle' => 'A Life of Surprises', 'index' => 1, 'duration' => 240000,
+                        'userRating' => 10, 'lastRatedAt' => 1716500000,
+                        'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+                    ],
+                    [
+                        'ratingKey' => '63144', 'title' => 'Life of Surprises', 'grandparentTitle' => 'Prefab Sprout',
+                        'parentTitle' => 'Protest Songs', 'index' => 5, 'duration' => 240000,
+                        'userRating' => 10, 'lastRatedAt' => 1716400000,
+                        'Media' => [['Part' => [['id' => 2, 'container' => 'mp3']]]],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $tracks = app(PlexClient::class)->favoriteTracks(1000);
+
+    expect($tracks)->toHaveCount(1)
+        ->and($tracks->first()->id)->toBe('63963');
+});
+
 it('maps a 500 on recentlyPlayedTracks to PlexUnreachableException', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),

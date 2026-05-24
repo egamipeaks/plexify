@@ -326,6 +326,7 @@ class PlexClient
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->filter(fn (array $row) => ! empty($row['lastViewedAt']))
                 ->map(fn (array $row) => Track::fromPlex($row))
+                ->unique(fn (Track $t) => mb_strtolower(trim($t->title)).'|'.mb_strtolower(trim((string) $t->artist)))
                 ->take($limit)
                 ->values();
         });
@@ -355,6 +356,7 @@ class PlexClient
 
             return collect(data_get($response->json(), 'MediaContainer.Metadata', []))
                 ->map(fn (array $row) => Track::fromPlex($row))
+                ->unique(fn (Track $t) => mb_strtolower(trim($t->title)).'|'.mb_strtolower(trim((string) $t->artist)))
                 ->values();
         });
     }
