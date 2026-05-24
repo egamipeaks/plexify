@@ -472,6 +472,7 @@ class PlexClient
      *     artwork: ?string,
      *     albumId: ?string,
      *     artistId: ?string,
+     *     userRating: int,
      * }
      */
     public function queueItem(Track $track, ?string $artworkOverride = null): array
@@ -484,6 +485,7 @@ class PlexClient
             'artwork' => $artworkOverride ?? $this->thumbUrl($track->thumb),
             'albumId' => $track->albumId,
             'artistId' => $track->artistId,
+            'userRating' => $track->userRating,
         ];
     }
 

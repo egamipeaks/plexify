@@ -122,6 +122,7 @@ it('dispatches play-track event with stream URL when track clicked', function ()
                 'artwork' => null,
                 'albumId' => '1001',
                 'artistId' => '100',
+                'userRating' => 0,
             ]],
             index: 0,
             contextType: 'album',
@@ -152,8 +153,8 @@ it('plays the whole album when the album-header Play button is pressed', functio
         ->call('playAlbum')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '9001', 'url' => 'https://plex/991.flac?X-Plex-Token=t', 'title' => 'One', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
-                ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100'],
+                ['id' => '9001', 'url' => 'https://plex/991.flac?X-Plex-Token=t', 'title' => 'One', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100', 'userRating' => 0],
+                ['id' => '9002', 'url' => 'https://plex/992.flac?X-Plex-Token=t', 'title' => 'Two', 'artist' => 'A', 'artwork' => null, 'albumId' => '1001', 'artistId' => '100', 'userRating' => 0],
             ],
             index: 0,
             contextType: 'album',

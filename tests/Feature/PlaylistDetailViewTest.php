@@ -86,8 +86,8 @@ it('dispatches play-track for a clicked row', function () {
         ->call('playTrack', '8002')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100'],
-                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100', 'userRating' => 0],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100', 'userRating' => 0],
             ],
             index: 1,
             contextType: 'playlist',
@@ -102,8 +102,8 @@ it('plays the first track when Play is pressed', function () {
         ->call('playAll')
         ->assertDispatched('play-track',
             queue: [
-                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100'],
-                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100'],
+                ['id' => '8001', 'url' => 'https://server/library/parts/770001/file.flac?X-Plex-Token=t', 'title' => 'Holocene', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8001', 'albumId' => '5001', 'artistId' => '100', 'userRating' => 0],
+                ['id' => '8002', 'url' => 'https://server/library/parts/770002/file.flac?X-Plex-Token=t', 'title' => 'Skinny Love', 'artist' => 'Bon Iver', 'artwork' => 'https://thumb/t/8002', 'albumId' => '5002', 'artistId' => '100', 'userRating' => 0],
             ],
             index: 0,
             contextType: 'playlist',

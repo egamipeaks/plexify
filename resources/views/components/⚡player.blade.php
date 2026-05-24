@@ -57,15 +57,16 @@ new class extends Component {
                     @click.stop="
                         if (!current) return;
                         const ratingKey = current.id;
-                        const cur = $store.favorites.isHearted(ratingKey, 0) ? 10 : 0;
+                        const baseline = current.userRating ?? 0;
+                        const cur = $store.favorites.isHearted(ratingKey, baseline) ? 10 : 0;
                         const next = cur === 10 ? 0 : 10;
                         $store.favorites.set(ratingKey, next);
                         $wire.toggleHeart(ratingKey, next).then(ok => { if (!ok) $store.favorites.set(ratingKey, cur); });
                     "
-                    :class="current && $store.favorites.isHearted(current.id, 0) ? 'text-accent' : 'text-text-2 hover:text-white'"
-                    :aria-label="current && $store.favorites.isHearted(current.id, 0) ? 'Remove from favorites' : 'Add to favorites'"
+                    :class="current && $store.favorites.isHearted(current.id, current.userRating ?? 0) ? 'text-accent' : 'text-text-2 hover:text-white'"
+                    :aria-label="current && $store.favorites.isHearted(current.id, current.userRating ?? 0) ? 'Remove from favorites' : 'Add to favorites'"
                     class="transition-transform hover:scale-110">
-                <span class="w-4 h-4 block" :class="current && $store.favorites.isHearted(current.id, 0) ? 'fill-current' : ''">
+                <span class="w-4 h-4 block" :class="current && $store.favorites.isHearted(current.id, current.userRating ?? 0) ? 'fill-current' : ''">
                     <x-lucide-heart class="w-full h-full" />
                 </span>
             </button>

@@ -207,6 +207,7 @@ it('enqueues a playlist when played', function () {
                 'artwork' => 'https://thumb/t',
                 'albumId' => 'alb1',
                 'artistId' => 'art1',
+                'userRating' => 0,
             ]],
             index: 0,
             contextType: 'playlist',

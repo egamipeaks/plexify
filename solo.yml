@@ -8,6 +8,13 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  npm:dev:
+    command: npm run dev
+    working_dir: null
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   Logs:
     command: tail -n 50 -f storage/logs/laravel.log
     working_dir: null
@@ -15,8 +22,8 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
-  npm:dev:
-    command: npm run dev
+  Tests:
+    command: php artisan test --parallel
     working_dir: null
     auto_start: true
     auto_restart: false

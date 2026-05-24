@@ -100,6 +100,7 @@ it('playTrack dispatches play-track with the stream URL', function () {
                 'artwork' => 'https://thumb/library/metadata/70001/thumb',
                 'albumId' => 'a70001',
                 'artistId' => 'art1',
+                'userRating' => 0,
             ]],
             index: 0,
             contextType: 'recently-played',
