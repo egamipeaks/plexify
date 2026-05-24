@@ -600,12 +600,12 @@ class PlexClient
         ]);
 
         try {
-            $response = $this->server()->put('/:/rating?'.$query);
+            $response = $this->server()->put('/:/rate?'.$query);
         } catch (ConnectionException $e) {
             throw new PlexUnreachableException('Rating track failed: '.$e->getMessage(), previous: $e);
         }
 
-        $this->ensureOk($response, "PUT /:/rating key={$ratingKey}");
+        $this->ensureOk($response, "PUT /:/rate key={$ratingKey}");
 
         $this->forgetFavoritesCache();
     }

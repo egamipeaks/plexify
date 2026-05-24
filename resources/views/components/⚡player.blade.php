@@ -65,7 +65,7 @@ new class extends Component {
                     :class="current && $store.favorites.isHearted(current.id, 0) ? 'text-accent' : 'text-text-2 hover:text-white'"
                     :aria-label="current && $store.favorites.isHearted(current.id, 0) ? 'Remove from favorites' : 'Add to favorites'"
                     class="transition-transform hover:scale-110">
-                <span :class="current && $store.favorites.isHearted(current.id, 0) ? 'w-4 h-4 fill-current' : 'w-4 h-4'">
+                <span class="w-4 h-4 block" :class="current && $store.favorites.isHearted(current.id, 0) ? 'fill-current' : ''">
                     <x-lucide-heart class="w-full h-full" />
                 </span>
             </button>

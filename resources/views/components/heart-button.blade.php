@@ -21,7 +21,7 @@
           : ({{ $alwaysVisible ? 'true' : 'false' }} ? 'text-text-2 hover:text-white opacity-100' : 'text-text-3 opacity-0 group-hover:opacity-100 hover:text-white')"
       :aria-label="hearted ? 'Remove from favorites' : 'Add to favorites'"
       class="grid place-items-center transition-opacity cursor-pointer">
-    <span :class="hearted ? '{{ $iconSize }} fill-current' : '{{ $iconSize }}'">
+    <span class="{{ $iconSize }} block" :class="hearted ? 'fill-current' : ''">
         <x-lucide-heart class="w-full h-full" />
     </span>
 </span>
