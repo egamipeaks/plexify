@@ -1052,32 +1052,97 @@ The `music_section` key is abandoned and `MusicSection` is a newly cached DTO. T
 php artisan cache:clear
 ```
 
-- [ ] **Step 2: Write the browser test**
+- [ ] **Step 2: Write the browser tests**
 
-Append to `tests/Browser/SettingsTest.php`:
+Append to `tests/Browser/SettingsTest.php`. The file already has `uses(RefreshDatabase::class)` and imports `AppSetting`, so no new imports are needed.
+
+Two API notes, both verified, do not deviate:
+- `Webpage::script()` returns the evaluated value directly (`vendor/pestphp/pest-plugin-browser/src/Api/Webpage.php:85` returns `$this->page->evaluate(...)`). It is NOT an array, so do not index it with `[0]`.
+- There is no `select()` helper on the page object. Drive the select through `script()`, matching how every other test in this file drives its controls.
+
+Select elements are found by iterating `document.querySelectorAll('select')` and matching `getAttribute('wire:model.live')` rather than with a CSS attribute selector. This avoids escaping the colon in `wire:model.live` through both PHP and CSS, which is the bug factory the `resyncMetadata` test above already has to work around.
 
 ```php
-it('switches the music library and shows it on the server chip', function () {
+it('switches the music library and persists the choice', function () {
     $page = visit('/settings');
 
     $page->assertSee('Music library');
 
-    // Drive the select via script(): the page has several controls and
-    // click() uses a strict Playwright locator that errors on multiple matches.
-    $sections = $page->script('return Array.from(document.querySelectorAll("select"))
-        .filter(s => s.getAttribute("wire:model.live") === "musicSectionId")
-        .flatMap(s => Array.from(s.options).map(o => ({value: o.value, label: o.text})));')[0];
+    // Pick whichever option is not currently selected, so the test does not
+    // hardcode this particular server's section ids.
+    $target = $page->script(<<<'JS'
+        (() => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            if (!select) return null;
+            const other = Array.from(select.options).find(o => o.value !== select.value);
+            return other ? {value: other.value, label: other.text} : null;
+        })()
+    JS);
 
-    expect($sections)->not->toBeEmpty();
+    expect($target)->not->toBeNull('Expected the Plex server to expose more than one music library.');
 
-    $page->assertPresent('[data-region="sidebar"]');
+    $page->script(<<<JS
+        (() => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            select.value = '{$target['value']}';
+            select.dispatchEvent(new Event('change', {bubbles: true}));
+        })()
+    JS);
+
+    // Wait for the Livewire round-trip to settle on the new value.
+    $switched = (bool) $page->script(<<<JS
+        (async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 6000;
+            while (Date.now() < deadline) {
+                const select = Array.from(document.querySelectorAll('select'))
+                    .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+                if (select && select.value === '{$target['value']}') return true;
+                await sleep(100);
+            }
+            return false;
+        })()
+    JS);
+
+    expect($switched)->toBeTrue('Expected the Livewire round-trip to keep the new library selected.');
+    expect(AppSetting::musicSectionId())->toBe((int) $target['value']);
+});
+
+it('shows the effective library name on the sidebar server chip', function () {
+    $page = visit('/settings');
+
+    $library = $page->script(<<<'JS'
+        (() => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            return select ? select.options[select.selectedIndex].text : null;
+        })()
+    JS);
+
+    expect($library)->not->toBeNull('Expected a music library select on the settings page.');
+
+    // Read the chip itself rather than using assertSee, which would match the
+    // library name in the select and pass without the chip changing at all.
+    $chipText = $page->script(<<<'JS'
+        (() => {
+            const chip = document.querySelector('[wire\\:click="refresh"]');
+            return chip ? chip.innerText : null;
+        })()
+    JS);
+
+    expect($chipText)->not->toBeNull('Expected the server chip to be present in the sidebar.')
+        ->and($chipText)->toContain($library);
 });
 ```
 
-- [ ] **Step 3: Run the browser test**
+- [ ] **Step 3: Run the browser tests**
 
 Run: `php artisan test --compact tests/Browser/SettingsTest.php`
-Expected: PASS. If it fails with a connection error, confirm the Plex server is reachable before debugging the test.
+Expected: PASS (6 tests: 4 pre-existing, 2 new). If it fails with a connection error, confirm the Plex server is reachable before debugging the test.
+
+Note: `switches the music library and persists the choice` requires the live server to have at least two music libraries. It does (Classical, Music, Spoken). If `$target` comes back null, that is a real environment problem, not a flaky test.
 
 - [ ] **Step 4: Manual verification**
 
