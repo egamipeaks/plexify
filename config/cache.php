@@ -2,6 +2,7 @@
 
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\MusicSection;
 use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\Track;
 use Illuminate\Support\Collection;
@@ -136,6 +137,7 @@ return [
         Album::class,
         Track::class,
         Playlist::class,
+        MusicSection::class,
     ],
 
 ];
