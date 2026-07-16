@@ -6,10 +6,14 @@ use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexNotFoundException;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexClient;
+use App\Support\AppSetting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Cache::flush();
@@ -126,6 +130,60 @@ it('throws PlexNotFoundException when no music section exists', function () {
     $client = app(PlexClient::class);
 
     expect(fn () => $client->musicSectionId())->toThrow(PlexNotFoundException::class);
+});
+
+function fakeThreeSections(): void
+{
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response([
+            'MediaContainer' => [
+                'Directory' => [
+                    ['key' => '2', 'type' => 'movie', 'title' => 'Kids'],
+                    ['key' => '14', 'type' => 'artist', 'title' => 'Classical'],
+                    ['key' => '6', 'type' => 'artist', 'title' => 'Music'],
+                    ['key' => '13', 'type' => 'artist', 'title' => 'Spoken'],
+                ],
+            ],
+        ], 200),
+    ]);
+}
+
+it('honours a saved music section id', function () {
+    fakeThreeSections();
+    AppSetting::setMusicSectionId(14);
+
+    expect(app(PlexClient::class)->musicSectionId())->toBe(14);
+});
+
+it('falls back to the lowest artist section key when nothing is saved', function () {
+    fakeThreeSections();
+
+    expect(app(PlexClient::class)->musicSectionId())->toBe(6);
+});
+
+it('ignores Plex response ordering when resolving the section', function () {
+    // Classical (14) is listed first by Plex. The old code took it. The fix must not.
+    fakeThreeSections();
+
+    expect(app(PlexClient::class)->musicSectionId())->toBe(6);
+});
+
+it('falls back to the lowest key when the saved section no longer exists on Plex', function () {
+    fakeThreeSections();
+    AppSetting::setMusicSectionId(999);
+
+    expect(app(PlexClient::class)->musicSectionId())->toBe(6);
+});
+
+it('preserves the saved section row when the saved section is missing', function () {
+    fakeThreeSections();
+    AppSetting::setMusicSectionId(999);
+
+    app(PlexClient::class)->musicSectionId();
+
+    // The choice is honoured again if the library comes back.
+    expect(AppSetting::musicSectionId())->toBe(999);
 });
 
 it('lists artists in the music section', function () {
