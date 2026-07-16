@@ -92,3 +92,17 @@ it('round-trips each per-section compact flag', function () {
         expect(AppSetting::$get())->toBeFalse();
     }
 });
+
+it('returns null when no music section has been chosen', function () {
+    expect(AppSetting::musicSectionId())->toBeNull();
+});
+
+it('round trips the music section id as an int', function () {
+    AppSetting::setMusicSectionId(6);
+
+    expect(AppSetting::musicSectionId())->toBe(6);
+});
+
+it('rejects a non-positive music section id', function () {
+    expect(fn () => AppSetting::setMusicSectionId(0))->toThrow(InvalidArgumentException::class);
+});
