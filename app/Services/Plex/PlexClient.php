@@ -4,6 +4,7 @@ namespace App\Services\Plex;
 
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\MusicSection;
 use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\Dto\Track;
@@ -35,6 +36,26 @@ class PlexClient
 
         return $this->cache->remember('base_url', PlexCache::TTL_RESOURCES, function () {
             return $this->discoverBaseUrl();
+        });
+    }
+
+    /**
+     * @return Collection<int, MusicSection>
+     */
+    public function musicSections(): Collection
+    {
+        return $this->cache->remember('music_sections', PlexCache::TTL_SECTIONS, function () {
+            $response = $this->server()->get('/library/sections');
+
+            if (! $response->successful()) {
+                throw new PlexUnreachableException('library/sections returned '.$response->status());
+            }
+
+            return collect(data_get($response->json(), 'MediaContainer.Directory', []))
+                ->filter(fn (array $row) => ($row['type'] ?? null) === 'artist')
+                ->map(fn (array $row) => MusicSection::fromPlex($row))
+                ->sortBy(fn (MusicSection $section) => $section->id)
+                ->values();
         });
     }
 
