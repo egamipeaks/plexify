@@ -2,6 +2,7 @@
 
 use App\Services\Plex\Dto\Album;
 use App\Services\Plex\Dto\Artist;
+use App\Services\Plex\Dto\MusicSection;
 use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Dto\SearchResults;
 use App\Services\Plex\Dto\Track;
@@ -365,4 +366,15 @@ it('defaults userRating to 0 and lastRatedAt to null when absent', function () {
 
     expect($track->userRating)->toBe(0);
     expect($track->lastRatedAt)->toBeNull();
+});
+
+it('builds a MusicSection from a Plex section row and casts the key to int', function () {
+    $section = MusicSection::fromPlex([
+        'key' => '6',
+        'type' => 'artist',
+        'title' => 'Music',
+    ]);
+
+    expect($section->id)->toBe(6)
+        ->and($section->title)->toBe('Music');
 });
