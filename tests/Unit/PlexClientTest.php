@@ -1181,3 +1181,46 @@ it('maps a 500 from the favorites query to PlexUnreachableException', function (
     expect(fn () => app(PlexClient::class)->favoriteTracks(1000))
         ->toThrow(PlexUnreachableException::class);
 });
+
+it('lists only artist sections, sorted by key ascending', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response([
+            'MediaContainer' => [
+                'Directory' => [
+                    ['key' => '2', 'type' => 'movie', 'title' => 'Kids'],
+                    ['key' => '14', 'type' => 'artist', 'title' => 'Classical'],
+                    ['key' => '6', 'type' => 'artist', 'title' => 'Music'],
+                    ['key' => '13', 'type' => 'artist', 'title' => 'Spoken'],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $sections = app(PlexClient::class)->musicSections();
+
+    expect($sections->pluck('id')->all())->toBe([6, 13, 14])
+        ->and($sections->pluck('title')->all())->toBe(['Music', 'Spoken', 'Classical']);
+});
+
+it('caches the music sections list', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+    ]);
+
+    $client = app(PlexClient::class);
+    $client->musicSections();
+    $client->musicSections();
+
+    Http::assertSentCount(2); // resources + sections, no second sections call
+});
+
+it('maps a failed library/sections response to PlexUnreachableException', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response('', 500),
+    ]);
+
+    expect(fn () => app(PlexClient::class)->musicSections())->toThrow(PlexUnreachableException::class);
+});
