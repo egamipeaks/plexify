@@ -98,6 +98,26 @@ class AppSetting
         Setting::set('playlist_tracks_compact', $value);
     }
 
+    public static function musicSectionId(): ?int
+    {
+        $value = Setting::get('music_section_id');
+
+        if ($value === null) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    public static function setMusicSectionId(int $value): void
+    {
+        if ($value <= 0) {
+            throw new InvalidArgumentException("Invalid music section id: {$value}");
+        }
+
+        Setting::set('music_section_id', $value);
+    }
+
     private static function sectionCompact(string $key): bool
     {
         $value = Setting::get($key);
