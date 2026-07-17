@@ -17,8 +17,9 @@
         "hubIdentifier": "artist",
         "size": 2,
         "Metadata": [
-          { "ratingKey": "53843", "type": "artist", "title": "Bon Iver", "thumb": "/library/metadata/53843/thumb/1", "childCount": 5 },
-          { "ratingKey": "53999", "type": "artist", "title": "Bon Jovi", "childCount": 12 }
+          { "ratingKey": "53843", "type": "artist", "title": "Bon Iver", "thumb": "/library/metadata/53843/thumb/1", "childCount": 5, "librarySectionID": 3 },
+          { "ratingKey": "53999", "type": "artist", "title": "Bon Jovi", "childCount": 12, "librarySectionID": 3 },
+          { "ratingKey": "99999", "title": "Vivaldi", "type": "artist", "librarySectionID": 14, "childCount": 3 }
         ]
       },
       {
@@ -27,8 +28,8 @@
         "hubIdentifier": "album",
         "size": 2,
         "Metadata": [
-          { "ratingKey": "58120", "type": "album", "title": "For Emma, Forever Ago", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2007, "thumb": "/library/metadata/58120/thumb/1" },
-          { "ratingKey": "58200", "type": "album", "title": "i,i", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2019, "thumb": "/library/metadata/58200/thumb/1" }
+          { "ratingKey": "58120", "type": "album", "title": "For Emma, Forever Ago", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2007, "thumb": "/library/metadata/58120/thumb/1", "librarySectionID": 3 },
+          { "ratingKey": "58200", "type": "album", "title": "i,i", "parentTitle": "Bon Iver", "parentRatingKey": "53843", "year": 2019, "thumb": "/library/metadata/58200/thumb/1", "librarySectionID": 3 }
         ]
       },
       {
@@ -46,8 +47,8 @@
         "hubIdentifier": "track",
         "size": 2,
         "Metadata": [
-          { "ratingKey": "53268", "type": "track", "title": "Holocene", "grandparentTitle": "Bon Iver", "parentTitle": "Bon Iver, Bon Iver", "duration": 337000, "thumb": "/library/metadata/53268/thumb/1", "Media": [{ "Part": [{ "id": 660001, "container": "flac" }] }] },
-          { "ratingKey": "53269", "type": "track", "title": "Skinny Love", "grandparentTitle": "Bon Iver", "parentTitle": "For Emma, Forever Ago", "duration": 238000, "thumb": "/library/metadata/53269/thumb/1", "Media": [{ "Part": [{ "id": 660002, "container": "mp3" }] }] }
+          { "ratingKey": "53268", "type": "track", "title": "Holocene", "grandparentTitle": "Bon Iver", "parentTitle": "Bon Iver, Bon Iver", "duration": 337000, "thumb": "/library/metadata/53268/thumb/1", "librarySectionID": 3, "Media": [{ "Part": [{ "id": 660001, "container": "flac" }] }] },
+          { "ratingKey": "53269", "type": "track", "title": "Skinny Love", "grandparentTitle": "Bon Iver", "parentTitle": "For Emma, Forever Ago", "duration": 238000, "thumb": "/library/metadata/53269/thumb/1", "librarySectionID": 3, "Media": [{ "Part": [{ "id": 660002, "container": "mp3" }] }] }
         ]
       },
       {
