@@ -72,3 +72,19 @@ it('renders without a library name when Plex is unreachable', function () {
         ->assertSee('Unreachable')
         ->assertDontSee('Music');
 });
+
+it('re-resolves the library name when a library-changed event is dispatched', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn([
+        'name' => 'HomeServer',
+        'reachable' => true,
+        'connection' => 'direct',
+    ]);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music', 'Classical');
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('server-chip')
+        ->assertSee('Music')
+        ->dispatch('library-changed')
+        ->assertSee('Classical');
+});
