@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Setting;
+use App\Services\Plex\Dto\MusicSection;
 use App\Services\Plex\Exceptions\PlexUnreachableException;
 use App\Services\Plex\PlexCache;
 use App\Services\Plex\PlexClient;
@@ -19,6 +20,9 @@ beforeEach(function () {
             'connection' => 'direct',
             'machineIdentifier' => 'abc123',
         ]);
+    $this->plex->shouldReceive('musicSectionId')->andReturn(1);
+    $this->plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $this->plex->shouldReceive('musicSections')->andReturn(collect([new MusicSection(1, 'Music')]));
     $this->app->instance(PlexClient::class, $this->plex);
 });
 
@@ -79,6 +83,8 @@ it('records an error when ping fails after flushing', function () {
     $failingPlex = Mockery::mock(PlexClient::class);
     $failingPlex->shouldReceive('ping')
         ->andThrow(new PlexUnreachableException('down'));
+    $failingPlex->shouldReceive('musicSectionId')->andThrow(new PlexUnreachableException('down'));
+    $failingPlex->shouldReceive('musicSections')->andThrow(new PlexUnreachableException('down'));
     $this->app->instance(PlexClient::class, $failingPlex);
 
     Livewire::test('pages::settings')
@@ -93,6 +99,8 @@ it('shows the no-token status when PLEX_TOKEN is empty', function () {
     $unreachable = Mockery::mock(PlexClient::class);
     $unreachable->shouldReceive('ping')
         ->andThrow(new PlexUnreachableException('no token'));
+    $unreachable->shouldReceive('musicSectionId')->andThrow(new PlexUnreachableException('no token'));
+    $unreachable->shouldReceive('musicSections')->andThrow(new PlexUnreachableException('no token'));
     $this->app->instance(PlexClient::class, $unreachable);
 
     Livewire::test('pages::settings')
@@ -119,4 +127,67 @@ it('persists the scrobble toggle', function () {
         ->set('scrobbleEnabled', false);
 
     expect(AppSetting::scrobbleEnabled())->toBeFalse();
+});
+
+it('lists every artist section in the music library select', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $plex->shouldReceive('musicSectionId')->andReturn(6);
+    $plex->shouldReceive('musicSections')->andReturn(collect([
+        new MusicSection(6, 'Music'),
+        new MusicSection(13, 'Spoken'),
+        new MusicSection(14, 'Classical'),
+    ]));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')
+        ->assertSee('Music library')
+        ->assertSee('Which Plex library to read from.')
+        ->assertSee('Classical')
+        ->assertSee('Spoken');
+});
+
+it('persists the chosen music library', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $plex->shouldReceive('musicSectionId')->andReturn(6);
+    $plex->shouldReceive('musicSections')->andReturn(collect([
+        new MusicSection(6, 'Music'),
+        new MusicSection(14, 'Classical'),
+    ]));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')->set('musicSectionId', 14);
+
+    expect(AppSetting::musicSectionId())->toBe(14);
+});
+
+it('ignores a music library id that is not a real section', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $plex->shouldReceive('musicSectionId')->andReturn(6);
+    $plex->shouldReceive('musicSections')->andReturn(collect([new MusicSection(6, 'Music')]));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')->set('musicSectionId', 999);
+
+    expect(AppSetting::musicSectionId())->toBeNull();
+});
+
+it('still renders the settings page when Plex is unreachable', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andThrow(new PlexUnreachableException('down'));
+    $plex->shouldReceive('musicSectionTitle')->andThrow(new PlexUnreachableException('down'));
+    $plex->shouldReceive('musicSectionId')->andThrow(new PlexUnreachableException('down'));
+    $plex->shouldReceive('musicSections')->andThrow(new PlexUnreachableException('down'));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')
+        ->assertOk()
+        ->assertSee('Display')
+        ->assertSee('About')
+        ->assertDontSee('Music library');
 });

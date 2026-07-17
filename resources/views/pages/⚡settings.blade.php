@@ -1,9 +1,11 @@
 <?php
 
+use App\Services\Plex\Dto\MusicSection;
 use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexCache;
 use App\Services\Plex\PlexClient;
 use App\Support\AppSetting;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -14,14 +16,31 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $scrobbleEnabled = true;
 
+    public ?int $musicSectionId = null;
+
     public ?string $resyncedAt = null;
 
     public ?string $resyncError = null;
 
-    public function mount(): void
+    public function mount(PlexClient $plex): void
     {
         $this->density = AppSetting::density();
         $this->scrobbleEnabled = AppSetting::scrobbleEnabled();
+
+        try {
+            $this->musicSectionId = $plex->musicSectionId();
+        } catch (PlexException) {
+            $this->musicSectionId = null;
+        }
+    }
+
+    public function updatedMusicSectionId(int $value): void
+    {
+        if (! $this->musicSections->contains(fn (MusicSection $section) => $section->id === $value)) {
+            return;
+        }
+
+        AppSetting::setMusicSectionId($value);
     }
 
     public function updatedDensity(string $value): void
@@ -45,6 +64,19 @@ new #[Layout('components.layouts.app')] class extends Component
         } catch (PlexException) {
             $this->resyncedAt = null;
             $this->resyncError = 'Cache cleared, but Plex is unreachable.';
+        }
+    }
+
+    /**
+     * @return Collection<int, MusicSection>
+     */
+    #[Computed]
+    public function musicSections(): Collection
+    {
+        try {
+            return app(PlexClient::class)->musicSections();
+        } catch (PlexException) {
+            return collect();
         }
     }
 
@@ -114,6 +146,23 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 @endif
             </div>
+
+            @if ($this->musicSections->isNotEmpty())
+                <div class="flex items-start justify-between gap-6 py-4 border-b border-white/5">
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[14px] font-semibold text-white">Music library</div>
+                        <div class="text-[12px] text-text-2 mt-0.5 leading-snug">Which Plex library to read from.</div>
+                    </div>
+                    <div class="flex-none">
+                        <select wire:model.live="musicSectionId"
+                                class="bg-surface-2 hover:bg-surface-3 transition-colors text-white text-[13px] font-semibold rounded-md px-3 py-1.5">
+                            @foreach ($this->musicSections as $section)
+                                <option value="{{ $section->id }}">{{ $section->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            @endif
 
             <div class="mt-6 flex items-center gap-4">
                 <button type="button"
