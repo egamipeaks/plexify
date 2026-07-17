@@ -157,16 +157,25 @@ it('honours a saved music section id', function () {
 });
 
 it('falls back to the lowest artist section key when nothing is saved', function () {
+    // The fake lists Classical (14) BEFORE Music (6). The old code took the first
+    // artist section in Plex's response order and returned 14. The lowest-key
+    // fallback must return 6 regardless of how Plex orders the response.
     fakeThreeSections();
 
     expect(app(PlexClient::class)->musicSectionId())->toBe(6);
 });
 
-it('ignores Plex response ordering when resolving the section', function () {
-    // Classical (14) is listed first by Plex. The old code took it. The fix must not.
+it('does not cache the resolved section id', function () {
     fakeThreeSections();
+    $client = app(PlexClient::class);
 
-    expect(app(PlexClient::class)->musicSectionId())->toBe(6);
+    expect($client->musicSectionId())->toBe(6);
+
+    AppSetting::setMusicSectionId(14);
+
+    // A second call must observe the new setting. If the resolution were cached,
+    // this would still return 6, which is exactly how the original drift bug worked.
+    expect($client->musicSectionId())->toBe(14);
 });
 
 it('falls back to the lowest key when the saved section no longer exists on Plex', function () {
