@@ -1147,12 +1147,57 @@ it('returns an empty collection when artist has no Similar array', function () {
     expect(app(PlexClient::class)->similarArtists('999'))->toBeEmpty();
 });
 
-it('rates a track 5 stars via PUT /:/rate?rating=10', function () {
-    fakePlexWriteEndpoints();
-    Cache::put('plex:favorites:1000', 'stale', 300);
-    Cache::put('plex:_index', ['plex:favorites:1000'], 300);
+it('rates a track 5 stars via PUT /:/rate?rating=10 and busts the namespaced favorites cache', function () {
+    $firstFavoritesResponse = Http::response([
+        'MediaContainer' => [
+            'Metadata' => [
+                [
+                    'ratingKey' => '11', 'title' => 'B', 'grandparentTitle' => 'Artist',
+                    'parentTitle' => 'Album', 'index' => 1, 'duration' => 1000,
+                    'userRating' => 10, 'lastRatedAt' => 1716500000,
+                    'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+                ],
+            ],
+        ],
+    ], 200);
 
-    app(PlexClient::class)->rateTrack('12345', 10);
+    $secondFavoritesResponse = Http::response([
+        'MediaContainer' => [
+            'Metadata' => [
+                [
+                    'ratingKey' => '11', 'title' => 'B', 'grandparentTitle' => 'Artist',
+                    'parentTitle' => 'Album', 'index' => 1, 'duration' => 1000,
+                    'userRating' => 10, 'lastRatedAt' => 1716500000,
+                    'Media' => [['Part' => [['id' => 1, 'container' => 'mp3']]]],
+                ],
+                [
+                    'ratingKey' => '12345', 'title' => 'C', 'grandparentTitle' => 'Artist',
+                    'parentTitle' => 'Album', 'index' => 2, 'duration' => 2000,
+                    'userRating' => 10, 'lastRatedAt' => 1716600000,
+                    'Media' => [['Part' => [['id' => 2, 'container' => 'mp3']]]],
+                ],
+            ],
+        ],
+    ], 200);
+
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/3/all*' => Http::sequence([
+            $firstFavoritesResponse,
+            $secondFavoritesResponse,
+        ]),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/:/rate*' => Http::response('', 200),
+    ]);
+
+    $client = app(PlexClient::class);
+
+    // Populate the favorites cache the same way production does, under the real namespaced key.
+    $firstFetch = $client->favoriteTracks(1000);
+    expect($firstFetch)->toHaveCount(1);
+    expect(Cache::has('plex:s3:favorites:1000'))->toBeTrue();
+
+    $client->rateTrack('12345', 10);
 
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
         && str_contains($request->url(), '/:/rate?')
@@ -1160,7 +1205,11 @@ it('rates a track 5 stars via PUT /:/rate?rating=10', function () {
         && str_contains($request->url(), 'rating=10')
         && str_contains($request->url(), 'identifier=com.plexapp.plugins.library'));
 
-    expect(Cache::has('plex:favorites:1000'))->toBeFalse();
+    expect(Cache::has('plex:s3:favorites:1000'))->toBeFalse();
+
+    // A subsequent call must hit Plex again (and see the new track) rather than serve the stale cached list.
+    $secondFetch = $client->favoriteTracks(1000);
+    expect($secondFetch)->toHaveCount(2);
 });
 
 it('clears a rating via PUT /:/rate?rating=0', function () {

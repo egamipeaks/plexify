@@ -695,8 +695,12 @@ class PlexClient
 
     private function forgetFavoritesCache(): void
     {
+        // Bust every section's favorites entry, not just the current section's: a track can be
+        // rated from the now-playing strip, and after a library switch the rated track is not
+        // necessarily in the currently-selected section, so scoping the bust to the current
+        // section would miss it.
         foreach (Cache::get('plex:_index', []) as $namespaced) {
-            if (str_starts_with($namespaced, 'plex:favorites:')) {
+            if (str_contains($namespaced, ':favorites:')) {
                 $bare = substr($namespaced, strlen('plex:'));
                 $this->cache->forget($bare);
             }
