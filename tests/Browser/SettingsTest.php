@@ -144,7 +144,7 @@ it('switches the music library and persists the choice', function () {
                 .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
             if (!select) return null;
             const other = Array.from(select.options).find(o => o.value !== select.value);
-            return other ? {value: other.value, label: other.text} : null;
+            return other ? {value: other.value} : null;
         })()
     JS);
 
@@ -174,7 +174,7 @@ it('switches the music library and persists the choice', function () {
         })()
     JS);
 
-    expect($result['ok'])->toBeTrue($result['reason'] ?? 'switch script failed');
+    expect($result['ok'])->toBeTrue($result['reason']);
     expect(AppSetting::musicSectionId())->toBe((int) $target['value']);
 });
 
