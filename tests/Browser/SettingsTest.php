@@ -130,3 +130,76 @@ it('resync metadata button shows a green confirmation message', function () {
     expect($appeared)->toBeTrue('Expected a "Cleared at …" confirmation to appear after resyncing metadata.');
     $page->assertSee('Cleared at');
 });
+
+it('switches the music library and persists the choice', function () {
+    $page = visit('/settings');
+
+    $page->assertSee('Music library');
+
+    // Pick whichever option is not currently selected, so the test does not
+    // hardcode this particular server's section ids.
+    $target = $page->script(<<<'JS'
+        (() => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            if (!select) return null;
+            const other = Array.from(select.options).find(o => o.value !== select.value);
+            return other ? {value: other.value, label: other.text} : null;
+        })()
+    JS);
+
+    expect($target)->not->toBeNull('Expected the Plex server to expose more than one music library.');
+
+    // Drive the change through the Livewire component's own $wire.set() rather than
+    // dispatching a synthetic DOM "change" event on the <select>: wire:model.live is
+    // implemented on top of an Alpine x-model binding, and forcing select.value plus a
+    // synthetic event races Alpine's own hydration of that binding, making the DOM
+    // "did it switch?" check pass before the server round-trip (and the AppSetting
+    // write) has actually completed. $wire.set(...) returns a promise that resolves
+    // only after the request finishes, so awaiting it is a reliable synchronization
+    // point. This matches the window.Livewire.find(...) pattern already used in
+    // PlaylistDetailTest and SidebarFoldersTest to drive Livewire actions directly.
+    $result = $page->script(<<<JS
+        (async () => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            const compEl = select ? select.closest('[wire\\\\:id]') : null;
+            const compId = compEl ? compEl.getAttribute('wire:id') : null;
+            const comp = compId ? window.Livewire.find(compId) : null;
+            if (!comp) return {ok: false, reason: 'no settings Livewire component found'};
+
+            await comp.set('musicSectionId', {$target['value']});
+
+            return {ok: true, reason: ''};
+        })()
+    JS);
+
+    expect($result['ok'])->toBeTrue($result['reason'] ?? 'switch script failed');
+    expect(AppSetting::musicSectionId())->toBe((int) $target['value']);
+});
+
+it('shows the effective library name on the sidebar server chip', function () {
+    $page = visit('/settings');
+
+    $library = $page->script(<<<'JS'
+        (() => {
+            const select = Array.from(document.querySelectorAll('select'))
+                .find(s => s.getAttribute('wire:model.live') === 'musicSectionId');
+            return select ? select.options[select.selectedIndex].text : null;
+        })()
+    JS);
+
+    expect($library)->not->toBeNull('Expected a music library select on the settings page.');
+
+    // Read the chip itself rather than using assertSee, which would match the
+    // library name in the select and pass without the chip changing at all.
+    $chipText = $page->script(<<<'JS'
+        (() => {
+            const chip = document.querySelector('[wire\\:click="refresh"]');
+            return chip ? chip.innerText : null;
+        })()
+    JS);
+
+    expect($chipText)->not->toBeNull('Expected the server chip to be present in the sidebar.')
+        ->and($chipText)->toContain($library);
+});
