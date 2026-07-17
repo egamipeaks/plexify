@@ -10,6 +10,7 @@ new class extends Component {
     public string $connection = 'down';
     public bool $reachable = false;
     public ?string $error = null;
+    public ?string $library = null;
 
     public function mount(PlexClient $plex): void
     {
@@ -28,6 +29,7 @@ new class extends Component {
             $this->name = $status['name'];
             $this->reachable = $status['reachable'];
             $this->connection = $status['connection'];
+            $this->library = $plex->musicSectionTitle();
             $this->error = null;
         } catch (PlexAuthException) {
             $this->error = 'Auth error';
@@ -59,7 +61,7 @@ new class extends Component {
                 {{ $error }}
             @elseif ($reachable)
                 <x-lucide-wifi class="w-3 h-3" />
-                {{ ucfirst($connection) }} connection
+                {{ collect([$library, ucfirst($connection).' connection'])->filter()->implode(' · ') }}
             @else
                 <x-lucide-wifi-off class="w-3 h-3" />
                 Unreachable

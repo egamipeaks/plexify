@@ -16,6 +16,7 @@ beforeEach(function () {
 
     $plex = Mockery::mock(PlexClient::class);
     $plex->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
     $plex->shouldReceive('playlists')->andReturn(collect());
     $plex->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ?? '');
     $plex->shouldReceive('searchAll')->andReturn(SearchResults::empty());
