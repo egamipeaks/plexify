@@ -441,10 +441,13 @@ class PlexClient
         $hubs = collect(data_get($response->json(), 'MediaContainer.Hub', []));
         $metadata = fn (string $type) => collect(data_get($hubs->firstWhere('type', $type), 'Metadata', []));
 
+        $sectionId = $this->musicSectionId();
+        $inSection = fn (array $row) => (int) ($row['librarySectionID'] ?? 0) === $sectionId;
+
         return new SearchResults(
-            tracks: $metadata('track')->map(fn (array $row) => Track::fromPlex($row))->values(),
-            artists: $metadata('artist')->map(fn (array $row) => Artist::fromPlex($row))->values(),
-            albums: $metadata('album')->map(fn (array $row) => Album::fromPlex($row))->values(),
+            tracks: $metadata('track')->filter($inSection)->map(fn (array $row) => Track::fromPlex($row))->values(),
+            artists: $metadata('artist')->filter($inSection)->map(fn (array $row) => Artist::fromPlex($row))->values(),
+            albums: $metadata('album')->filter($inSection)->map(fn (array $row) => Album::fromPlex($row))->values(),
             playlists: $metadata('playlist')
                 ->filter(fn (array $row) => ($row['playlistType'] ?? 'audio') === 'audio')
                 ->map(fn (array $row) => Playlist::fromPlex($row))

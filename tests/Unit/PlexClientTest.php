@@ -378,6 +378,7 @@ it('reports unreachable when /identity fails', function () {
 it('searches /hubs/search and parses only the music hubs', function () {
     config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
     Http::fake([
+        'https://server.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
         'https://server.plex.direct:32400/hubs/search*' => Http::response(
             file_get_contents(fixturePath('hubs_search.json')),
             200,
@@ -421,6 +422,7 @@ it('returns an empty SearchResults for a blank query without calling Plex', func
 it('tolerates a hubs/search response with no matching hubs', function () {
     config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
     Http::fake([
+        'https://server.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
         'https://server.plex.direct:32400/hubs/search*' => Http::response([
             'MediaContainer' => ['size' => 0, 'Hub' => [
                 ['type' => 'artist', 'size' => 0],
@@ -716,6 +718,7 @@ it('filters smart playlists out of playlists()', function () {
 it('filters smart playlists out of searchAll() playlist hub', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
         'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/hubs/search*' => Http::response([
             'MediaContainer' => [
                 'Hub' => [
@@ -1351,4 +1354,31 @@ it('namespaces the artists cache by section so libraries do not collide', functi
 
     expect(Cache::has('plex:s6:artists'))->toBeTrue()
         ->and(Cache::has('plex:artists'))->toBeFalse();
+});
+
+it('excludes search hits from other libraries', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/hubs/search*' => Http::response(file_get_contents(fixturePath('hubs_search.json')), 200),
+    ]);
+
+    $results = app(PlexClient::class)->searchAll('bon');
+
+    // The section-14 artist is dropped; the two section-3 artists survive.
+    expect($results->artists)->toHaveCount(2)
+        ->and($results->artists->pluck('name')->all())->not->toContain('Vivaldi');
+});
+
+it('keeps playlists in search results even though they carry no section id', function () {
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response(file_get_contents(fixturePath('library_sections.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/hubs/search*' => Http::response(file_get_contents(fixturePath('hubs_search.json')), 200),
+    ]);
+
+    $results = app(PlexClient::class)->searchAll('bon');
+
+    expect($results->playlists)->toHaveCount(1)
+        ->and($results->playlists->first()->title)->toBe('Bon Voyage');
 });
