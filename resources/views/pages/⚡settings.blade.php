@@ -155,9 +155,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                     <div class="flex-none">
                         <select wire:model.live="musicSectionId"
-                                class="bg-surface-2 hover:bg-surface-3 transition-colors text-white text-[13px] font-semibold rounded-md px-3 py-1.5">
+                                class="bg-surface-2 hover:bg-surface-3 transition-colors text-white text-[13px] font-semibold rounded-md px-3 py-1.5 outline-none ring-1 ring-white/10 focus:ring-white/30 cursor-pointer min-w-[160px]">
                             @foreach ($this->musicSections as $section)
-                                <option value="{{ $section->id }}">{{ $section->title }}</option>
+                                <option value="{{ $section->id }}" class="bg-surface text-white">{{ $section->title }}</option>
                             @endforeach
                         </select>
                     </div>
