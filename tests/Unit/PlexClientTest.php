@@ -156,6 +156,13 @@ it('honours a saved music section id', function () {
     expect(app(PlexClient::class)->musicSectionId())->toBe(14);
 });
 
+it('resolves the effective music section title', function () {
+    fakeThreeSections();
+    AppSetting::setMusicSectionId(14);
+
+    expect(app(PlexClient::class)->musicSectionTitle())->toBe('Classical');
+});
+
 it('falls back to the lowest artist section key when nothing is saved', function () {
     // The fake lists Classical (14) BEFORE Music (6). The old code took the first
     // artist section in Plex's response order and returned 14. The lowest-key

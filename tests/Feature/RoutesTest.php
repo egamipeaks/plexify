@@ -17,6 +17,7 @@ it('renders the search route', function () {
         $mock->shouldReceive('playlists')->andReturn(collect());
         $mock->shouldReceive('thumbUrl')->andReturnNull();
         $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('scrobbleUrl')->andReturn('');
         $mock->shouldReceive('searchAll')->andReturn(SearchResults::empty());
     });
@@ -31,6 +32,7 @@ it('renders the search route with a query', function () {
         $mock->shouldReceive('playlists')->andReturn(collect());
         $mock->shouldReceive('thumbUrl')->andReturnNull();
         $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('scrobbleUrl')->andReturn('');
         $mock->shouldReceive('searchAll')->with('foo')->andReturn(SearchResults::empty());
     });
@@ -50,6 +52,7 @@ it('renders the playlist detail route', function () {
             'connection' => 'down',
             'machineIdentifier' => null,
         ]);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('scrobbleUrl')->andReturn('');
     });
 
@@ -70,6 +73,7 @@ it('renders the recently added route', function () {
         $mock->shouldReceive('playlists')->andReturn(collect());
         $mock->shouldReceive('thumbUrl')->andReturnNull();
         $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('scrobbleUrl')->andReturn('');
     });
 
@@ -84,6 +88,7 @@ it('renders the recently played route', function () {
         $mock->shouldReceive('playlists')->andReturn(collect());
         $mock->shouldReceive('thumbUrl')->andReturnNull();
         $mock->shouldReceive('ping')->andReturn(['name' => 'Test', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => null]);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('scrobbleUrl')->andReturn('');
     });
 
@@ -95,6 +100,7 @@ it('renders the recently played route', function () {
 it('resolves /favorites to the favorites page', function () {
     test()->mock(PlexClient::class, function ($mock) {
         $mock->shouldReceive('ping')->andReturn(['name' => 'T', 'reachable' => true, 'connection' => 'direct', 'machineIdentifier' => 'M']);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
         $mock->shouldReceive('playlists')->andReturn(collect());
         $mock->shouldReceive('searchAll')->andReturn(SearchResults::empty());
         $mock->shouldReceive('thumbUrl')->andReturn(null);

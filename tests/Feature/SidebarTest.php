@@ -23,6 +23,7 @@ function mockSidebarPlex(array $playlists = [], ?Closure $extra = null): void
         $mock->shouldReceive('playlists')->andReturn(collect($playlists));
         $mock->shouldReceive('thumbUrl')->andReturnUsing(fn ($t) => $t ? "https://thumb{$t}" : null);
         $mock->shouldReceive('ping')->andReturn(['name' => 'HOME', 'reachable' => true, 'connection' => 'direct', 'machineIdentifier' => 'abc']);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
 
         if ($extra) {
             $extra($mock);
@@ -46,6 +47,7 @@ it('falls back to the empty placeholder when Plex is unreachable and there are n
         $mock->shouldReceive('playlists')->andThrow(new PlexUnreachableException('refused'));
         $mock->shouldReceive('thumbUrl')->andReturnNull();
         $mock->shouldReceive('ping')->andReturn(['name' => 'HOME', 'reachable' => false, 'connection' => 'down', 'machineIdentifier' => 'abc']);
+        $mock->shouldReceive('musicSectionTitle')->andReturn('Music');
     });
 
     Livewire::test('sidebar')

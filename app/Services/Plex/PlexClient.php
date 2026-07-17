@@ -81,6 +81,11 @@ class PlexClient
         return $sections->first()->id;
     }
 
+    public function musicSectionTitle(): ?string
+    {
+        return $this->musicSections()->firstWhere('id', $this->musicSectionId())?->title;
+    }
+
     public function artists(): Collection
     {
         return $this->cache->remember($this->sectionKey('artists'), PlexCache::TTL_ARTISTS, function () {
