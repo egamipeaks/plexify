@@ -21,7 +21,6 @@ beforeEach(function () {
             'machineIdentifier' => 'abc123',
         ]);
     $this->plex->shouldReceive('musicSectionId')->andReturn(1);
-    $this->plex->shouldReceive('musicSectionTitle')->andReturn('Music');
     $this->plex->shouldReceive('musicSections')->andReturn(collect([new MusicSection(1, 'Music')]));
     $this->app->instance(PlexClient::class, $this->plex);
 });
@@ -168,6 +167,35 @@ it('persists the chosen music library', function () {
     Livewire::test('pages::settings')->set('musicSectionId', 14);
 
     expect(AppSetting::musicSectionId())->toBe(14);
+});
+
+it('dispatches library-changed so the server chip can refresh itself', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $plex->shouldReceive('musicSectionId')->andReturn(6);
+    $plex->shouldReceive('musicSections')->andReturn(collect([
+        new MusicSection(6, 'Music'),
+        new MusicSection(14, 'Classical'),
+    ]));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')
+        ->set('musicSectionId', 14)
+        ->assertDispatched('library-changed');
+});
+
+it('does not dispatch library-changed when the chosen id is rejected', function () {
+    $plex = Mockery::mock(PlexClient::class);
+    $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
+    $plex->shouldReceive('musicSectionTitle')->andReturn('Music');
+    $plex->shouldReceive('musicSectionId')->andReturn(6);
+    $plex->shouldReceive('musicSections')->andReturn(collect([new MusicSection(6, 'Music')]));
+    app()->instance(PlexClient::class, $plex);
+
+    Livewire::test('pages::settings')
+        ->set('musicSectionId', 999)
+        ->assertNotDispatched('library-changed');
 });
 
 it('ignores a music library id that is not a real section', function () {

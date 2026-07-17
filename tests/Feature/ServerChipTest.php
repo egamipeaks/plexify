@@ -60,8 +60,7 @@ it('shows the effective library name beside the connection', function () {
     app()->instance(PlexClient::class, $plex);
 
     Livewire::test('server-chip')
-        ->assertSee('Music')
-        ->assertSee('Direct connection');
+        ->assertSee('Music · Direct connection');
 });
 
 it('renders without a library name when Plex is unreachable', function () {
@@ -69,5 +68,7 @@ it('renders without a library name when Plex is unreachable', function () {
     $plex->shouldReceive('ping')->andThrow(new PlexUnreachableException('down'));
     app()->instance(PlexClient::class, $plex);
 
-    Livewire::test('server-chip')->assertSee('Unreachable');
+    Livewire::test('server-chip')
+        ->assertSee('Unreachable')
+        ->assertDontSee('Music');
 });

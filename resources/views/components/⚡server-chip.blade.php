@@ -3,6 +3,7 @@
 use App\Services\Plex\Exceptions\PlexAuthException;
 use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexClient;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component {
@@ -17,6 +18,7 @@ new class extends Component {
         $this->refreshStatus($plex);
     }
 
+    #[On('library-changed')]
     public function refresh(PlexClient $plex): void
     {
         $this->refreshStatus($plex);

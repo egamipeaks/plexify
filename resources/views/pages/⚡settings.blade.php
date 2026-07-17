@@ -41,6 +41,8 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         AppSetting::setMusicSectionId($value);
+
+        $this->dispatch('library-changed');
     }
 
     public function updatedDensity(string $value): void
