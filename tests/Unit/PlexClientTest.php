@@ -1377,6 +1377,32 @@ it('excludes search hits from other libraries', function () {
         ->and($results->artists->pluck('name')->all())->not->toContain('Vivaldi');
 });
 
+it('scopes search results to the selected library, not just the default', function () {
+    AppSetting::setMusicSectionId(14);
+
+    Http::fake([
+        'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections' => Http::response([
+            'MediaContainer' => [
+                'Directory' => [
+                    ['key' => '3', 'type' => 'artist', 'title' => 'Music'],
+                    ['key' => '14', 'type' => 'artist', 'title' => 'Classical'],
+                ],
+            ],
+        ], 200),
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/hubs/search*' => Http::response(file_get_contents(fixturePath('hubs_search.json')), 200),
+    ]);
+
+    $results = app(PlexClient::class)->searchAll('bon');
+
+    // Section-14 "Vivaldi" survives and the section-3 artists are dropped: proves the
+    // filter follows the SELECTED library (14), not a hardcoded default (3).
+    expect($results->artists)->toHaveCount(1)
+        ->and($results->artists->first()->name)->toBe('Vivaldi')
+        ->and($results->artists->pluck('name')->all())->not->toContain('Bon Iver')
+        ->and($results->artists->pluck('name')->all())->not->toContain('Bon Jovi');
+});
+
 it('keeps playlists in search results even though they carry no section id', function () {
     Http::fake([
         'https://plex.tv/api/v2/resources*' => Http::response(file_get_contents(fixturePath('resources.json')), 200),
