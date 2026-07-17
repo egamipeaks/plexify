@@ -129,6 +129,12 @@ it('persists the scrobble toggle', function () {
     expect(AppSetting::scrobbleEnabled())->toBeFalse();
 });
 
+it('seeds the select with the effective library when nothing was ever chosen', function () {
+    expect(AppSetting::musicSectionId())->toBeNull();
+
+    Livewire::test('pages::settings')->assertSet('musicSectionId', 1);
+});
+
 it('lists every artist section in the music library select', function () {
     $plex = Mockery::mock(PlexClient::class);
     $plex->shouldReceive('ping')->andReturn(['name' => 'HomeServer', 'reachable' => true, 'connection' => 'direct']);
