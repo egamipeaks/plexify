@@ -767,7 +767,7 @@ it('caches recently added albums by limit and reuses the cached collection', fun
     app(PlexClient::class)->recentlyAddedAlbums(50);
     app(PlexClient::class)->recentlyAddedAlbums(50);
 
-    expect(Cache::has('plex:recently_added:50'))->toBeTrue();
+    expect(Cache::has('plex:s3:recently_added:50'))->toBeTrue();
     Http::assertSentCount(3); // resources + library/sections + library/all — each once
 });
 
@@ -820,7 +820,7 @@ it('caches recently played tracks under the limit-specific key', function () {
     app(PlexClient::class)->recentlyPlayedTracks(50);
     app(PlexClient::class)->recentlyPlayedTracks(50);
 
-    expect(Cache::has('plex:recently_played:50'))->toBeTrue();
+    expect(Cache::has('plex:s3:recently_played:50'))->toBeTrue();
     Http::assertSentCount(3);
 });
 
@@ -1225,7 +1225,7 @@ it('lists favorite tracks (userRating=10) sorted by lastRatedAt desc, cached', f
         && str_contains($request->url(), 'sort='.urlencode('lastRatedAt:desc'))
         && str_contains($request->url(), 'X-Plex-Container-Size=1000'));
 
-    expect(Cache::has('plex:favorites:1000'))->toBeTrue();
+    expect(Cache::has('plex:s3:favorites:1000'))->toBeTrue();
 });
 
 it('returns an empty collection when favorites query is 404', function () {
@@ -1290,4 +1290,16 @@ it('maps a failed library/sections response to PlexUnreachableException', functi
     ]);
 
     expect(fn () => app(PlexClient::class)->musicSections())->toThrow(PlexUnreachableException::class);
+});
+
+it('namespaces the artists cache by section so libraries do not collide', function () {
+    fakeThreeSections();
+    Http::fake([
+        'https://10-0-0-50.c36d6e0431c147dda2be7d81893a1653.plex.direct:32400/library/sections/6/all*' => Http::response(file_get_contents(fixturePath('artists.json')), 200),
+    ]);
+
+    app(PlexClient::class)->artists();
+
+    expect(Cache::has('plex:s6:artists'))->toBeTrue()
+        ->and(Cache::has('plex:artists'))->toBeFalse();
 });

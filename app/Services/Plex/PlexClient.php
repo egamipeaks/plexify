@@ -83,7 +83,7 @@ class PlexClient
 
     public function artists(): Collection
     {
-        return $this->cache->remember('artists', PlexCache::TTL_ARTISTS, function () {
+        return $this->cache->remember($this->sectionKey('artists'), PlexCache::TTL_ARTISTS, function () {
             $sectionId = $this->musicSectionId();
             $response = $this->server()->get("/library/sections/{$sectionId}/all", ['type' => 8]);
 
@@ -306,7 +306,7 @@ class PlexClient
     {
         $limit = $limit ?? (int) config('services.plex.recently_added_limit', 50);
 
-        return $this->cache->remember("recently_added:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+        return $this->cache->remember($this->sectionKey("recently_added:{$limit}"), PlexCache::TTL_PLAYLISTS, function () use ($limit) {
             $sectionId = $this->musicSectionId();
 
             // Plex's /recentlyAdded endpoint is hard-capped server-side (default 25, "Maximum number
@@ -332,7 +332,7 @@ class PlexClient
     {
         $limit = $limit ?? (int) config('services.plex.recently_played_limit', 50);
 
-        return $this->cache->remember("recently_played:{$limit}", PlexCache::TTL_PLAYLISTS, function () use ($limit) {
+        return $this->cache->remember($this->sectionKey("recently_played:{$limit}"), PlexCache::TTL_PLAYLISTS, function () use ($limit) {
             $sectionId = $this->musicSectionId();
 
             // Ask for 4x so we can slice past any unplayed rows Plex's :desc sort allowed through.
@@ -360,7 +360,7 @@ class PlexClient
      */
     public function favoriteTracks(int $limit = 1000): Collection
     {
-        return $this->cache->remember("favorites:{$limit}", PlexCache::TTL_FAVORITES, function () use ($limit) {
+        return $this->cache->remember($this->sectionKey("favorites:{$limit}"), PlexCache::TTL_FAVORITES, function () use ($limit) {
             $sectionId = $this->musicSectionId();
 
             $response = $this->server()->get("/library/sections/{$sectionId}/all", [
@@ -660,7 +660,7 @@ class PlexClient
      */
     private function taxonomy(string $kind): array
     {
-        return $this->cache->remember("taxonomy:{$kind}", PlexCache::TTL_TAXONOMY, function () use ($kind) {
+        return $this->cache->remember($this->sectionKey("taxonomy:{$kind}"), PlexCache::TTL_TAXONOMY, function () use ($kind) {
             $section = $this->musicSectionId();
             $response = $this->server()->get("/library/sections/{$section}/{$kind}");
 
@@ -802,5 +802,10 @@ class PlexClient
         }
 
         return $token;
+    }
+
+    private function sectionKey(string $key): string
+    {
+        return 's'.$this->musicSectionId().':'.$key;
     }
 }
