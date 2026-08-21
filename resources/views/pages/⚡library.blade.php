@@ -303,7 +303,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             'bg-accent/15 text-accent' => $selectedAlbumId === $album->id,
                                             'text-text-2 hover:text-white hover:bg-surface-2' => $selectedAlbumId !== $album->id,
                                         ])>
-                                    <span class="flex-1 min-w-0 truncate">{{ $album->title }}</span>
+                                    <span class="flex-1 min-w-0 truncate">{{ collect([$album->title, $album->year ? "({$album->year})" : null])->filter()->implode(' ') }}</span>
                                 </button>
                             @else
                                 <button type="button" wire:key="album-{{ $album->id }}" wire:click="selectAlbum('{{ $album->id }}')"
@@ -321,10 +321,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         </div>
                                     @endif
                                     <div class="flex-1 min-w-0">
-                                        <div class="text-[14px] font-semibold truncate">{{ $album->title }}</div>
-                                        <div class="text-[11px] text-text-2 truncate">
-                                            {{ $album->year ?? '' }}
-                                        </div>
+                                        <div class="text-[14px] font-semibold truncate">{{ collect([$album->title, $album->year ? "({$album->year})" : null])->filter()->implode(' ') }}</div>
                                     </div>
                                 </button>
                             @endif
