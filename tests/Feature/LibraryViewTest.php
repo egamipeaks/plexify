@@ -449,3 +449,26 @@ it('calls PlexClient::rateTrack via toggleHeart on the library page', function (
         ->call('toggleHeart', '77', 10)
         ->assertHasNoErrors();
 });
+
+it('shows the album year in parentheses next to the title in both density variants', function () {
+    $this->mock(PlexClient::class, function ($mock) {
+        $mock->shouldReceive('artists')->andReturn(collect([
+            new Artist(id: '100', name: 'Bon Iver', thumb: null, albumCount: 2),
+        ]));
+        $mock->shouldReceive('albumsForArtist')->with('100')->andReturn(collect([
+            new Album(id: '1001', title: '22, A Million', artist: 'Bon Iver', year: 2016, thumb: null, trackCount: 10, durationMs: 2160000),
+            new Album(id: '1002', title: 'Untitled', artist: 'Bon Iver', year: null, thumb: null, trackCount: 1, durationMs: 1000),
+        ]));
+    });
+
+    $component = Livewire::test('pages::library')
+        ->call('selectArtist', '100')
+        ->assertSee('22, A Million (2016)')
+        ->assertSee('Untitled')
+        ->assertDontSee('Untitled (');
+
+    $component->set('albumsCompact', true)
+        ->assertSee('22, A Million (2016)')
+        ->assertSee('Untitled')
+        ->assertDontSee('Untitled (');
+});
