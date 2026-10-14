@@ -164,3 +164,12 @@ it('does not poll when nothing is running', function () {
         ->assertSee('Playlist · 1 songs')
         ->assertDontSeeHtml('data-album-poll');
 });
+
+it('keeps polling for a finished export that has not been announced yet', function () {
+    mockAlbumSidebarPlex();
+    $component = Livewire::test('sidebar');
+
+    AlbumExport::factory()->done('/x')->create(['plex_playlist_id' => '42']);
+    $component->call('$refresh')->assertSeeHtml('data-album-poll');
+    $component->call('announceFinishedAlbumExports')->assertDontSeeHtml('data-album-poll');
+});

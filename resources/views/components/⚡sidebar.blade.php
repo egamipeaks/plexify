@@ -66,9 +66,10 @@ new class extends Component {
     }
 
     #[Computed]
-    public function hasActiveAlbumExport(): bool
+    public function needsAlbumExportPolling(): bool
     {
-        return $this->albumExports->contains(fn (AlbumExport $export) => $export->status->isActive());
+        return $this->albumExports->contains(fn (AlbumExport $export) => $export->status->isActive()
+            || ($export->notified_at === null && in_array($export->status, [AlbumExportStatus::Done, AlbumExportStatus::Failed], true)));
     }
 
     /**
@@ -476,7 +477,7 @@ new class extends Component {
 ?>
 
 <aside class="flex flex-col gap-2 h-full min-h-0">
-    @if ($this->hasActiveAlbumExport)
+    @if ($this->needsAlbumExportPolling)
         <div data-album-poll wire:poll.2s="announceFinishedAlbumExports" class="hidden"></div>
     @endif
     {{-- Top nav card --}}
