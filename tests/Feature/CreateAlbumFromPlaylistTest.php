@@ -59,6 +59,11 @@ function fakeFfmpegWritingOutputs(?string $failOnSource = null): void
     });
 }
 
+function markAsPlexifyAlbum(string $folder, string $playlistId = '42', int $exportId = 1): void
+{
+    file_put_contents("{$folder}/.plexify-album", json_encode(['plex_playlist_id' => $playlistId, 'album_export_id' => $exportId]));
+}
+
 function runAlbumJob(AlbumExport $export): AlbumExport
 {
     app()->call([new CreateAlbumFromPlaylist($export->id), 'handle']);
@@ -101,6 +106,7 @@ it('fails with the ffmpeg error and leaves the previous album untouched', functi
     fakeFfmpegWritingOutputs(failOnSource: "{$this->share}/Music/Src/b.mp3");
     File::ensureDirectoryExists("{$this->va}/Road Trip");
     touch("{$this->va}/Road Trip/old.mp3");
+    markAsPlexifyAlbum("{$this->va}/Road Trip");
     AlbumExport::factory()->done("{$this->va}/Road Trip")->create(['plex_playlist_id' => '42']);
     $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
 
@@ -119,6 +125,7 @@ it('replaces the previous album folder on recreate', function () {
     fakeFfmpegWritingOutputs();
     File::ensureDirectoryExists("{$this->va}/Road Trip");
     touch("{$this->va}/Road Trip/old.mp3");
+    markAsPlexifyAlbum("{$this->va}/Road Trip");
     AlbumExport::factory()->done("{$this->va}/Road Trip")->create(['plex_playlist_id' => '42']);
     $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
 
@@ -133,6 +140,7 @@ it('moves the album when the playlist was renamed since the last export', functi
     fakeFfmpegWritingOutputs();
     File::ensureDirectoryExists("{$this->va}/Old Name");
     touch("{$this->va}/Old Name/old.mp3");
+    markAsPlexifyAlbum("{$this->va}/Old Name");
     AlbumExport::factory()->done("{$this->va}/Old Name")->create(['plex_playlist_id' => '42']);
     $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'New Name']);
 
@@ -195,6 +203,7 @@ it('restores the previous album when moving the new one into place fails', funct
     fakeFfmpegWritingOutputs();
     File::ensureDirectoryExists("{$this->va}/Old Name");
     touch("{$this->va}/Old Name/old.mp3");
+    markAsPlexifyAlbum("{$this->va}/Old Name");
     touch("{$this->va}/New Name");
     AlbumExport::factory()->done("{$this->va}/Old Name")->create(['plex_playlist_id' => '42']);
     $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'New Name']);
@@ -221,6 +230,89 @@ it('never deletes a previous export folder outside Various Artists', function ()
     expect($export->status)->toBe(AlbumExportStatus::Failed)
         ->and(File::exists("{$this->share}/Music/Other/Road Trip/keep.mp3"))->toBeTrue()
         ->and(File::exists("{$this->va}/Road Trip/hand-made.mp3"))->toBeTrue();
+});
+
+it('does not retire a previous folder without an ownership marker', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    File::ensureDirectoryExists("{$this->va}/Road Trip");
+    touch("{$this->va}/Road Trip/hand-made.mp3");
+    AlbumExport::factory()->done("{$this->va}/Road Trip")->create(['plex_playlist_id' => '42']);
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    $export = runAlbumJob($export);
+
+    expect($export->status)->toBe(AlbumExportStatus::Failed)
+        ->and($export->error)->toBe('A folder named "Road Trip" already exists in Various Artists.')
+        ->and(File::exists("{$this->va}/Road Trip/hand-made.mp3"))->toBeTrue();
+});
+
+it('leaves an unmarked folder at the previous path alone when the playlist was renamed', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    File::ensureDirectoryExists("{$this->va}/Old Name");
+    touch("{$this->va}/Old Name/hand-made.mp3");
+    AlbumExport::factory()->done("{$this->va}/Old Name")->create(['plex_playlist_id' => '42']);
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'New Name']);
+
+    expect(runAlbumJob($export)->status)->toBe(AlbumExportStatus::Done)
+        ->and(File::exists("{$this->va}/Old Name/hand-made.mp3"))->toBeTrue()
+        ->and(File::isDirectory("{$this->va}/New Name"))->toBeTrue();
+});
+
+it('leaves a previous folder alone when its marker names another playlist', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    File::ensureDirectoryExists("{$this->va}/Road Trip");
+    touch("{$this->va}/Road Trip/theirs.mp3");
+    markAsPlexifyAlbum("{$this->va}/Road Trip", '99');
+    AlbumExport::factory()->done("{$this->va}/Road Trip")->create(['plex_playlist_id' => '42']);
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    $export = runAlbumJob($export);
+
+    expect($export->status)->toBe(AlbumExportStatus::Failed)
+        ->and($export->error)->toBe('A folder named "Road Trip" already exists in Various Artists.')
+        ->and(File::exists("{$this->va}/Road Trip/theirs.mp3"))->toBeTrue();
+});
+
+it('writes an ownership marker into the finished album folder', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    runAlbumJob($export);
+
+    expect(json_decode(file_get_contents("{$this->va}/Road Trip/.plexify-album"), true))
+        ->toBe(['plex_playlist_id' => '42', 'album_export_id' => $export->id]);
+});
+
+it('says where the previous album was left when restoring it fails', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    File::ensureDirectoryExists("{$this->va}/Old Name");
+    touch("{$this->va}/Old Name/old.mp3");
+    markAsPlexifyAlbum("{$this->va}/Old Name");
+    touch("{$this->va}/New Name");
+    AlbumExport::factory()->done("{$this->va}/Old Name")->create(['plex_playlist_id' => '42']);
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'New Name']);
+    File::partialMock()->shouldReceive('moveDirectory')->andReturnUsing(
+        fn (string $from, string $to) => ! str_contains($from, '.plexify-old-') && @rename($from, $to)
+    );
+
+    $export = runAlbumJob($export);
+
+    expect($export->status)->toBe(AlbumExportStatus::Failed)
+        ->and($export->error)->toBe("Moving the album into place on the music share failed. The previous album was left at {$this->va}/.plexify-old-{$export->id}.");
+});
+
+it('says where the previous album was left when the worker gives up mid publish', function () {
+    $export = AlbumExport::factory()->running()->create(['folder_path' => "{$this->va}/Road Trip"]);
+    File::ensureDirectoryExists("{$this->va}/.plexify-old-{$export->id}");
+
+    (new CreateAlbumFromPlaylist($export->id))->failed(new RuntimeException('timed out'));
+
+    expect($export->fresh()->error)->toBe("The job timed out or the worker stopped. The previous album was left at {$this->va}/.plexify-old-{$export->id}.");
 });
 
 it('keeps the queue retry_after longer than the job timeout', function () {

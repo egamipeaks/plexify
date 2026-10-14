@@ -22,6 +22,8 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 {
     use Queueable;
 
+    private const MARKER_FILE = '.plexify-album';
+
     public int $tries = 1;
 
     public int $timeout = 1800;
@@ -46,10 +48,18 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        AlbumExport::find($this->albumExportId)?->update([
-            'status' => AlbumExportStatus::Failed,
-            'error' => 'The job timed out or the worker stopped.',
-        ]);
+        $export = AlbumExport::find($this->albumExportId);
+        $error = 'The job timed out or the worker stopped.';
+
+        if ($export?->folder_path !== null) {
+            $retired = dirname($export->folder_path)."/.plexify-old-{$export->id}";
+
+            if (File::isDirectory($retired)) {
+                $error .= " The previous album was left at {$retired}.";
+            }
+        }
+
+        $export?->update(['status' => AlbumExportStatus::Failed, 'error' => $error]);
 
         File::deleteDirectory($this->buildDir());
     }
@@ -64,11 +74,7 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         }
 
         $target = $paths->targetFolder($export->title, $export->plex_playlist_id);
-        $previous = $this->previousFolder($export);
-
-        if ($previous !== null && basename(dirname($previous)) !== 'Various Artists') {
-            $previous = null;
-        }
+        $previous = $this->retirableFolder($export);
 
         if (File::isDirectory($target) && $target !== $previous) {
             throw new AlbumExportException('A folder named "'.basename($target).'" already exists in Various Artists.');
@@ -82,6 +88,10 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         ]);
 
         File::ensureDirectoryExists($this->buildDir());
+        File::put($this->buildDir().'/'.self::MARKER_FILE, json_encode([
+            'plex_playlist_id' => $export->plex_playlist_id,
+            'album_export_id' => $export->id,
+        ]));
 
         foreach ($tracks as $index => $track) {
             $this->encode($export, $paths, $track, $index + 1, $tracks->count());
@@ -155,8 +165,8 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         } catch (Throwable $e) {
             File::deleteDirectory($staging);
 
-            if ($retiredPrevious) {
-                File::moveDirectory($retired, $previous);
+            if ($retiredPrevious && ! File::moveDirectory($retired, $previous)) {
+                throw new AlbumExportException("{$e->getMessage()} The previous album was left at {$retired}.", previous: $e);
             }
 
             throw $e;
@@ -178,6 +188,23 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         }
 
         return null;
+    }
+
+    private function retirableFolder(AlbumExport $export): ?string
+    {
+        $previous = $this->previousFolder($export);
+
+        if ($previous === null || basename(dirname($previous)) !== 'Various Artists') {
+            return null;
+        }
+
+        $marker = json_decode((string) @file_get_contents("{$previous}/".self::MARKER_FILE), true);
+
+        if (! is_array($marker) || (string) ($marker['plex_playlist_id'] ?? '') !== $export->plex_playlist_id) {
+            return null;
+        }
+
+        return $previous;
     }
 
     private function previousFolder(AlbumExport $export): ?string
