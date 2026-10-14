@@ -66,6 +66,10 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         $target = $paths->targetFolder($export->title, $export->plex_playlist_id);
         $previous = $this->previousFolder($export);
 
+        if ($previous !== null && basename(dirname($previous)) !== 'Various Artists') {
+            $previous = null;
+        }
+
         if (File::isDirectory($target) && $target !== $previous) {
             throw new AlbumExportException('A folder named "'.basename($target).'" already exists in Various Artists.');
         }
@@ -84,11 +88,12 @@ class CreateAlbumFromPlaylist implements ShouldQueue
             $export->increment('progress');
         }
 
-        $this->publish($export, $target, $previous);
+        $cleanupNote = $this->publish($export, $target, $previous);
+        $plexNote = $this->refreshPlex($plex, $mapper, $target);
 
         $export->update([
             'status' => AlbumExportStatus::Done,
-            'error' => $this->refreshPlex($plex, $mapper, $target),
+            'error' => collect([$cleanupNote, $plexNote])->filter()->implode(' ') ?: null,
         ]);
     }
 
@@ -121,9 +126,11 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         }
     }
 
-    private function publish(AlbumExport $export, string $target, ?string $previous): void
+    private function publish(AlbumExport $export, string $target, ?string $previous): ?string
     {
         $staging = dirname($target)."/.plexify-build-{$export->id}";
+        $retired = $previous !== null ? dirname($previous)."/.plexify-old-{$export->id}" : null;
+        $retiredPrevious = false;
 
         try {
             File::deleteDirectory($staging);
@@ -132,8 +139,14 @@ class CreateAlbumFromPlaylist implements ShouldQueue
                 throw new AlbumExportException('Copying the album to the music share failed.');
             }
 
-            if ($previous !== null) {
-                File::deleteDirectory($previous);
+            if ($previous !== null && File::isDirectory($previous)) {
+                File::deleteDirectory($retired);
+
+                if (! File::moveDirectory($previous, $retired)) {
+                    throw new AlbumExportException('Setting the previous album aside on the music share failed.');
+                }
+
+                $retiredPrevious = true;
             }
 
             if (! File::moveDirectory($staging, $target)) {
@@ -142,8 +155,18 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         } catch (Throwable $e) {
             File::deleteDirectory($staging);
 
+            if ($retiredPrevious) {
+                File::moveDirectory($retired, $previous);
+            }
+
             throw $e;
         }
+
+        if (! $retiredPrevious || File::deleteDirectory($retired)) {
+            return null;
+        }
+
+        return "The old album copy could not be fully removed: {$retired}";
     }
 
     private function refreshPlex(PlexClient $plex, PlexPathMapper $mapper, string $target): ?string
