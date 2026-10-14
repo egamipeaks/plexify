@@ -476,6 +476,9 @@ new class extends Component {
 ?>
 
 <aside class="flex flex-col gap-2 h-full min-h-0">
+    @if ($this->hasActiveAlbumExport)
+        <div data-album-poll wire:poll.2s="announceFinishedAlbumExports" class="hidden"></div>
+    @endif
     {{-- Top nav card --}}
     <div class="bg-surface rounded-lg p-2 flex flex-col gap-1">
         <a href="{{ route('generate') }}" wire:navigate
@@ -556,7 +559,7 @@ new class extends Component {
                 window.removeEventListener('dragstart', this._ds);
                 window.removeEventListener('dragend', this._de);
             },
-            openMenu(e, kind, id) { e.preventDefault(); e.stopPropagation(); this.menu = { x: e.clientX, y: e.clientY, kind, id }; },
+            openMenu(e, kind, id) { e.preventDefault(); e.stopPropagation(); this.menu = { x: e.clientX, y: e.clientY, kind, id, albumDone: e.currentTarget?.dataset?.albumDone === '1' }; },
             flashRow(key, ok) { this.flash[key] = ok ? 'ok' : 'err'; setTimeout(() => { this.flash[key] = null; }, 700); },
             rowDragOver(e, id) {
                 if (!this.draggingPlaylist || id === this.draggedPlaylistId) { this.overId = null; return; }
@@ -708,7 +711,7 @@ new class extends Component {
                         @if ($bodyOpen)
                             <div class="ml-3 pl-2 border-l border-white/10 flex flex-col gap-0.5 py-0.5">
                                 @forelse ($filter === '' ? $items : $visibleItems as $p)
-                                    @include('partials.playlist-row', ['p' => $p, 'folderId' => $folder->id, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                                    @include('partials.playlist-row', ['p' => $p, 'folderId' => $folder->id, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb), 'albumExport' => $this->albumExports->get($p->id)])
                                 @empty
                                     <div class="px-2 py-2 text-[11px] text-text-3 italic">Empty. Drop a playlist here.</div>
                                 @endforelse
@@ -729,7 +732,7 @@ new class extends Component {
 
             {{-- Root playlists --}}
             @forelse ($visibleRoot as $p)
-                @include('partials.playlist-row', ['p' => $p, 'folderId' => null, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb)])
+                @include('partials.playlist-row', ['p' => $p, 'folderId' => null, 'renaming' => $renamingPlaylistId === $p->id, 'thumbUrl' => $this->thumbFor($p->thumb), 'albumExport' => $this->albumExports->get($p->id)])
             @empty
                 @if ($this->folders->isEmpty() && $allPlaylists->isEmpty())
                     <div class="px-3 py-6 text-[12px] text-text-3 text-center">No playlists yet</div>
@@ -775,6 +778,10 @@ new class extends Component {
              @click.outside="menu = null">
                 <button type="button" class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
                         @click="$wire.playPlaylist(menu.id); menu = null">Play</button>
+                <button type="button" data-action="create-album"
+                        class="w-full text-left px-3 py-1.5 text-white hover:bg-white/10"
+                        x-text="menu?.albumDone ? 'Recreate album' : 'Create album'"
+                        @click="$wire.createAlbum(menu.id); menu = null">Create album</button>
                 <div class="my-1 border-t border-white/10"></div>
                 @foreach ($this->folders as $folder)
                     <button type="button"

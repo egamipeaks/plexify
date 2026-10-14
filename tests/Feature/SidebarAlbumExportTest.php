@@ -128,3 +128,39 @@ it('does not announce an export that is still running', function () {
 
     Livewire::test('sidebar')->assertNotDispatched('notify');
 });
+
+it('offers Create album in the playlist menu', function () {
+    mockAlbumSidebarPlex();
+
+    Livewire::test('sidebar')
+        ->assertSeeHtml('data-action="create-album"')
+        ->assertSeeHtml('@click="$wire.createAlbum(menu.id); menu = null"')
+        ->assertSeeHtml('data-album-done="0"');
+});
+
+it('flags a playlist whose album exists so the menu reads Recreate album', function () {
+    mockAlbumSidebarPlex();
+    AlbumExport::factory()->done('/x')->create(['plex_playlist_id' => '42', 'notified_at' => now()]);
+
+    Livewire::test('sidebar')
+        ->assertSeeHtml('data-album-done="1"')
+        ->assertSeeHtml("menu?.albumDone ? 'Recreate album' : 'Create album'");
+});
+
+it('shows progress on the row and polls while an export runs', function () {
+    mockAlbumSidebarPlex();
+    AlbumExport::factory()->running()->create(['plex_playlist_id' => '42', 'progress' => 1, 'total' => 3]);
+
+    Livewire::test('sidebar')
+        ->assertSee('Creating album… 1/3')
+        ->assertDontSee('Playlist · 1 songs')
+        ->assertSeeHtml('wire:poll.2s="announceFinishedAlbumExports"');
+});
+
+it('does not poll when nothing is running', function () {
+    mockAlbumSidebarPlex();
+
+    Livewire::test('sidebar')
+        ->assertSee('Playlist · 1 songs')
+        ->assertDontSeeHtml('data-album-poll');
+});
