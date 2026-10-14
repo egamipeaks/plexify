@@ -40,6 +40,12 @@ return [
         'base_url' => env('PLEX_BASE_URL'),
         'recently_added_limit' => (int) env('PLEXIFY_RECENTLY_ADDED_LIMIT', 50),
         'recently_played_limit' => (int) env('PLEXIFY_RECENTLY_PLAYED_LIMIT', 50),
+        'path_from' => env('PLEX_PATH_FROM', ''),
+        'path_to' => env('PLEX_PATH_TO', ''),
+    ],
+
+    'ffmpeg' => [
+        'path' => env('FFMPEG_PATH', 'ffmpeg'),
     ],
 
 ];
