@@ -22,6 +22,11 @@ it('falls back to the playlist id when the title sanitizes to nothing', function
     expect(AlbumNaming::folderName('...', '42'))->toBe('Playlist 42');
 });
 
+it('strips leading dots so the folder is not hidden', function () {
+    expect(AlbumNaming::folderName('.hidden mix', '42'))->toBe('hidden mix')
+        ->and(AlbumNaming::folderName('. .. spaced', '42'))->toBe('spaced');
+});
+
 it('caps the folder name at 100 characters', function () {
     expect(mb_strlen(AlbumNaming::folderName(str_repeat('a', 300), '42')))->toBe(100);
 });
