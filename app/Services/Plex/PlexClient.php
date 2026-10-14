@@ -663,6 +663,17 @@ class PlexClient
         $this->cache->forget("playlist:{$playlistId}:items");
     }
 
+    public function refreshSectionPath(int $sectionId, string $remotePath): void
+    {
+        try {
+            $response = $this->server()->get("/library/sections/{$sectionId}/refresh", ['path' => $remotePath]);
+        } catch (ConnectionException $e) {
+            throw new PlexUnreachableException('Refreshing the library failed: '.$e->getMessage(), previous: $e);
+        }
+
+        $this->ensureOk($response, "library/sections/{$sectionId}/refresh");
+    }
+
     /**
      * @return list<array{id: string, name: string}>
      */
