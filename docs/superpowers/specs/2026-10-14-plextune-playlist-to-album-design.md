@@ -79,7 +79,8 @@ A small `App\Services\Albums\PlexPathMapper` converts both ways:
 
 `{NN} - {Artist} - {Title}.mp3`, where `NN` is the 1 based playlist position zero padded to two
 digits (three digits when the playlist has more than 99 tracks). Artist and title are sanitized
-with the same rules as the folder name. The track artist is the `Track` DTO's artist (falling back
+with the same rules as the folder name. To stay well inside Windows path limits over SMB, the
+folder name is capped at 100 characters, the artist part at 60 and the title part at 90. The track artist is the `Track` DTO's artist (falling back
 to `Unknown Artist`).
 
 ### Tags
@@ -125,10 +126,17 @@ The job builds the whole album in a local temp directory,
 `storage/app/album-builds/{exportId}/`, reading sources over SMB. Only after every track has
 succeeded does it:
 
-1. delete the existing target folder if this is a recreate (only the folder recorded on the
-   export row, never anything else),
-2. copy the temp directory to the target folder on the share,
-3. delete the temp directory.
+1. copy the temp directory to a hidden staging folder on the share,
+   `Various Artists/.plexify-build-{exportId}`,
+2. delete the previous album folder if this is a recreate (only the `folder_path` of the previous
+   `done` export for the same playlist, never anything else),
+3. rename the staging folder to the target folder,
+4. delete the local temp directory.
+
+If a folder with the target name already exists and is not that previous folder (for example one
+the user made by hand), the job fails with "A folder named X already exists in Various Artists."
+and touches nothing. Staging on the share means a failed copy (share dropped mid copy) never
+costs the previous album.
 
 Plex never scans a half written album, and a failed recreate leaves the previous album intact.
 
@@ -171,8 +179,8 @@ Clicking it calls a new sidebar action `createAlbum(string $playlistId): bool`, 
 1. rejects (toast + `false`) when an export for that playlist is `queued` or `running`,
 2. loads `playlistTracks($playlistId)` and rejects an empty playlist,
 3. rejects when `PLEX_PATH_TO` does not exist on disk ("Music share is not mounted"),
-4. rejects when any track has no `filePath` or its path does not map, naming the first offending
-   track,
+4. rejects when any track has no `filePath`, its path does not map, or the mapped file does not
+   exist on the share, naming the first offending track,
 5. creates the `album_exports` row (`queued`, `total` = track count) and dispatches the
    `CreateAlbumFromPlaylist` job.
 
