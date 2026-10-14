@@ -7,6 +7,7 @@ readonly class MusicSection
     public function __construct(
         public int $id,
         public string $title,
+        public ?string $location = null,
     ) {}
 
     public static function fromPlex(array $row): self
@@ -14,6 +15,7 @@ readonly class MusicSection
         return new self(
             id: (int) $row['key'],
             title: (string) $row['title'],
+            location: $row['Location'][0]['path'] ?? null,
         );
     }
 }
