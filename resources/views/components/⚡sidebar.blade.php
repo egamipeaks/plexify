@@ -1,7 +1,11 @@
 <?php
 
+use App\Enums\AlbumExportStatus;
+use App\Jobs\CreateAlbumFromPlaylist;
+use App\Models\AlbumExport;
 use App\Models\Folder;
 use App\Models\FolderPlaylist;
+use App\Services\Albums\AlbumPaths;
 use App\Services\Plex\Dto\Playlist;
 use App\Services\Plex\Exceptions\PlexException;
 use App\Services\Plex\PlexClient;
@@ -22,6 +26,11 @@ new class extends Component {
     public function boot(PlexClient $plex): void
     {
         $this->plex = $plex;
+    }
+
+    public function mount(): void
+    {
+        $this->announceFinishedAlbumExports();
     }
 
     /** @return Collection<int, Playlist> */
@@ -47,6 +56,19 @@ new class extends Component {
     public function rootPlacements(): Collection
     {
         return FolderPlaylist::whereNull('folder_id')->orderBy('position')->orderBy('id')->get();
+    }
+
+    /** @return Collection<string, AlbumExport> */
+    #[Computed]
+    public function albumExports(): Collection
+    {
+        return AlbumExport::latestPerPlaylist();
+    }
+
+    #[Computed]
+    public function hasActiveAlbumExport(): bool
+    {
+        return $this->albumExports->contains(fn (AlbumExport $export) => $export->status->isActive());
     }
 
     /**
@@ -386,6 +408,69 @@ new class extends Component {
             contextType: 'playlist',
             contextId: $playlistId,
         );
+    }
+
+    public function createAlbum(string $playlistId): bool
+    {
+        if ($this->albumExports->get($playlistId)?->status->isActive()) {
+            $this->dispatch('notify', type: 'error', message: 'An album for this playlist is already being created.');
+
+            return false;
+        }
+
+        $playlist = $this->playlists->firstWhere('id', $playlistId);
+
+        if ($playlist === null) {
+            $this->dispatch('notify', type: 'error', message: 'That playlist no longer exists.');
+
+            return false;
+        }
+
+        try {
+            $tracks = $this->plex->playlistTracks($playlistId)->values();
+        } catch (PlexException $e) {
+            Log::channel('plex')->warning('createAlbum failed', ['playlist' => $playlistId, 'error' => $e->getMessage()]);
+            $this->dispatch('notify', type: 'error', message: 'Couldn\'t load the playlist. Plex may be unreachable.');
+
+            return false;
+        }
+
+        $problem = app(AlbumPaths::class)->problemWith($tracks);
+
+        if ($problem !== null) {
+            $this->dispatch('notify', type: 'error', message: "Couldn't create album: {$problem}");
+
+            return false;
+        }
+
+        $export = AlbumExport::create([
+            'plex_playlist_id' => $playlistId,
+            'title' => $playlist->title,
+            'status' => AlbumExportStatus::Queued,
+            'total' => $tracks->count(),
+        ]);
+
+        CreateAlbumFromPlaylist::dispatch($export->id);
+        unset($this->albumExports);
+
+        return true;
+    }
+
+    public function announceFinishedAlbumExports(): void
+    {
+        AlbumExport::query()
+            ->whereIn('status', [AlbumExportStatus::Done, AlbumExportStatus::Failed])
+            ->whereNull('notified_at')
+            ->get()
+            ->each(function (AlbumExport $export) {
+                $export->status === AlbumExportStatus::Done
+                    ? $this->dispatch('notify', type: 'success', message: "Album \"{$export->title}\" created.")
+                    : $this->dispatch('notify', type: 'error', message: "Couldn't create album \"{$export->title}\": {$export->error}");
+
+                $export->update(['notified_at' => now()]);
+            });
+
+        unset($this->albumExports);
     }
 };
 ?>
