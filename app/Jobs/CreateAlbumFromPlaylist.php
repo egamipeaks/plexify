@@ -116,9 +116,13 @@ class CreateAlbumFromPlaylist implements ShouldQueue
         $source = (string) $paths->sourceFile($track);
         $targetLufs = (float) config('services.ffmpeg.loudness_target');
 
-        $measurement = LoudnessMeasurement::fromFfmpegOutput(
-            $this->runFfmpeg(FfmpegCommand::measure($binary, $source, $targetLufs), $track),
-        );
+        $measureOutput = $this->runFfmpeg(FfmpegCommand::measure($binary, $source, $targetLufs), $track);
+
+        try {
+            $measurement = LoudnessMeasurement::fromFfmpegOutput($measureOutput);
+        } catch (AlbumExportException) {
+            throw new AlbumExportException("Could not read the loudness of \"{$track->title}\".");
+        }
 
         $this->runFfmpeg(FfmpegCommand::build(
             $binary,

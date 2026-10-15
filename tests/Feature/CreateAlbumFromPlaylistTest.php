@@ -46,15 +46,19 @@ function mockAlbumJobPlex(Collection $tracks, ?Closure $refresh = null): void
     });
 }
 
-function fakeFfmpegWritingOutputs(?string $failOnSource = null, string $measuredI = '-20.50'): void
+function fakeFfmpegWritingOutputs(?string $failOnSource = null, string $measuredI = '-20.50', string $targetOffset = '0.20', ?string $measureOutput = null): void
 {
-    Process::fake(function (PendingProcess $process) use ($failOnSource, $measuredI) {
+    Process::fake(function (PendingProcess $process) use ($failOnSource, $measuredI, $targetOffset, $measureOutput) {
         if ($failOnSource !== null && in_array($failOnSource, $process->command, true)) {
             return Process::result(errorOutput: "line one\nline two\nInvalid data found\n", exitCode: 1);
         }
 
+        if (last($process->command) === '-' && $measureOutput !== null) {
+            return Process::result(errorOutput: $measureOutput);
+        }
+
         if (last($process->command) === '-') {
-            return Process::result(errorOutput: "[Parsed_loudnorm_0 @ 0x1]\n{\n\t\"input_i\" : \"{$measuredI}\",\n\t\"input_tp\" : \"-3.25\",\n\t\"input_lra\" : \"6.10\",\n\t\"input_thresh\" : \"-30.70\",\n\t\"target_offset\" : \"0.20\"\n}\n");
+            return Process::result(errorOutput: "[Parsed_loudnorm_0 @ 0x1]\n{\n\t\"input_i\" : \"{$measuredI}\",\n\t\"input_tp\" : \"-3.25\",\n\t\"input_lra\" : \"6.10\",\n\t\"input_thresh\" : \"-30.70\",\n\t\"target_offset\" : \"{$targetOffset}\"\n}\n");
         }
 
         touch(last($process->command));
@@ -110,7 +114,7 @@ it('writes numbered tagged MP3s into Various Artists and marks the export done',
 
 it('encodes a silent track without the loudness filter', function () {
     mockAlbumJobPlex($this->tracks);
-    fakeFfmpegWritingOutputs(measuredI: '-inf');
+    fakeFfmpegWritingOutputs(measuredI: '-inf', targetOffset: 'inf');
     $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
 
     $export = runAlbumJob($export);
@@ -118,6 +122,18 @@ it('encodes a silent track without the loudness filter', function () {
     expect($export->status)->toBe(AlbumExportStatus::Done);
 
     Process::assertDidntRun(fn (PendingProcess $p) => last($p->command) !== '-' && in_array('-af', $p->command, true));
+});
+
+it('fails naming the track when the loudness measurement is unreadable', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs(measureOutput: "Input #0\nno loudnorm output\n");
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    $export = runAlbumJob($export);
+
+    expect($export->status)->toBe(AlbumExportStatus::Failed)
+        ->and($export->error)->toBe('Could not read the loudness of "Song A".')
+        ->and(File::isDirectory("{$this->va}/Road Trip"))->toBeFalse();
 });
 
 it('uses the configured loudness target', function () {

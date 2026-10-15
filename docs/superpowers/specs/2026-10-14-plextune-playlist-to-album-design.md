@@ -133,8 +133,13 @@ Homebrew on its `PATH`.
 
 `linear=true` applies one fixed gain per track, so dynamics are kept. If a quiet, very dynamic track
 cannot reach the target without exceeding the true peak limit, ffmpeg falls back to dynamic mode for
-that track (light compression). `-ar 44100` is needed because `loudnorm` resamples to 192 kHz
-internally.
+that track (light compression with LRA=20); quiet classical material is the likely case. `-ar 44100`
+pins the output rate because the dynamic fallback resamples to 192 kHz. An unreadable measurement
+fails the export naming the track.
+
+Practical size limit: the measure pass runs at 192 kHz internally, so a four minute track takes
+about 5 to 13 seconds in total. The 3600 second job timeout therefore covers roughly 250 tracks.
+A larger playlist fails with the timeout message and leaves the share untouched.
 
 ### Build, then swap
 
@@ -242,7 +247,7 @@ No confirmation prompt for recreate: the old album is only replaced after a succ
 ## Testing
 
 - **Unit:** `PlexPathMapper` (both directions, case insensitive prefix, unmapped returns null);
-  folder and file name sanitizing and padding; `FfmpegCommand` (remux vs transcode arguments, tag
+  folder and file name sanitizing and padding; `FfmpegCommand` (measure and normalize/encode arguments, tag
   set, art mapping, loudness measure and normalize arguments); `LoudnessMeasurement` parsing (normal,
   silent, unparseable); `Track::fromPlex` reading `filePath`; `MusicSection` reading `location`;
   `PlexClient::refreshSectionPath()` with `Http::fake`.

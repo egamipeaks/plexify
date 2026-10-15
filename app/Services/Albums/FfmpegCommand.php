@@ -25,7 +25,7 @@ class FfmpegCommand
             ->values()
             ->all();
 
-        // loudnorm resamples to 192 kHz internally, so the output rate has to be set explicitly.
+        // loudnorm resamples to 192 kHz when it falls back to dynamic mode, so pin the output rate.
         $normalize = $measurement === null
             ? []
             : ['-af', self::loudnormFilter($targetLufs).":measured_I={$measurement->inputI}:measured_TP={$measurement->inputTp}:measured_LRA={$measurement->inputLra}:measured_thresh={$measurement->inputThresh}:offset={$measurement->targetOffset}:linear=true", '-ar', '44100'];
