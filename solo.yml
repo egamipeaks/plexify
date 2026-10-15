@@ -16,7 +16,7 @@ processes:
     restart_when_changed: []
     env: {}
   Queue:
-    command: php artisan queue:work --timeout=1800 --tries=1
+    command: php artisan queue:work --timeout=3600 --tries=1
     working_dir: null
     auto_start: true
     auto_restart: true

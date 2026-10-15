@@ -46,11 +46,15 @@ function mockAlbumJobPlex(Collection $tracks, ?Closure $refresh = null): void
     });
 }
 
-function fakeFfmpegWritingOutputs(?string $failOnSource = null): void
+function fakeFfmpegWritingOutputs(?string $failOnSource = null, string $measuredI = '-20.50'): void
 {
-    Process::fake(function (PendingProcess $process) use ($failOnSource) {
+    Process::fake(function (PendingProcess $process) use ($failOnSource, $measuredI) {
         if ($failOnSource !== null && in_array($failOnSource, $process->command, true)) {
             return Process::result(errorOutput: "line one\nline two\nInvalid data found\n", exitCode: 1);
+        }
+
+        if (last($process->command) === '-') {
+            return Process::result(errorOutput: "[Parsed_loudnorm_0 @ 0x1]\n{\n\t\"input_i\" : \"{$measuredI}\",\n\t\"input_tp\" : \"-3.25\",\n\t\"input_lra\" : \"6.10\",\n\t\"input_thresh\" : \"-30.70\",\n\t\"target_offset\" : \"0.20\"\n}\n");
         }
 
         touch(last($process->command));
@@ -98,7 +102,34 @@ it('writes numbered tagged MP3s into Various Artists and marks the export done',
 
     Process::assertRan(fn (PendingProcess $p) => in_array("{$this->share}/Music/Src/b.mp3", $p->command, true)
         && in_array('track=2/2', $p->command, true)
-        && ! in_array('libmp3lame', $p->command, true));
+        && in_array('libmp3lame', $p->command, true)
+        && in_array('loudnorm=I=-14:TP=-1:LRA=20:measured_I=-20.5:measured_TP=-3.25:measured_LRA=6.1:measured_thresh=-30.7:offset=0.2:linear=true', $p->command, true));
+
+    Process::assertRanTimes(fn (PendingProcess $p) => last($p->command) === '-', 2);
+});
+
+it('encodes a silent track without the loudness filter', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs(measuredI: '-inf');
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    $export = runAlbumJob($export);
+
+    expect($export->status)->toBe(AlbumExportStatus::Done);
+
+    Process::assertDidntRun(fn (PendingProcess $p) => last($p->command) !== '-' && in_array('-af', $p->command, true));
+});
+
+it('uses the configured loudness target', function () {
+    config()->set('services.ffmpeg.loudness_target', -16);
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    runAlbumJob($export);
+
+    Process::assertRan(fn (PendingProcess $p) => last($p->command) === '-'
+        && in_array('loudnorm=I=-16:TP=-1:LRA=20:print_format=json', $p->command, true));
 });
 
 it('fails with the ffmpeg error and leaves the previous album untouched', function () {

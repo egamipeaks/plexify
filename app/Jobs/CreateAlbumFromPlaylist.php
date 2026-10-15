@@ -8,6 +8,7 @@ use App\Services\Albums\AlbumExportException;
 use App\Services\Albums\AlbumNaming;
 use App\Services\Albums\AlbumPaths;
 use App\Services\Albums\FfmpegCommand;
+use App\Services\Albums\LoudnessMeasurement;
 use App\Services\Albums\PlexPathMapper;
 use App\Services\Plex\Dto\Track;
 use App\Services\Plex\Exceptions\PlexException;
@@ -26,7 +27,7 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 1800;
+    public int $timeout = 3600;
 
     public function __construct(public int $albumExportId) {}
 
@@ -111,9 +112,17 @@ class CreateAlbumFromPlaylist implements ShouldQueue
     {
         $output = $this->buildDir().'/'.AlbumNaming::fileName($position, $total, $track->artist, $track->title);
 
-        $command = FfmpegCommand::build(
-            (string) config('services.ffmpeg.path'),
-            (string) $paths->sourceFile($track),
+        $binary = (string) config('services.ffmpeg.path');
+        $source = (string) $paths->sourceFile($track);
+        $targetLufs = (float) config('services.ffmpeg.loudness_target');
+
+        $measurement = LoudnessMeasurement::fromFfmpegOutput(
+            $this->runFfmpeg(FfmpegCommand::measure($binary, $source, $targetLufs), $track),
+        );
+
+        $this->runFfmpeg(FfmpegCommand::build(
+            $binary,
+            $source,
             $output,
             [
                 'title' => $track->title,
@@ -124,9 +133,14 @@ class CreateAlbumFromPlaylist implements ShouldQueue
                 'track' => "{$position}/{$total}",
                 'date' => (string) now()->year,
             ],
-            remux: strtolower($track->container) === 'mp3',
-        );
+            $targetLufs,
+            $measurement,
+        ), $track);
+    }
 
+    /** @param  list<string>  $command */
+    private function runFfmpeg(array $command, Track $track): string
+    {
         $result = Process::timeout(600)->run($command);
 
         if ($result->failed()) {
@@ -134,6 +148,8 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 
             throw new AlbumExportException("ffmpeg failed on \"{$track->title}\": {$stderr}");
         }
+
+        return $result->errorOutput();
     }
 
     private function publish(AlbumExport $export, string $target, ?string $previous): ?string

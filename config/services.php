@@ -46,6 +46,7 @@ return [
 
     'ffmpeg' => [
         'path' => env('FFMPEG_PATH', 'ffmpeg'),
+        'loudness_target' => (float) env('ALBUM_LOUDNESS_TARGET', -14),
     ],
 
 ];

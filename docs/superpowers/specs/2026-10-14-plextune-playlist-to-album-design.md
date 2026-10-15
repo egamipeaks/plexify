@@ -7,7 +7,7 @@ Date: 2026-10-14
 Right click a user playlist in the sidebar and choose "Create album". Plexify copies the playlist's
 tracks into `Various Artists/<Playlist Name>/` inside the active music library on the Plex server,
 tags them as a compilation album named after the playlist with track numbers in playlist order, and
-converts non MP3 sources to MP3 320 kbps CBR. Plex then shows the playlist as a regular album.
+normalizes every track to a common loudness and encodes it as MP3 320 kbps CBR. Plex then shows the playlist as a regular album.
 
 This automates what the user already does by hand (for example
 `Various Artists/2026-04 April/`, tagged `album_artist=Various Artists`, `album=April 2026`,
@@ -28,7 +28,8 @@ This automates what the user already does by hand (for example
 | Topic | Decision |
 |---|---|
 | Lifecycle | One time snapshot. A "Recreate album" action rebuilds it. No syncing. |
-| Format | MP3 sources are remuxed (`-c:a copy`, no quality loss). Every other format becomes MP3 320 kbps CBR. |
+| Format | Every track is encoded as MP3 320 kbps CBR, MP3 sources included (they are re-encoded so their volume can change). |
+| Loudness | Two pass `loudnorm` per track to `ALBUM_LOUDNESS_TARGET` (default -14 LUFS), true peak -1 dBTP, linear gain. Added 2026-10-15. |
 | Cover art | No `cover.jpg`. Each track keeps its own embedded art. |
 | Execution | Queued job with live progress in the sidebar and a toast on completion. |
 | Tagging tool | `ffmpeg` only (one invocation per track does tagging and, if needed, transcoding). No new PHP dependencies. |
@@ -104,21 +105,36 @@ split the album or match it to the source album. Tags are written as ID3v2.3
 ### ffmpeg invocation
 
 Built by `App\Services\Albums\FfmpegCommand` (a pure argument builder, unit tested) and run through
-Laravel's `Process` facade. Roughly:
+Laravel's `Process` facade. Each track takes two runs. The first measures loudness:
+
+```
+ffmpeg -nostdin -hide_banner -nostats -i <source> -map 0:a:0
+  -af loudnorm=I=<target>:TP=-1:LRA=20:print_format=json -f null -
+```
+
+`LoudnessMeasurement::fromFfmpegOutput()` parses the JSON block from stderr (`input_i`, `input_tp`,
+`input_lra`, `input_thresh`, `target_offset`). It returns null when a value is not finite (a silent
+track), and that track is then encoded without the filter. The second run encodes:
 
 ```
 ffmpeg -nostdin -y -i <source>
   -map 0:a:0 -map 0:v? -c:v copy -disposition:v attached_pic
   -map_metadata -1 -metadata title=... (etc.)
   -id3v2_version 3
-  [-c:a copy]                          # source is MP3
-  [-c:a libmp3lame -b:a 320k]          # anything else
+  [-af loudnorm=...:measured_I=...:measured_TP=...:measured_LRA=...:measured_thresh=...:offset=...:linear=true
+   -ar 44100]                          # omitted for a silent track
+  -c:a libmp3lame -b:a 320k
   <target>.mp3
 ```
 
 `-map 0:v?` keeps embedded art when present and is a no op when absent. The binary path comes from
 `config('services.ffmpeg.path')` (`FFMPEG_PATH`, default `ffmpeg`), since Herd's PHP may not have
 Homebrew on its `PATH`.
+
+`linear=true` applies one fixed gain per track, so dynamics are kept. If a quiet, very dynamic track
+cannot reach the target without exceeding the true peak limit, ffmpeg falls back to dynamic mode for
+that track (light compression). `-ar 44100` is needed because `loudnorm` resamples to 192 kHz
+internally.
 
 ### Build, then swap
 
@@ -200,7 +216,7 @@ No confirmation prompt for recreate: the old album is only replaced after a succ
 
 ## Job: `App\Jobs\CreateAlbumFromPlaylist`
 
-- `public int $tries = 1; public int $timeout = 1800;`
+- `public int $tries = 1; public int $timeout = 3600;` (two ffmpeg passes per track)
 - Constructor takes the `AlbumExport` id.
 - Steps: mark `running`; resolve the target folder; fetch the playlist tracks via `playlistTracks()`
   (the 5 minute cache is acceptable); run ffmpeg per track into the temp dir, incrementing
@@ -211,7 +227,7 @@ No confirmation prompt for recreate: the old album is only replaced after a succ
 
 ## Queue worker
 
-`solo.yml` gains a `Queue` process, `php artisan queue:work --timeout=1800 --tries=1`, with
+`solo.yml` gains a `Queue` process, `php artisan queue:work --timeout=3600 --tries=1`, with
 `auto_start: true`. Without a running worker the export stays `queued`; the sidebar shows
 `Creating album… 0/N` which is the cue to start it.
 
@@ -227,7 +243,8 @@ No confirmation prompt for recreate: the old album is only replaced after a succ
 
 - **Unit:** `PlexPathMapper` (both directions, case insensitive prefix, unmapped returns null);
   folder and file name sanitizing and padding; `FfmpegCommand` (remux vs transcode arguments, tag
-  set, art mapping); `Track::fromPlex` reading `filePath`; `MusicSection` reading `location`;
+  set, art mapping, loudness measure and normalize arguments); `LoudnessMeasurement` parsing (normal,
+  silent, unparseable); `Track::fromPlex` reading `filePath`; `MusicSection` reading `location`;
   `PlexClient::refreshSectionPath()` with `Http::fake`.
 - **Feature:** the job with `Process::fake()` and temp directories standing in for the share (happy
   path writes files and marks `done`; a failing track marks `failed` and keeps an existing album
@@ -237,5 +254,5 @@ No confirmation prompt for recreate: the old album is only replaced after a succ
   only while active, and the completion toast firing once.
 - **Integration (opt in, skipped when `ffmpeg` is missing):** generate a one second FLAC with
   `ffmpeg`, run the real command builder against it in a temp dir, and assert the output tags and
-  codec with `ffprobe`. Never touches the share.
+  codec with `ffprobe`; normalize a quiet MP3 and assert it re-measures within 1 LU of -14 at 44.1 kHz. Never touches the share.
 - No browser test: it would write to the real Plex share.
