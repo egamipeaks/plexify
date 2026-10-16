@@ -8,6 +8,8 @@ use Illuminate\Support\Collection;
 
 class AlbumPaths
 {
+    public const COMPILATIONS_FOLDER = 'Various Artists';
+
     public function __construct(
         private readonly PlexClient $plex,
         private readonly PlexPathMapper $mapper,
@@ -23,7 +25,7 @@ class AlbumPaths
             throw new AlbumExportException("The music library's folder isn't covered by PLEX_PATH_FROM.");
         }
 
-        return "{$localLibrary}/Various Artists";
+        return "{$localLibrary}/".self::COMPILATIONS_FOLDER;
     }
 
     public function targetFolder(string $playlistTitle, string $playlistId): string

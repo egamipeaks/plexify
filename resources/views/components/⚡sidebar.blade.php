@@ -68,8 +68,7 @@ new class extends Component {
     #[Computed]
     public function needsAlbumExportPolling(): bool
     {
-        return $this->albumExports->contains(fn (AlbumExport $export) => $export->status->isActive()
-            || ($export->notified_at === null && in_array($export->status, [AlbumExportStatus::Done, AlbumExportStatus::Failed], true)));
+        return $this->albumExports->contains(fn (AlbumExport $export) => $export->status->isActive() || $export->isAwaitingAnnouncement());
     }
 
     /**
@@ -411,7 +410,7 @@ new class extends Component {
         );
     }
 
-    public function createAlbum(string $playlistId): bool
+    public function createAlbum(string $playlistId, AlbumPaths $paths): bool
     {
         if ($this->albumExports->get($playlistId)?->status->isActive()) {
             $this->dispatch('notify', type: 'error', message: 'An album for this playlist is already being created.');
@@ -436,7 +435,7 @@ new class extends Component {
             return false;
         }
 
-        $problem = app(AlbumPaths::class)->problemWith($tracks);
+        $problem = $paths->problemWith($tracks);
 
         if ($problem !== null) {
             $this->dispatch('notify', type: 'error', message: "Couldn't create album: {$problem}");
@@ -460,8 +459,7 @@ new class extends Component {
     public function announceFinishedAlbumExports(): void
     {
         AlbumExport::query()
-            ->whereIn('status', [AlbumExportStatus::Done, AlbumExportStatus::Failed])
-            ->whereNull('notified_at')
+            ->awaitingAnnouncement()
             ->get()
             ->each(function (AlbumExport $export) {
                 $export->status === AlbumExportStatus::Done

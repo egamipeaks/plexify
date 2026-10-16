@@ -182,6 +182,24 @@ it('replaces the previous album folder on recreate', function () {
         ->and(glob("{$this->va}/.plexify-*"))->toBe([]);
 });
 
+it('finishes done with a note when the old album copy cannot be removed', function () {
+    mockAlbumJobPlex($this->tracks);
+    fakeFfmpegWritingOutputs();
+    File::ensureDirectoryExists("{$this->va}/Road Trip/locked");
+    touch("{$this->va}/Road Trip/locked/old.mp3");
+    chmod("{$this->va}/Road Trip/locked", 0555);
+    markAsPlexifyAlbum("{$this->va}/Road Trip");
+    AlbumExport::factory()->done("{$this->va}/Road Trip")->create(['plex_playlist_id' => '42']);
+    $export = AlbumExport::factory()->create(['plex_playlist_id' => '42', 'title' => 'Road Trip']);
+
+    $export = runAlbumJob($export);
+    chmod("{$this->va}/.plexify-old-{$export->id}/locked", 0755);
+
+    expect($export->status)->toBe(AlbumExportStatus::Done)
+        ->and($export->error)->toBe("The old album copy could not be fully removed: {$this->va}/.plexify-old-{$export->id}")
+        ->and(File::exists("{$this->va}/Road Trip/01 - Artist A - Song A.mp3"))->toBeTrue();
+});
+
 it('moves the album when the playlist was renamed since the last export', function () {
     mockAlbumJobPlex($this->tracks);
     fakeFfmpegWritingOutputs();
@@ -360,6 +378,17 @@ it('says where the previous album was left when the worker gives up mid publish'
     (new CreateAlbumFromPlaylist($export->id))->failed(new RuntimeException('timed out'));
 
     expect($export->fresh()->error)->toBe("The job timed out or the worker stopped. The previous album was left at {$this->va}/.plexify-old-{$export->id}.");
+});
+
+it('removes its staging folder from the share when the worker gives up', function () {
+    $export = AlbumExport::factory()->running()->create(['folder_path' => "{$this->va}/Road Trip"]);
+    File::ensureDirectoryExists("{$this->va}/.plexify-build-{$export->id}");
+    File::ensureDirectoryExists("{$this->va}/.plexify-build-999");
+
+    (new CreateAlbumFromPlaylist($export->id))->failed(new RuntimeException('timed out'));
+
+    expect(File::isDirectory("{$this->va}/.plexify-build-{$export->id}"))->toBeFalse()
+        ->and(File::isDirectory("{$this->va}/.plexify-build-999"))->toBeTrue();
 });
 
 it('keeps the queue retry_after longer than the job timeout', function () {

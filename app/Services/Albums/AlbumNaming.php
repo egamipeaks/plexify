@@ -8,7 +8,7 @@ class AlbumNaming
     {
         $clean = preg_replace('/[\x00-\x1F\x7F]/u', '', $name);
         $clean = preg_replace('/[:\/\\\\*?"<>|]/u', '_', $clean);
-        $clean = rtrim(ltrim(trim($clean), '. '), '. ');
+        $clean = ltrim(trim($clean), '. ');
 
         return rtrim(mb_substr($clean, 0, $maxLength), '. ');
     }

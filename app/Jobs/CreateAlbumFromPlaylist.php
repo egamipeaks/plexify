@@ -49,20 +49,26 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
+        File::deleteDirectory($this->buildDir());
+
         $export = AlbumExport::find($this->albumExportId);
+
+        if ($export === null) {
+            return;
+        }
+
         $error = 'The job timed out or the worker stopped.';
 
-        if ($export?->folder_path !== null) {
-            $retired = dirname($export->folder_path)."/.plexify-old-{$export->id}";
+        if ($export->folder_path !== null) {
+            File::deleteDirectory($this->stagingFolder($export->folder_path));
+            $retired = $this->retiredFolder($export->folder_path);
 
             if (File::isDirectory($retired)) {
                 $error .= " The previous album was left at {$retired}.";
             }
         }
 
-        $export?->update(['status' => AlbumExportStatus::Failed, 'error' => $error]);
-
-        File::deleteDirectory($this->buildDir());
+        $export->update(['status' => AlbumExportStatus::Failed, 'error' => $error]);
     }
 
     private function build(AlbumExport $export, PlexClient $plex, AlbumPaths $paths, PlexPathMapper $mapper): void
@@ -132,7 +138,7 @@ class CreateAlbumFromPlaylist implements ShouldQueue
                 'title' => $track->title,
                 'artist' => $track->artist !== '' ? $track->artist : 'Unknown Artist',
                 'album' => $export->title,
-                'album_artist' => 'Various Artists',
+                'album_artist' => AlbumPaths::COMPILATIONS_FOLDER,
                 'compilation' => '1',
                 'track' => "{$position}/{$total}",
                 'date' => (string) now()->year,
@@ -158,8 +164,8 @@ class CreateAlbumFromPlaylist implements ShouldQueue
 
     private function publish(AlbumExport $export, string $target, ?string $previous): ?string
     {
-        $staging = dirname($target)."/.plexify-build-{$export->id}";
-        $retired = $previous !== null ? dirname($previous)."/.plexify-old-{$export->id}" : null;
+        $staging = $this->stagingFolder($target);
+        $retired = $previous !== null ? $this->retiredFolder($previous) : null;
         $retiredPrevious = false;
 
         try {
@@ -192,7 +198,14 @@ class CreateAlbumFromPlaylist implements ShouldQueue
             throw $e;
         }
 
-        if (! $retiredPrevious || File::deleteDirectory($retired)) {
+        if (! $retiredPrevious) {
+            return null;
+        }
+
+        // deleteDirectory() returns true even when it could not remove everything.
+        File::deleteDirectory($retired);
+
+        if (! File::isDirectory($retired)) {
             return null;
         }
 
@@ -214,7 +227,7 @@ class CreateAlbumFromPlaylist implements ShouldQueue
     {
         $previous = $this->previousFolder($export);
 
-        if ($previous === null || basename(dirname($previous)) !== 'Various Artists') {
+        if ($previous === null || basename(dirname($previous)) !== AlbumPaths::COMPILATIONS_FOLDER) {
             return null;
         }
 
@@ -235,6 +248,16 @@ class CreateAlbumFromPlaylist implements ShouldQueue
             ->where('id', '<', $export->id)
             ->latest('id')
             ->value('folder_path');
+    }
+
+    private function stagingFolder(string $albumFolder): string
+    {
+        return dirname($albumFolder)."/.plexify-build-{$this->albumExportId}";
+    }
+
+    private function retiredFolder(string $albumFolder): string
+    {
+        return dirname($albumFolder)."/.plexify-old-{$this->albumExportId}";
     }
 
     private function buildDir(): string

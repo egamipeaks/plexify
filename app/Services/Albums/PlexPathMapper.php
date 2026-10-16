@@ -25,13 +25,21 @@ class PlexPathMapper
             return null;
         }
 
-        if (! str_starts_with(mb_strtolower($remotePath), mb_strtolower($this->remotePrefix))) {
+        $prefix = rtrim($this->remotePrefix, '\\/');
+
+        if (! str_starts_with(mb_strtolower($remotePath), mb_strtolower($prefix))) {
             return null;
         }
 
-        $relative = str_replace('\\', '/', substr($remotePath, strlen($this->remotePrefix)));
+        $rest = substr($remotePath, strlen($prefix));
 
-        return $this->localRoot().'/'.ltrim($relative, '/');
+        if ($rest !== '' && ! in_array($rest[0], ['\\', '/'], true)) {
+            return null;
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $rest), '/');
+
+        return $relative === '' ? $this->localRoot() : "{$this->localRoot()}/{$relative}";
     }
 
     public function toRemote(string $localPath): ?string

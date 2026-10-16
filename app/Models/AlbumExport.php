@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\AlbumExportStatus;
 use Database\Factories\AlbumExportFactory;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -22,13 +24,24 @@ class AlbumExport extends Model
         'notified_at' => 'datetime',
     ];
 
+    public function isAwaitingAnnouncement(): bool
+    {
+        return ! $this->status->isActive() && $this->notified_at === null;
+    }
+
+    /** @param  Builder<AlbumExport>  $query */
+    #[Scope]
+    protected function awaitingAnnouncement(Builder $query): void
+    {
+        $query->whereIn('status', [AlbumExportStatus::Done, AlbumExportStatus::Failed])->whereNull('notified_at');
+    }
+
     /** @return Collection<string, AlbumExport> */
     public static function latestPerPlaylist(): Collection
     {
         return static::query()
-            ->orderByDesc('id')
+            ->whereIn('id', static::query()->selectRaw('max(id)')->groupBy('plex_playlist_id'))
             ->get()
-            ->unique('plex_playlist_id')
             ->keyBy('plex_playlist_id');
     }
 }
