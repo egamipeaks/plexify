@@ -1,7 +1,8 @@
 {{--
     One playlist row for the sidebar (used both inside folders and at root).
     Expects: $p (App\Services\Plex\Dto\Playlist), $folderId (?int — id of the folder this row is
-    inside, or null for root rows), $renaming (bool), $thumbUrl (?string).
+    inside, or null for root rows), $renaming (bool), $thumbUrl (?string),
+    $albumExport (?App\Models\AlbumExport, the playlist's latest export).
     Renders inside the playlists card's x-data scope (uses dropTarget / flash / draggingTrack /
     draggingPlaylist / overId / overPos / openMenu). The row is both a playlist drag source and a
     drop target for playlist reordering AND for adding a track/album to this playlist.
@@ -27,6 +28,7 @@
     @else
         @php($folderIdJs = $folderId === null ? 'null' : $folderId)
         <a href="{{ route('playlist', $p->id) }}" draggable="true"
+           data-album-done="{{ $albumExport?->status === \App\Enums\AlbumExportStatus::Done ? '1' : '0' }}"
            @click.prevent="Livewire.navigate('{{ route('playlist', $p->id) }}')"
            @dragstart="$event.dataTransfer.effectAllowed='move'; $event.dataTransfer.setData('plextune/playlist', '{{ $p->id }}'); draggingPlaylist = true; draggedPlaylistId = '{{ $p->id }}'"
            @dragend="draggingPlaylist = false; draggedPlaylistId = null; overId = null; dropTarget = null"
@@ -54,7 +56,11 @@
             </div>
             <div class="min-w-0 flex-1">
                 <div class="text-[14px] truncate">{{ $p->title }}</div>
-                <div class="text-[12px] text-text-3 truncate">Playlist · {{ $p->trackCount }} songs</div>
+                @if ($albumExport?->status->isActive())
+                    <div data-album-progress class="text-[12px] text-text-3 truncate">Creating album… {{ $albumExport->progress }}/{{ $albumExport->total }}</div>
+                @else
+                    <div class="text-[12px] text-text-3 truncate">Playlist · {{ $p->trackCount }} songs</div>
+                @endif
             </div>
             <template x-if="$store.player?.contextType === 'playlist' && $store.player?.contextId === '{{ $p->id }}'">
                 <span data-source-indicator class="flex-none">

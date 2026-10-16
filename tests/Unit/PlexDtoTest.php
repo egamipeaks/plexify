@@ -378,3 +378,33 @@ it('builds a MusicSection from a Plex section row and casts the key to int', fun
     expect($section->id)->toBe(6)
         ->and($section->title)->toBe('Music');
 });
+
+it('reads the Plex host file path off a track part', function () {
+    $track = Track::fromPlex([
+        'ratingKey' => '1',
+        'title' => 'Loving The Alien',
+        'Media' => [['Part' => [['id' => 9, 'container' => 'flac', 'file' => 'M:\\Music\\David Bowie\\Tonight\\01.flac']]]],
+    ]);
+
+    expect($track->filePath)->toBe('M:\\Music\\David Bowie\\Tonight\\01.flac');
+});
+
+it('leaves the file path null when Plex sends no part file', function () {
+    $track = Track::fromPlex(['ratingKey' => '1', 'title' => 'x']);
+
+    expect($track->filePath)->toBeNull();
+});
+
+it('reads the first location path of a music section', function () {
+    $section = MusicSection::fromPlex([
+        'key' => '6',
+        'title' => 'Music',
+        'Location' => [['id' => 1, 'path' => 'M:\\Music'], ['id' => 2, 'path' => 'N:\\More']],
+    ]);
+
+    expect($section->location)->toBe('M:\\Music');
+});
+
+it('leaves the section location null when Plex sends none', function () {
+    expect(MusicSection::fromPlex(['key' => '6', 'title' => 'Music'])->location)->toBeNull();
+});

@@ -1415,3 +1415,20 @@ it('keeps playlists in search results even though they carry no section id', fun
     expect($results->playlists)->toHaveCount(1)
         ->and($results->playlists->first()->title)->toBe('Bon Voyage');
 });
+
+it('asks Plex for a partial scan of one folder', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake(['https://server.plex.direct:32400/library/sections/6/refresh*' => Http::response('', 200)]);
+
+    app(PlexClient::class)->refreshSectionPath(6, 'M:\\Music\\Various Artists\\Road Trip');
+
+    Http::assertSent(fn ($request) => $request->method() === 'GET'
+        && str_contains(urldecode($request->url()), '/library/sections/6/refresh?path=M:\\Music\\Various Artists\\Road Trip'));
+});
+
+it('throws when the partial scan request fails', function () {
+    config()->set('services.plex.base_url', 'https://server.plex.direct:32400');
+    Http::fake(['https://server.plex.direct:32400/library/sections/6/refresh*' => Http::response('', 500)]);
+
+    app(PlexClient::class)->refreshSectionPath(6, 'M:\\Music\\X');
+})->throws(PlexUnreachableException::class);

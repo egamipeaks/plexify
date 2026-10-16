@@ -15,3 +15,16 @@ it('dismisses a toast', function () {
 
     $component->call('dismiss', 0)->assertDontSee('Something broke.');
 });
+
+it('renders a success toast with the success style', function () {
+    Livewire::test('toasts')
+        ->dispatch('notify', type: 'success', message: 'Album created.')
+        ->assertSee('Album created.')
+        ->assertSeeHtml('data-toast-type="success"');
+});
+
+it('keeps the error style for error toasts', function () {
+    Livewire::test('toasts')
+        ->dispatch('notify', type: 'error', message: 'Nope.')
+        ->assertSeeHtml('data-toast-type="error"');
+});
